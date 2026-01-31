@@ -1,4 +1,4 @@
-import type { FluxStackConfig } from "../../config/schema"
+import type { FluxStackConfig } from "@/config"
 import type { Logger } from "@/core/utils/logger/index"
 import type { PluginUtils } from "../../plugins/types"
 

@@ -61,19 +61,21 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
 
   /**
    * Get plugin configuration from main config
+   * @deprecated Plugin configs are now directly accessed from config.plugins
    */
   getPluginConfig(pluginName: string, config: FluxStackConfig): any {
-    return config.plugins.config[pluginName] || {}
+    // Plugin configs are now accessed directly from config.plugins
+    // Example: config.plugins.swaggerEnabled
+    return {}
   }
 
   /**
    * Set plugin configuration in main config
+   * @deprecated Plugin configs are now set via environment variables and config files
    */
   setPluginConfig(pluginName: string, pluginConfig: any, config: FluxStackConfig): void {
-    if (!config.plugins.config) {
-      config.plugins.config = {}
-    }
-    config.plugins.config[pluginName] = pluginConfig
+    // Plugin configs are now set via environment variables and config files
+    // This function is deprecated and does nothing
   }
 
   /**
