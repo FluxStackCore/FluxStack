@@ -204,7 +204,7 @@ export class FluxStackFramework {
   }
 
   private setupCors() {
-    const { cors } = this.context.config.server
+    const cors = this.context.config.cors
 
     this.app
       .onRequest(({ set }) => {
