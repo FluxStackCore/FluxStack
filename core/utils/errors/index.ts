@@ -46,11 +46,42 @@ export class FluxStackError extends Error {
     this.metadata = metadata
     this.isOperational = isOperational
     this.userMessage = userMessage
-    
+
     // Maintain proper stack trace
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, FluxStackError)
     }
+  }
+
+  /**
+   * Format stack trace to string (handles both string and CallSite array)
+   */
+  private formatStack(): string | undefined {
+    if (!this.stack) return undefined
+
+    // If stack is already a string, return it
+    if (typeof this.stack === 'string') return this.stack
+
+    // If stack is an array of CallSite objects (Bun), format them
+    if (Array.isArray(this.stack)) {
+      return this.stack
+        .map((site: any, index: number) => {
+          try {
+            const fileName = site.getFileName?.() || 'unknown'
+            const lineNumber = site.getLineNumber?.() || 0
+            const columnNumber = site.getColumnNumber?.() || 0
+            const functionName = site.getFunctionName?.() || 'anonymous'
+
+            return `    at ${functionName} (${fileName}:${lineNumber}:${columnNumber})`
+          } catch {
+            return `    at ${String(site)}`
+          }
+        })
+        .join('\n')
+    }
+
+    // Fallback: convert to string
+    return String(this.stack)
   }
 
   toJSON() {
@@ -64,7 +95,7 @@ export class FluxStackError extends Error {
       metadata: this.metadata,
       isOperational: this.isOperational,
       userMessage: this.userMessage,
-      stack: this.stack
+      stack: this.formatStack()
     }
   }
 
@@ -77,7 +108,7 @@ export class FluxStackError extends Error {
         ...(this.context && { details: this.context }),
         timestamp: this.timestamp.toISOString(),
         ...(this.metadata.correlationId && { correlationId: this.metadata.correlationId }),
-        ...(isDevelopment && { stack: this.stack })
+        ...(isDevelopment && { stack: this.formatStack() })
       }
     }
   }

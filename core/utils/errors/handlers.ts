@@ -120,13 +120,17 @@ export class EnhancedErrorHandler {
 
   private logError(error: FluxStackError, logger: Logger, isDevelopment: boolean): void {
     const logLevel = this.getLogLevel(error)
+
+    // Format stack trace properly (handles CallSite objects from Bun)
+    const formattedStack = isDevelopment ? this.formatErrorStack(error.stack) : undefined
+
     const logData = {
       code: error.code,
       statusCode: error.statusCode,
       context: error.context,
       metadata: error.metadata,
       isOperational: error.isOperational,
-      ...(isDevelopment && { stack: error.stack })
+      ...(formattedStack && { stack: formattedStack })
     }
 
     // Skip logging for certain errors to reduce noise
@@ -135,6 +139,37 @@ export class EnhancedErrorHandler {
     }
 
     logger[logLevel](error.message, logData)
+  }
+
+  /**
+   * Format stack trace to readable string (handles Bun CallSite objects)
+   */
+  private formatErrorStack(stack: any): string | undefined {
+    if (!stack) return undefined
+
+    // If stack is already a string, return it
+    if (typeof stack === 'string') return stack
+
+    // If stack is an array of CallSite objects (Bun), format them
+    if (Array.isArray(stack)) {
+      return stack
+        .map((site: any, index: number) => {
+          try {
+            const fileName = site.getFileName?.() || 'unknown'
+            const lineNumber = site.getLineNumber?.() || 0
+            const columnNumber = site.getColumnNumber?.() || 0
+            const functionName = site.getFunctionName?.() || 'anonymous'
+
+            return `    at ${functionName} (${fileName}:${lineNumber}:${columnNumber})`
+          } catch {
+            return `    at ${String(site)}`
+          }
+        })
+        .join('\n')
+    }
+
+    // Fallback: convert to string
+    return String(stack)
   }
 
   private getLogLevel(error: FluxStackError): 'error' | 'warn' | 'info' {
