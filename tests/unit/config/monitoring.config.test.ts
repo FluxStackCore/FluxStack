@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { monitoringConfig } from '@/config/monitoring.config'
+import { monitoringConfig } from '@/config'
 
 describe('Monitoring Configuration', () => {
   describe('Nested Structure', () => {

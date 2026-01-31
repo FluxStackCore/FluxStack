@@ -18,7 +18,7 @@ import type {
 } from "./types"
 
 type Plugin = FluxStack.Plugin
-import type { FluxStackConfig } from "@/core/config/schema"
+import type { FluxStackConfig } from "@/config"
 import type { Logger } from "@/core/utils/logger"
 import { PluginRegistry } from "./registry"
 import { createPluginUtils } from "./config"

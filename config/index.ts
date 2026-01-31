@@ -16,22 +16,31 @@
  * console.log(servicesConfig.email.host)         // string
  * console.log(monitoringConfig.metrics.enabled)  // boolean
  * ```
+ *
+ * ✨ For type safety with optional features (database, auth, email, storage):
+ * Import types from this file instead of core:
+ * ```ts
+ * import type { DatabaseConfig, JWTConfig, EmailConfig, StorageConfig } from '@/config'
+ * ```
  */
 
 // ============================================================================
 // 📦 CONFIG EXPORTS
 // ============================================================================
 
-export { appConfig } from './app.config'
-export { serverConfig } from './server.config'
-export { clientConfig } from './client.config'
-export { databaseConfig } from './database.config'
-export { servicesConfig } from './services.config'
-export { loggerConfig } from './logger.config'
-export { pluginsConfig } from './plugins.config'
-export { monitoringConfig } from './monitoring.config'
-export { appRuntimeConfig } from './runtime.config'
-export { systemConfig, systemRuntimeInfo } from './system.config'
+// System configs (from config/system/)
+export { appConfig } from './system/app.config'
+export { serverConfig } from './system/server.config'
+export { clientConfig } from './system/client.config'
+export { buildConfig } from './system/build.config'
+export { loggerConfig } from './system/logger.config'
+export { pluginsConfig } from './system/plugins.config'
+export { monitoringConfig } from './system/monitoring.config'
+export { appRuntimeConfig } from './system/runtime.config'
+export { systemConfig, systemRuntimeInfo } from './system/system.config'
+
+// Main FluxStack config (composed)
+export { fluxStackConfig, config as fluxConfig, type FluxStackConfig } from './fluxstack.config'
 
 // Plugin configs (re-exported for convenience)
 export { cryptoAuthConfig } from '../plugins/crypto-auth/config'
@@ -40,35 +49,33 @@ export { cryptoAuthConfig } from '../plugins/crypto-auth/config'
 // 📝 TYPE EXPORTS
 // ============================================================================
 
-// Core types
-export type { AppConfig, Environment } from './app.config'
+// System config types
+export type { AppConfig } from './system/app.config'
 export type {
   ServerConfig,
   CorsConfig,
   ServerFullConfig
-} from './server.config'
+} from './system/server.config'
 export type {
   ClientConfig,
   ViteConfig,
-  ProxyConfig,
   ClientBuildConfig
-} from './client.config'
-export type { DatabaseConfig } from './database.config'
+} from './system/client.config'
 export type {
-  EmailConfig,
-  JWTConfig,
-  StorageConfig,
-  RedisConfig
-} from './services.config'
-export type { LoggerConfig } from './logger.config'
-export type { PluginsConfig } from './plugins.config'
+  BuildConfig,
+  OptimizationConfig,
+  BuildFullConfig
+} from './system/build.config'
+export type { LoggerConfig } from './system/logger.config'
+export type { PluginsConfig } from './system/plugins.config'
 export type {
   MonitoringConfig,
   MetricsConfig,
   ProfilingConfig,
   MonitoringFullConfig
-} from './monitoring.config'
-export type { SystemConfig, SystemRuntimeInfo } from './system.config'
+} from './system/monitoring.config'
+export type { SystemConfig, SystemRuntimeInfo } from './system/system.config'
+export type { AppRuntimeConfig } from './system/runtime.config'
 
 // Plugin types
 export type { CryptoAuthConfig } from '../plugins/crypto-auth/config'
@@ -77,34 +84,38 @@ export type { CryptoAuthConfig } from '../plugins/crypto-auth/config'
 // 🎯 UNIFIED CONFIG OBJECT
 // ============================================================================
 
-import { appConfig } from './app.config'
-import { serverConfig } from './server.config'
-import { clientConfig } from './client.config'
-import { databaseConfig } from './database.config'
-import { servicesConfig } from './services.config'
-import { loggerConfig } from './logger.config'
-import { pluginsConfig } from './plugins.config'
-import { monitoringConfig } from './monitoring.config'
-import { appRuntimeConfig } from './runtime.config'
-import { systemConfig, systemRuntimeInfo } from './system.config'
+import { appConfig } from './system/app.config'
+import { serverConfig } from './system/server.config'
+import { clientConfig } from './system/client.config'
+import { buildConfig } from './system/build.config'
+import { loggerConfig } from './system/logger.config'
+import { pluginsConfig } from './system/plugins.config'
+import { monitoringConfig } from './system/monitoring.config'
+import { appRuntimeConfig } from './system/runtime.config'
+import { systemConfig, systemRuntimeInfo } from './system/system.config'
 import { cryptoAuthConfig } from '../plugins/crypto-auth/config'
 
 /**
  * All configs in one object
  * Use this when you need access to multiple configs at once
+ *
+ * For the complete FluxStack configuration with proper structure,
+ * use `fluxStackConfig` from './fluxstack.config'
  */
 export const config = {
+  // System configs
   app: appConfig,
   server: serverConfig,
   client: clientConfig,
-  database: databaseConfig,
-  services: servicesConfig,
+  build: buildConfig,
   logger: loggerConfig,
   plugins: pluginsConfig,
   monitoring: monitoringConfig,
   runtime: appRuntimeConfig,
   system: systemConfig,
   systemRuntime: systemRuntimeInfo,
+
+  // Plugin configs
   cryptoAuth: cryptoAuthConfig
 } as const
 

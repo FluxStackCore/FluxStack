@@ -5,8 +5,7 @@
 
 import type { FluxStack, PluginContext, RequestContext, ResponseContext, ErrorContext } from "@/core/plugins/types"
 import { MetricsCollector } from "@/core/utils/monitoring"
-import { appConfig } from '@/config/app.config'
-import { monitoringConfig } from '@/config/monitoring.config'
+import { appConfig, monitoringConfig } from '@/config'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'

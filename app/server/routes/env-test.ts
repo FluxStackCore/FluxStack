@@ -4,10 +4,7 @@
  */
 
 import { Elysia, t } from 'elysia'
-import { appConfig } from '@/config/app.config'
-import { serverConfig } from '@/config/server.config'
-import { loggerConfig } from '@/config/logger.config'
-import { appRuntimeConfig } from '@/config/runtime.config'
+import { appConfig, serverConfig, loggerConfig, appRuntimeConfig } from '@/config'
 import { helpers } from '@/core/utils/env'
 
 // Response schema for environment test

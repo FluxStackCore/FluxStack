@@ -2,9 +2,7 @@
 
 import { FluxStackBuilder } from "@/core/build"
 import { ProjectCreator } from "@/core/templates/create-project"
-import { getConfigSync } from "@/core/config"
-import { serverConfig } from "@/config/server.config"
-import { clientConfig } from "@/config/client.config"
+import { fluxStackConfig, serverConfig, clientConfig } from "@/config"
 import { cliRegistry } from "./command-registry"
 import { pluginDiscovery } from "./plugin-discovery"
 import { generateCommand, interactiveGenerateCommand } from "./generators/index"
@@ -213,7 +211,7 @@ Examples:
       }
     ],
     handler: async (args, options, context) => {
-      const config = getConfigSync()
+      const config = fluxStackConfig
 
       // Load plugins for build hooks
       const { PluginRegistry } = await import('../plugins/registry')
@@ -508,7 +506,7 @@ Examples:
       'flux build:frontend         # Build only frontend'
     ],
     handler: async (args, options, context) => {
-      const config = getConfigSync()
+      const config = fluxStackConfig
       const builder = new FluxStackBuilder(config)
       await builder.buildClient()
     }
@@ -524,7 +522,7 @@ Examples:
       'flux build:backend          # Build only backend'
     ],
     handler: async (args, options, context) => {
-      const config = getConfigSync()
+      const config = fluxStackConfig
       const builder = new FluxStackBuilder(config)
       await builder.buildServer()
     }
@@ -603,7 +601,7 @@ Examples:
       }
     ],
     handler: async (args, options, context) => {
-      const config = getConfigSync()
+      const config = fluxStackConfig
       const builder = new FluxStackBuilder(config)
 
       // Build executable options from CLI args with smart defaults

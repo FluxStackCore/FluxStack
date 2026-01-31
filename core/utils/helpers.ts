@@ -93,19 +93,19 @@ export const throttle = <T extends (...args: any[]) => any>(
 
 export const isProduction = (): boolean => {
   // Lazy import to avoid circular dependency during module initialization
-  const { appConfig } = require('@/config/app.config')
+  const { appConfig } = require('@/config')
   return appConfig.env === 'production'
 }
 
 export const isDevelopment = (): boolean => {
   // Lazy import to avoid circular dependency during module initialization
-  const { appConfig } = require('@/config/app.config')
+  const { appConfig } = require('@/config')
   return appConfig.env === 'development'
 }
 
 export const isTest = (): boolean => {
   // Lazy import to avoid circular dependency during module initialization
-  const { appConfig } = require('@/config/app.config')
+  const { appConfig } = require('@/config')
   return appConfig.env === 'test'
 }
 

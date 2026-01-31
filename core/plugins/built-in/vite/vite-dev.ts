@@ -1,5 +1,5 @@
 import type { PluginContext } from "@/core/plugins/types"
-import { clientConfig } from '@/config/client.config'
+import { clientConfig } from '@/config'
 import type { LogLevel } from "vite"
 
 // Dynamic import type for vite

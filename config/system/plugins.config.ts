@@ -11,7 +11,7 @@ export const pluginsConfig = defineConfig({
   // Plugin management
   enabled: config.array(
     'FLUXSTACK_PLUGINS_ENABLED',
-    ['logger', 'swagger', 'vite', 'cors', 'static-files', 'crypto-auth']
+    ['logger', 'swagger', 'vite', 'cors', 'static-files']
   ),
 
   disabled: config.array('FLUXSTACK_PLUGINS_DISABLED', []),

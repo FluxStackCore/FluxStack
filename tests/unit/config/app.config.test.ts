@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { appConfig } from '@/config/app.config'
+import { appConfig } from '@/config'
 
 describe('App Configuration', () => {
   describe('Basic Properties', () => {

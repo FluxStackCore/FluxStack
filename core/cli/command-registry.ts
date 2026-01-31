@@ -1,5 +1,5 @@
 import type { CliCommand, CliContext, CliArgument, CliOption } from "../plugins/types"
-import { getConfigSync } from "@/core/config"
+import { fluxStackConfig } from "@/config"
 import { logger } from "@/core/utils/logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
 
@@ -9,7 +9,7 @@ export class CliCommandRegistry {
   private context: CliContext
 
   constructor() {
-    const config = getConfigSync()
+    const config = fluxStackConfig
 
     this.context = {
       config,

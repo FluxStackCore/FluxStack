@@ -2,16 +2,16 @@
 export * from "./config"
 
 // Ensure critical types are explicitly exported
-export type { 
+export type {
   FluxStackConfig,
   AppConfig,
   ServerConfig,
   ClientConfig,
   BuildConfig,
-  LoggingConfig,
+  LoggerConfig,
   MonitoringConfig,
-  PluginConfig
-} from "../config/schema"
+  PluginsConfig
+} from "@/config"
 
 // Re-export plugin types (explicitly handling conflicts)
 export type {

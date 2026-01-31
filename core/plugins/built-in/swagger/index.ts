@@ -1,8 +1,6 @@
 import { swagger } from '@elysiajs/swagger'
 import type { FluxStack, PluginContext } from '@/core/plugins/types'
-import { appConfig } from '@/config/app.config'
-import { serverConfig } from '@/config/server.config'
-import { pluginsConfig } from '@/config/plugins.config'
+import { appConfig, serverConfig, pluginsConfig } from '@/config'
 
 type Plugin = FluxStack.Plugin
 

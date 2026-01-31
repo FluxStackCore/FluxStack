@@ -5,8 +5,7 @@
 // Core
 import { FluxStackFramework } from "@/core/server"
 import { helpers } from "@/core/utils/env"
-import { appConfig } from "@/config/app.config"
-import { serverConfig } from "@/config/server.config"
+import { appConfig, serverConfig } from "@/config"
 
 // Plugins
 import { vitePlugin, swaggerPlugin, liveComponentsPlugin, staticFilesPlugin } from "@/core/server"
@@ -27,7 +26,6 @@ const app = new FluxStackFramework({
   },
   client: {
     port: serverConfig.server.backendPort,
-    proxy: { target: helpers.getServerUrl() },
     build: { sourceMaps: false, minify: false, target: 'es2020', outDir: 'dist' }
   }
 })

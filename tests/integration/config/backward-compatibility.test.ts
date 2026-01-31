@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { config as fluxStackConfig } from '@/fluxstack.config'
+import { config as fluxStackConfig } from '@/config/fluxstack.config'
 import type { FluxStackConfig } from '@/core/config/schema'
 
 describe('Backward Compatibility', () => {

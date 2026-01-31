@@ -2,7 +2,8 @@ import { Elysia } from "elysia"
 import type { FluxStackConfig, FluxStackContext, Plugin } from "../types"
 import type { PluginContext, PluginUtils } from "../plugins/types"
 import { PluginManager } from "../plugins/manager"
-import { getConfigSync, getEnvironmentInfo } from "../config"
+import { fluxStackConfig } from "@/config"
+import { getEnvironmentInfo } from "../config"
 import { logger, type Logger } from "../utils/logger/index"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
 
@@ -16,7 +17,7 @@ export class FluxStackFramework {
   constructor(config?: Partial<FluxStackConfig>) {
     console.log('🚀 [DEBUG] FluxStackFramework constructor called!')
     // Load the full configuration
-    const fullConfig = config ? { ...getConfigSync(), ...config } : getConfigSync()
+    const fullConfig = config ? { ...fluxStackConfig, ...config } : fluxStackConfig
     const envInfo = getEnvironmentInfo()
 
     this.context = {

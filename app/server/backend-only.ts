@@ -9,7 +9,7 @@
 
 import { startBackend, createBackendConfig } from "@/core/server/backend-entry"
 import { appInstance } from "./app"
-import { serverConfig } from "@/config/server.config"
+import { serverConfig } from "@/config"
 
 // Create backend configuration from declarative config
 const backendConfig = createBackendConfig(serverConfig)

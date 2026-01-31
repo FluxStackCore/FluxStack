@@ -4,12 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { config } from '@/config'
-import { appConfig } from '@/config/app.config'
-import { serverConfig } from '@/config/server.config'
-import { clientConfig } from '@/config/client.config'
-import { pluginsConfig } from '@/config/plugins.config'
-import { monitoringConfig } from '@/config/monitoring.config'
+import { config, appConfig, serverConfig, clientConfig, pluginsConfig, monitoringConfig } from '@/config'
 
 describe('Config Integration', () => {
   describe('Unified Config Export', () => {

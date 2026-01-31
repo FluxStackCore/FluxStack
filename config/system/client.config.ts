@@ -14,47 +14,9 @@ const viteSchema = {
 
   host: config.string('VITE_HOST', 'localhost'),
 
-  strictPort: config.boolean('VITE_STRICT_PORT', false),
-
-  open: config.boolean('VITE_OPEN', false),
-
   enableLogging: config.boolean('ENABLE_VITE_PROXY_LOGS', false),
 
   logLevel: config.enum('VITE_LOG_LEVEL', ['error' , 'warn' , 'info', 'silent'], undefined)
-} as const
-
-/**
- * API Proxy Configuration
- */
-const proxySchema = {
-  target: {
-    type: 'string' as const,
-    env: 'PROXY_TARGET',
-    default: helpers.getServerUrl(),
-    required: false,
-    validate: (value: string) => {
-      if (!value) return true
-      try {
-        new URL(value)
-        return true
-      } catch {
-        return 'Proxy target must be a valid URL'
-      }
-    }
-  },
-
-  changeOrigin: config.boolean('PROXY_CHANGE_ORIGIN', true),
-
-  secure: config.boolean('PROXY_SECURE', false),
-
-  ws: config.boolean('PROXY_WS', true), // WebSocket support
-
-  rewrite: {
-    type: 'object' as const,
-    env: 'PROXY_REWRITE',
-    default: {},
-    required: false
-  }
 } as const
 
 /**
@@ -83,13 +45,11 @@ const buildSchema = {
  */
 export const clientConfig = defineNestedConfig({
   vite: viteSchema,
-  proxy: proxySchema,
   build: buildSchema,
 })
 
 // Export types
 export type ViteConfig = typeof clientConfig.vite
-export type ProxyConfig = typeof clientConfig.proxy
 export type ClientBuildConfig = typeof clientConfig.build
 export type ClientConfig = typeof clientConfig
 

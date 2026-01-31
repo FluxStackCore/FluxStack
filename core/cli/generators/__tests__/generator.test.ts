@@ -7,7 +7,7 @@ import { ServiceGenerator } from '../service'
 import { ComponentGenerator } from '../component'
 import { RouteGenerator } from '../route'
 import type { GeneratorContext, GeneratorOptions } from '../types'
-import { getConfigSync } from '../../../config'
+import { fluxStackConfig } from '@/config'
 import { logger } from '@/core/utils/logger'
 import { createTimer, formatBytes, isProduction, isDevelopment } from '@/core/utils/helpers'
 
@@ -20,7 +20,7 @@ describe('Code Generators', () => {
 
         context = {
             workingDir: tempDir,
-            config: getConfigSync(),
+            config: fluxStackConfig,
             logger: logger as any,
             utils: {
                 createTimer,

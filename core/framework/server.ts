@@ -3,7 +3,8 @@ import type { FluxStackConfig, FluxStackContext } from "@/core/types"
 import type { FluxStack, PluginContext, PluginUtils } from "@/core/plugins/types"
 import { PluginRegistry } from "@/core/plugins/registry"
 import { PluginManager } from "@/core/plugins/manager"
-import { getConfigSync, getEnvironmentInfo } from "@/core/config"
+import { fluxStackConfig } from "@/config"
+import { getEnvironmentInfo } from "@/core/config"
 import { logger } from "@/core/utils/logger"
 import { displayStartupBanner, type StartupInfo } from "@/core/utils/logger/startup-banner"
 import { componentRegistry } from "@/core/server/live/ComponentRegistry"
@@ -37,7 +38,7 @@ export class FluxStackFramework {
 
   constructor(config?: Partial<FluxStackConfig>) {
     // Load the full configuration
-    const fullConfig = config ? { ...getConfigSync(), ...config } : getConfigSync()
+    const fullConfig = config ? { ...fluxStackConfig, ...config } : fluxStackConfig
     const envInfo = getEnvironmentInfo()
 
     this.context = {
