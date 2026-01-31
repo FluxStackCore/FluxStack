@@ -232,6 +232,101 @@ config.enum(envVar, values, defaultValue, required)
 - ✅ Usar helpers `config.*` para type safety
 - ✅ Adicionar `as const` nos schemas para preservar tipos literais
 
+### ✅ **5. Sistema de Segurança de Plugins (v1.9)**
+
+FluxStack implementa **segurança em camadas** com **whitelist + opt-in** para proteger contra supply chain attacks.
+
+#### 📁 **3 Camadas de Plugins**
+
+```
+1. Built-in Plugins (core/plugins/built-in)
+   ✅ Manual registration via .use()
+   ✅ Totalmente confiáveis
+
+2. Project Plugins (plugins/)
+   ✅ Auto-discovery ENABLED by default
+   ✅ Seu código = confiável
+
+3. NPM Plugins (node_modules/)
+   🔒 Auto-discovery DISABLED by default
+   🔒 Whitelist obrigatória
+   ⚠️ Código de terceiros = não confiável
+```
+
+#### 🔒 **Configuração de Segurança**
+
+```bash
+# .env
+
+# Discovery de plugins NPM (DESABILITADO por padrão)
+PLUGINS_DISCOVER_NPM=false  # ❌ Seguro por padrão
+
+# Discovery de plugins de projeto (HABILITADO por padrão)
+PLUGINS_DISCOVER_PROJECT=true  # ✅ Seu código é confiável
+
+# Whitelist de plugins NPM permitidos
+# Apenas plugins nesta lista serão carregados
+PLUGINS_ALLOWED=fluxstack-plugin-auth,@acme/fplugin-payments
+```
+
+#### ⚡ **Como Usar Plugins NPM com Segurança**
+
+**Método Rápido (CLI Automatizado)**:
+```bash
+# Comando único que faz tudo automaticamente
+bun run fluxstack plugin:add fluxstack-plugin-auth
+
+# O comando faz:
+# ✅ Valida nome do plugin
+# 🔍 Audita segurança (npm audit)
+# 📦 Instala plugin
+# 🔧 Habilita NPM discovery
+# 🛡️ Adiciona à whitelist
+```
+
+**Gerenciar Plugins via CLI**:
+```bash
+# Listar todos os plugins
+bun run fluxstack plugin:list
+
+# Remover plugin
+bun run fluxstack plugin:remove fluxstack-plugin-auth
+```
+
+**Método Manual (se preferir)**:
+```bash
+# 1. Auditar plugin ANTES de instalar
+npm view fluxstack-plugin-auth repository
+npm audit fluxstack-plugin-auth
+
+# 2. Habilitar discovery e adicionar à whitelist (.env)
+PLUGINS_DISCOVER_NPM=true
+PLUGINS_ALLOWED=fluxstack-plugin-auth
+
+# 3. Instalar plugin
+bun add fluxstack-plugin-auth
+
+# 4. Verificar logs de segurança
+bun run dev
+# [INFO] Loading whitelisted npm plugin: fluxstack-plugin-auth
+```
+
+#### 🛡️ **Proteções Implementadas**
+- ✅ NPM plugins **bloqueados por padrão**
+- ✅ Whitelist **obrigatória** para plugins externos
+- ✅ Logs de segurança **visíveis** sobre plugins bloqueados
+- ✅ Opt-in **explícito** necessário
+
+#### 🚫 **Regras de Segurança**
+- ❌ NUNCA adicionar plugins sem auditar o código fonte
+- ❌ NUNCA desabilitar segurança globalmente
+- ❌ NUNCA confiar cegamente em packages populares
+- ✅ SEMPRE auditar plugins antes de adicionar à whitelist
+- ✅ SEMPRE usar versões exatas em package.json para plugins
+- ✅ SEMPRE monitorar logs de segurança em produção
+
+📖 **Documentação completa**: [`ai-context/reference/plugin-security.md`](./ai-context/reference/plugin-security.md)
+
 ## 🚨 **Regras Críticas (Atualizadas)**
 
 ### ❌ **NUNCA FAZER**
@@ -326,6 +421,23 @@ curl http://localhost:3000/api/health  # ✅ Health check
 - **👥 Users API**: http://localhost:3000/api/users
 
 ## 🔥 **Mudanças Importantes v1.8→v1.9**
+
+### **✅ Sistema de Segurança de Plugins (Janeiro 2025)**
+- **Problema resolvido**: Auto-discovery de plugins NPM criava risco de supply chain attacks
+- **Solução implementada**: Sistema de segurança em camadas com whitelist + opt-in
+  - NPM plugin discovery **DESABILITADO por padrão** (secure by default)
+  - Whitelist **obrigatória** para plugins NPM (`PLUGINS_ALLOWED`)
+  - Project plugins (plugins/) continuam confiáveis e auto-discovered
+  - Built-in plugins (core/) agora requerem registro manual via `.use()`
+  - Logs de segurança visíveis sobre plugins bloqueados
+- **Resultado**: Proteção robusta contra código malicioso sem comprometer DX
+- **Configuração**:
+  ```bash
+  PLUGINS_DISCOVER_NPM=false      # ❌ NPM plugins bloqueados
+  PLUGINS_DISCOVER_PROJECT=true   # ✅ Projeto confiável
+  PLUGINS_ALLOWED=plugin-auth     # 🔒 Whitelist
+  ```
+- **Documentação**: [`ai-context/reference/plugin-security.md`](./ai-context/reference/plugin-security.md)
 
 ### **✅ Correção de Vazamento de Dados do Navegador (Novembro 2024)**
 - **Problema resolvido**: Dados do navegador vazando no pacote npm

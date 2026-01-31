@@ -426,41 +426,29 @@ export class PluginManager extends EventEmitter {
    */
   private async discoverPlugins(): Promise<void> {
     try {
-      // Load built-in plugins first (handled by core system)
-      this.logger.debug('Loading built-in plugins...')
-      const builtInResults = await this.registry.discoverPlugins({
-        directories: [],
-        includeBuiltIn: true,
-        includeExternal: false
+      // ⚠️ Built-in plugins are now registered manually via .use()
+      // No auto-discovery for core/plugins/built-in - developer chooses which to use
+
+      const results: any[] = []
+
+      // 1. Discover project plugins (plugins/ directory)
+      this.logger.debug('Discovering project plugins in directory: plugins')
+      const projectResults = await this.registry.discoverPlugins({
+        directories: ['plugins'],
+        includeBuiltIn: false,
+        includeExternal: true
       })
+      results.push(...projectResults)
 
-      // Try to use auto-generated registry for external plugins (if available from build)
-      let externalResults: any[] = []
-      try {
-        // @ts-expect-error - auto-registry is generated during build, may not exist in dev
-        const autoRegistryModule = await import('./auto-registry')
-        if (autoRegistryModule.discoveredPlugins && autoRegistryModule.registerDiscoveredPlugins) {
-          this.logger.debug('🚀 Using auto-generated external plugins registry')
-          await autoRegistryModule.registerDiscoveredPlugins(this.registry)
-          externalResults = autoRegistryModule.discoveredPlugins.map((plugin: any) => ({
-            success: true,
-            plugin
-          }))
-        }
-      } catch (error) {
-        this.logger.debug('Auto-generated external plugins registry not found, falling back to discovery', { error: (error as Error).message })
-
-        // Fallback to runtime discovery for external plugins
-        this.logger.debug('Discovering external plugins in directory: plugins')
-        externalResults = await this.registry.discoverPlugins({
-          directories: ['plugins'],
-          includeBuiltIn: false,
-          includeExternal: true
-        })
+      // 2. Discover npm plugins (node_modules/)
+      if (this.config.plugins.discoverNpmPlugins) {
+        this.logger.debug('Discovering npm plugins in node_modules...')
+        const npmResults = await this.registry.discoverNpmPlugins()
+        results.push(...npmResults)
+      } else {
+        this.logger.info('🔒 NPM plugin discovery disabled for security (PLUGINS_DISCOVER_NPM=false)')
+        this.logger.info('   To enable: Set PLUGINS_DISCOVER_NPM=true and add plugins to PLUGINS_ALLOWED')
       }
-
-      // Combine results
-      const results = [...builtInResults, ...externalResults]
 
       let loaded = 0
       let failed = 0

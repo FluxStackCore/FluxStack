@@ -223,6 +223,41 @@ export class PluginRegistry {
   }
 
   /**
+   * 🔒 Check if a plugin is allowed to be loaded (whitelist check)
+   *
+   * @param pluginName - Name of the plugin (e.g., "fluxstack-plugin-auth", "@acme/fplugin-payments")
+   * @param isNpmPlugin - Whether this is an npm plugin (requires whitelist) or project plugin (trusted)
+   * @returns true if plugin is allowed, false otherwise
+   */
+  private isPluginAllowed(pluginName: string, isNpmPlugin: boolean): boolean {
+    // Project plugins (plugins/ directory) are always trusted
+    if (!isNpmPlugin) {
+      return this.config?.plugins.discoverProjectPlugins ?? true
+    }
+
+    // NPM plugins require whitelist
+    const allowedPlugins = this.config?.plugins.allowedPlugins || []
+
+    // Empty whitelist = no npm plugins allowed
+    if (allowedPlugins.length === 0) {
+      this.logger?.warn(`NPM plugin '${pluginName}' blocked: No plugins in whitelist (PLUGINS_ALLOWED is empty)`)
+      return false
+    }
+
+    // Check if plugin is in whitelist
+    const isAllowed = allowedPlugins.includes(pluginName)
+
+    if (!isAllowed) {
+      this.logger?.warn(`NPM plugin '${pluginName}' blocked: Not in whitelist (PLUGINS_ALLOWED)`, {
+        pluginName,
+        allowedPlugins
+      })
+    }
+
+    return isAllowed
+  }
+
+  /**
    * Get registry statistics
    */
   getStats() {
@@ -264,7 +299,135 @@ export class PluginRegistry {
   }
 
   /**
+   * Discover FluxStack plugins from node_modules
+   * Looks for packages with naming pattern:
+   * - fluxstack-plugin-*
+   * - fplugin-*
+   * - @fluxstack/plugin-*
+   * - @fplugin/*
+   * - @org/fluxstack-plugin-*
+   * - @org/fplugin-*
+   *
+   * 🔒 SECURITY: Respects config.plugins.discoverNpmPlugins and config.plugins.allowedPlugins
+   */
+  async discoverNpmPlugins(): Promise<PluginLoadResult[]> {
+    const results: PluginLoadResult[] = []
+    const nodeModulesDir = 'node_modules'
+
+    // 🔒 Check if npm plugin discovery is enabled
+    if (!this.config?.plugins.discoverNpmPlugins) {
+      this.logger?.debug('NPM plugin discovery is disabled (PLUGINS_DISCOVER_NPM=false)')
+      return results
+    }
+
+    if (!existsSync(nodeModulesDir)) {
+      this.logger?.debug('node_modules directory not found')
+      return results
+    }
+
+    try {
+      const entries = await readdir(nodeModulesDir, { withFileTypes: true })
+
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          // Check scoped packages (@org/package)
+          if (entry.name.startsWith('@')) {
+            const scopeDir = join(nodeModulesDir, entry.name)
+            const scopedEntries = await readdir(scopeDir, { withFileTypes: true })
+
+            for (const scopedEntry of scopedEntries) {
+              if (scopedEntry.isDirectory()) {
+                const packageName = `${entry.name}/${scopedEntry.name}`
+                let isFluxStackPlugin = false
+
+                // Match patterns:
+                // @fluxstack/plugin-*
+                if (entry.name === '@fluxstack' && scopedEntry.name.startsWith('plugin-')) {
+                  isFluxStackPlugin = true
+                }
+                // @fplugin/*
+                else if (entry.name === '@fplugin') {
+                  isFluxStackPlugin = true
+                }
+                // @org/fluxstack-plugin-*
+                else if (scopedEntry.name.startsWith('fluxstack-plugin-')) {
+                  isFluxStackPlugin = true
+                }
+                // @org/fplugin-*
+                else if (scopedEntry.name.startsWith('fplugin-')) {
+                  isFluxStackPlugin = true
+                }
+
+                if (isFluxStackPlugin) {
+                  // 🔒 Security check: Verify plugin is in whitelist
+                  if (!this.isPluginAllowed(packageName, true)) {
+                    this.logger?.debug(`Skipping npm plugin (not in whitelist): ${packageName}`)
+                    results.push({
+                      success: false,
+                      error: `Plugin '${packageName}' is not in the allowed plugins whitelist (PLUGINS_ALLOWED)`
+                    })
+                    continue
+                  }
+
+                  const pluginPath = join(scopeDir, scopedEntry.name)
+                  this.logger?.debug(`Loading whitelisted npm plugin: ${packageName}`)
+
+                  const result = await this.loadPlugin(pluginPath)
+                  results.push(result)
+                }
+              }
+            }
+          }
+          // Check non-scoped packages
+          else if (
+            entry.name.startsWith('fluxstack-plugin-') ||
+            entry.name.startsWith('fplugin-')
+          ) {
+            // 🔒 Security check: Verify plugin is in whitelist
+            if (!this.isPluginAllowed(entry.name, true)) {
+              this.logger?.debug(`Skipping npm plugin (not in whitelist): ${entry.name}`)
+              results.push({
+                success: false,
+                error: `Plugin '${entry.name}' is not in the allowed plugins whitelist (PLUGINS_ALLOWED)`
+              })
+              continue
+            }
+
+            const pluginPath = join(nodeModulesDir, entry.name)
+            this.logger?.debug(`Loading whitelisted npm plugin: ${entry.name}`)
+
+            const result = await this.loadPlugin(pluginPath)
+            results.push(result)
+          }
+        }
+      }
+
+      // 🔒 Security summary
+      const successful = results.filter(r => r.success).length
+      const blocked = results.filter(r => !r.success && r.error?.includes('whitelist')).length
+      const failed = results.filter(r => !r.success && !r.error?.includes('whitelist')).length
+
+      if (blocked > 0) {
+        this.logger?.warn(`🔒 Security: Blocked ${blocked} npm plugin(s) not in whitelist (PLUGINS_ALLOWED)`)
+      }
+
+      this.logger?.info(`Discovered ${successful} allowed npm plugin(s)`, {
+        total: results.length,
+        successful,
+        blocked,
+        failed
+      })
+    } catch (error) {
+      this.logger?.error('Failed to discover npm plugins', { error })
+    }
+
+    return results
+  }
+
+  /**
    * Discover plugins from filesystem
+   *
+   * 🔒 SECURITY: Respects config.plugins.discoverProjectPlugins for project plugins
    */
   async discoverPlugins(options: PluginDiscoveryOptions = {}): Promise<PluginLoadResult[]> {
     const results: PluginLoadResult[] = []
@@ -274,6 +437,12 @@ export class PluginRegistry {
       includeBuiltIn: _includeBuiltIn = false,
       includeExternal: _includeExternal = true
     } = options
+
+    // 🔒 Check if project plugin discovery is enabled
+    if (!this.config?.plugins.discoverProjectPlugins) {
+      this.logger?.debug('Project plugin discovery is disabled (PLUGINS_DISCOVER_PROJECT=false)')
+      return results
+    }
 
     // Descobrir plugins
     for (const directory of directories) {

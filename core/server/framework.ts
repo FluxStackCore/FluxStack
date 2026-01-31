@@ -13,9 +13,9 @@ export class FluxStackFramework {
   private pluginContext: PluginContext
   private plugins: Plugin[] = []
   private pluginManager: PluginManager
+  private initialized = false
 
   constructor(config?: Partial<FluxStackConfig>) {
-    console.log('🚀 [DEBUG] FluxStackFramework constructor called!')
     // Load the full configuration
     const fullConfig = config ? { ...fluxStackConfig, ...config } : fluxStackConfig
     const envInfo = getEnvironmentInfo()
@@ -79,33 +79,6 @@ export class FluxStackFramework {
     })
 
     this.setupCors()
-    
-    console.log('🔍 [DEBUG] About to call initializePluginsAsync()...')
-    // Initialize plugins automatically in the background
-    this.initializePluginsAsync().catch(error => {
-      console.error('❌ [DEBUG] Failed to initialize plugins async:', error)
-    })
-    console.log('🔍 [DEBUG] initializePluginsAsync() call dispatched')
-  }
-
-  private async initializePluginsAsync() {
-    console.log('🚀 [DEBUG] initializePluginsAsync() CALLED!')
-    try {
-      console.log('🔍 [DEBUG] Starting automatic plugin discovery...')
-      console.log('🔍 [DEBUG] Current working directory:', process.cwd())
-      logger.info('[FluxStack] Initializing automatic plugin discovery...')
-      await this.pluginManager.initialize()
-      const stats = this.pluginManager.getRegistry().getStats()
-      console.log('🔍 [DEBUG] Plugin discovery completed:', stats)
-      logger.info('[FluxStack] Automatic plugins loaded successfully', {
-        pluginCount: stats.totalPlugins,
-        enabledPlugins: stats.enabledPlugins,
-        disabledPlugins: stats.disabledPlugins
-      })
-    } catch (error) {
-      console.error('❌ [DEBUG] Plugin discovery error:', error)
-      logger.error('[FluxStack] Failed to initialize automatic plugins', { error })
-    }
   }
 
   private setupCors() {
@@ -147,7 +120,28 @@ export class FluxStackFramework {
     return this.context
   }
 
-  listen(callback?: () => void) {
+  async listen(callback?: () => void) {
+    // Initialize plugins synchronously before starting server
+    if (!this.initialized) {
+      logger.debug('[FluxStack] Initializing automatic plugin discovery...')
+
+      try {
+        await this.pluginManager.initialize()
+        const stats = this.pluginManager.getRegistry().getStats()
+
+        logger.info('[FluxStack] Automatic plugins loaded successfully', {
+          pluginCount: stats.totalPlugins,
+          enabledPlugins: stats.enabledPlugins,
+          disabledPlugins: stats.disabledPlugins
+        })
+
+        this.initialized = true
+      } catch (error) {
+        logger.error('[FluxStack] Failed to initialize automatic plugins', { error })
+        throw error
+      }
+    }
+
     const port = this.context.config.server.port
     const apiPrefix = this.context.config.server.apiPrefix
 
@@ -163,5 +157,7 @@ export class FluxStackFramework {
       console.log()
       callback?.()
     })
+
+    return this
   }
 }

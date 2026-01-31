@@ -12,13 +12,11 @@
 
 import { Elysia } from "elysia"
 import { apiRoutes } from "./routes"
-import { envTestRoute } from "./routes/env-test"
 
 /**
  * Main application instance with all routes registered
  */
 export const appInstance = new Elysia()
-  .use(envTestRoute)  // Environment test/debug endpoint
   .use(apiRoutes)     // Main application routes
 
 // Export the type correctly for Eden Treaty

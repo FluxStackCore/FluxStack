@@ -94,7 +94,9 @@
       "Bash(./create-fluxstack.ts /tmp/test-fluxstack-dot/. --no-install --no-git)",
       "Bash(./create-fluxstack.ts:*)",
       "Bash(netstat:*)",
-      "Bash(PORT=9999 bun run vite:*)"
+      "Bash(PORT=9999 bun run vite:*)",
+      "Bash(LOG_LEVEL=debug bun run:*)",
+      "Bash(LOG_LEVEL=debug timeout 8 bun run dev)"
     ],
     "deny": []
   }

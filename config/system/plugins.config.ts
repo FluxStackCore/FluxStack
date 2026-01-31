@@ -16,10 +16,20 @@ export const pluginsConfig = defineConfig({
 
   disabled: config.array('FLUXSTACK_PLUGINS_DISABLED', []),
 
-  // Auto-discovery
+  // 🔍 Auto-discovery (ONLY finds plugins, does NOT auto-load)
   autoDiscover: config.boolean('PLUGINS_AUTO_DISCOVER', true),
 
   pluginsDir: config.string('PLUGINS_DIR', 'plugins'),
+
+  // 🔒 SECURITY: Discovery behavior
+  discoverNpmPlugins: config.boolean('PLUGINS_DISCOVER_NPM', false),  // ❌ Disabled by default for security
+  discoverProjectPlugins: config.boolean('PLUGINS_DISCOVER_PROJECT', true),  // ✅ Project plugins safe
+
+  // 🛡️ SECURITY: Plugin whitelist (REQUIRED for npm plugins)
+  // Only plugins in this list will be loaded and executed
+  // Empty array = no external plugins allowed
+  // Example: PLUGINS_ALLOWED=fluxstack-plugin-auth,@acme/fplugin-payments
+  allowedPlugins: config.array('PLUGINS_ALLOWED', []),
 
   // Plugin-specific configurations
   // Logger plugin (handled by logger.config.ts)
