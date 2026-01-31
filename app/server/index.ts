@@ -27,8 +27,8 @@ import { FluxStackFramework } from "@/core/server"
 // Built-in plugins (import only the ones you want to use)
 import { vitePlugin } from "@/core/plugins/built-in/vite"
 import { swaggerPlugin } from "@/core/plugins/built-in/swagger"
+import { liveComponentsPlugin } from "@/core/server/live/websocket-plugin"
 // import { monitoringPlugin } from "@/core/plugins/built-in/monitoring"  // Optional
-// import { liveComponentsPlugin } from "@/core/server/live/websocket-plugin"  // Optional
 // import { staticFilesPlugin } from "@/core/server/plugins/static-files-plugin"  // Optional
 
 // Routes
@@ -36,9 +36,10 @@ import { appInstance } from "./app"
 
 // Server with manual built-in plugins + auto-discovery for external plugins
 const framework = new FluxStackFramework()
-  .use(vitePlugin)      // ✅ Vite dev server + static prod
-  .use(swaggerPlugin)   // ✅ Swagger UI documentation
-  .routes(appInstance)  // Application routes
+  .use(vitePlugin)            // ✅ Vite dev server + static prod
+  .use(swaggerPlugin)         // ✅ Swagger UI documentation
+  .use(liveComponentsPlugin)  // ✅ Live Components WebSocket
+  .routes(appInstance)        // Application routes
 
 // Start server (auto-discovers plugins/ and node_modules/)
 await framework.listen()
