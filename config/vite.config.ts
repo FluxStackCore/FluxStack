@@ -5,12 +5,14 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import { resolve } from 'path'
 import { fileURLToPath, URL } from 'node:url'
 
+// Resolve root directory (config/ -> project root)
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const rootDir = resolve(__dirname, '..')
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    react(), 
+    react(),
     tailwindcss(),
     nodePolyfills({
       // Para adicionar polyfills específicos do Node.js
@@ -27,7 +29,7 @@ export default defineConfig({
     __DEFINES__: JSON.stringify({}),
     global: 'globalThis',
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
-    __HMR_CONFIG_NAME__: JSON.stringify('vite.config.ts'),
+    __HMR_CONFIG_NAME__: JSON.stringify('config/vite.config.ts'),
     __BASE__: JSON.stringify('/'),
     __SERVER_HOST__: JSON.stringify('localhost'),
     __HMR_PROTOCOL__: JSON.stringify('ws'),
@@ -39,7 +41,7 @@ export default defineConfig({
     __HMR_TIMEOUT__: JSON.stringify(30000),
     __WS_TOKEN__: JSON.stringify(''),
   },
-  root: 'app/client',
+  root: resolve(rootDir, 'app/client'),
   server: {
     port: 5173,
     host: true,
@@ -60,22 +62,22 @@ export default defineConfig({
     }
   },
   build: {
-    outDir: '../../dist/client'
+    outDir: resolve(rootDir, 'dist/client')
   },
   resolve: {
     alias: [
-      { find: 'fluxstack', replacement: resolve(__dirname, './core/client/fluxstack') },
-      { find: '@/core', replacement: resolve(__dirname, './core') },
-      { find: '@', replacement: resolve(__dirname, './app/client/src') },
-      { find: '@/app', replacement: resolve(__dirname, './app') },
-      { find: '@/config', replacement: resolve(__dirname, './config') },
-      { find: '@/shared', replacement: resolve(__dirname, './app/shared') },
-      { find: '@/components', replacement: resolve(__dirname, './app/client/src/components') },
-      { find: '@/utils', replacement: resolve(__dirname, './app/client/src/utils') },
-      { find: '@/hooks', replacement: resolve(__dirname, './app/client/src/hooks') },
-      { find: '@/assets', replacement: resolve(__dirname, './app/client/src/assets') },
-      { find: '@/lib', replacement: resolve(__dirname, './app/client/src/lib') },
-      { find: '@/types', replacement: resolve(__dirname, './app/client/src/types') }
+      { find: 'fluxstack', replacement: resolve(rootDir, 'core/client/fluxstack') },
+      { find: '@/core', replacement: resolve(rootDir, 'core') },
+      { find: '@', replacement: resolve(rootDir, 'app/client/src') },
+      { find: '@/app', replacement: resolve(rootDir, 'app') },
+      { find: '@/config', replacement: resolve(rootDir, 'config') },
+      { find: '@/shared', replacement: resolve(rootDir, 'app/shared') },
+      { find: '@/components', replacement: resolve(rootDir, 'app/client/src/components') },
+      { find: '@/utils', replacement: resolve(rootDir, 'app/client/src/utils') },
+      { find: '@/hooks', replacement: resolve(rootDir, 'app/client/src/hooks') },
+      { find: '@/assets', replacement: resolve(rootDir, 'app/client/src/assets') },
+      { find: '@/lib', replacement: resolve(rootDir, 'app/client/src/lib') },
+      { find: '@/types', replacement: resolve(rootDir, 'app/client/src/types') }
     ]
   }
 })

@@ -32,21 +32,6 @@ export const devCommand: CLICommand = {
     }
   ],
   handler: async (args, options, context) => {
-    // Grouped startup messages
-    startGroup({
-      title: 'FluxStack Development Server',
-      icon: '',
-      color: 'cyan'
-    })
-
-    logInGroup(`Server: http://localhost:${options.port}`, '')
-    logInGroup(`API: http://localhost:${options.port}/api`, '')
-    logInGroup(`Swagger: http://localhost:${options.port}/swagger`, '')
-    logInGroup('Starting with hot reload...', '')
-
-    endGroup()
-    console.log('') // Separator line
-
     const { spawn } = await import("child_process")
     const devProcess = spawn("bun", ["--watch", "app/server/index.ts"], {
       stdio: "inherit",

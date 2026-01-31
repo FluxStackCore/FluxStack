@@ -24,7 +24,7 @@ export async function setupViteDev(context: PluginContext): Promise<void> {
     const { createServer } = await import('vite')
     // Start Vite dev server programmatically (silently)
     viteServer = await createServer({
-      configFile: './vite.config.ts',
+      configFile: './config/vite.config.ts',
       server: {
         port: vitePort,
         host: viteHost,

@@ -446,8 +446,8 @@ export class PluginManager extends EventEmitter {
         const npmResults = await this.registry.discoverNpmPlugins()
         results.push(...npmResults)
       } else {
-        this.logger.info('🔒 NPM plugin discovery disabled for security (PLUGINS_DISCOVER_NPM=false)')
-        this.logger.info('   To enable: Set PLUGINS_DISCOVER_NPM=true and add plugins to PLUGINS_ALLOWED')
+        this.logger.debug('🔒 NPM plugin discovery disabled for security (PLUGINS_DISCOVER_NPM=false)')
+        this.logger.debug('   To enable: Set PLUGINS_DISCOVER_NPM=true and add plugins to PLUGINS_ALLOWED')
       }
 
       let loaded = 0
