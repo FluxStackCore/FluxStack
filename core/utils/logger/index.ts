@@ -142,10 +142,15 @@ export function request(method: string, path: string, status?: number, duration?
 
   // Color for HTTP method
   let methodColor = chalk.blue
-  if (method === 'POST') methodColor = chalk.green
+  if (method === 'GET') methodColor = chalk.blue
+  else if (method === 'POST') methodColor = chalk.green
   else if (method === 'PUT') methodColor = chalk.yellow
   else if (method === 'PATCH') methodColor = chalk.magenta
   else if (method === 'DELETE') methodColor = chalk.red
+  else if (method === 'HEAD') methodColor = chalk.cyan
+  else if (method === 'OPTIONS') methodColor = chalk.gray
+  else if (method === 'CONNECT') methodColor = chalk.blueBright
+  else if (method === 'TRACE') methodColor = chalk.dim
 
   // Format duration with color (warn if slow)
   let durationStr = ''
