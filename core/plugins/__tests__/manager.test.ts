@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { PluginManager } from '../manager'
 import type { Plugin, PluginContext } from '../types'
 import type { Logger } from '@/core/utils/logger/index'
-import type { FluxStackConfig } from '@/config/schema'
+import type { FluxStackConfig } from '@/config'
 
 // Mock logger
 const mockLogger: Logger = {
@@ -20,69 +20,133 @@ const mockLogger: Logger = {
   request: vi.fn()
 }
 
-// Mock config
-const mockConfig: FluxStackConfig = {
-  app: { name: 'test-app', version: '1.0.0' },
+// Mock config (matching new fluxStackConfig structure)
+const mockConfig: any = {
+  app: {
+    name: 'test-app',
+    version: '1.0.0',
+    description: 'Test app',
+    env: 'test' as const
+  },
   server: {
     port: 3000,
     host: 'localhost',
     apiPrefix: '/api',
-    cors: {
-      origins: ['*'],
-      methods: ['GET', 'POST'],
-      headers: ['Content-Type']
-    },
-    middleware: []
+    backendPort: 3001,
+    enableRequestLogging: true,
+    showBanner: false
+  },
+  cors: {
+    origins: ['*'],
+    methods: ['GET', 'POST'],
+    headers: ['Content-Type'],
+    credentials: false,
+    maxAge: 86400
   },
   client: {
     port: 5173,
-    proxy: { target: 'http://localhost:3000' },
-    build: {
-      sourceMaps: true,
-      minify: false,
-      target: 'esnext',
-      outDir: 'dist/client'
-    }
+    host: 'localhost',
+    enableLogging: false,
+    logLevel: 'info'
+  },
+  clientBuild: {
+    outDir: 'dist/client',
+    sourceMaps: true,
+    minify: false,
+    target: 'esnext',
+    assetsDir: 'assets',
+    cssCodeSplit: true,
+    chunkSizeWarningLimit: 500,
+    emptyOutDir: true
   },
   build: {
-    target: 'bun',
+    target: 'bun' as const,
     outDir: 'dist',
-    optimization: {
-      minify: false,
-      treeshake: false,
-      compress: false,
-      splitChunks: false,
-      bundleAnalyzer: false
-    },
     sourceMaps: true,
     clean: true
   },
+  optimization: {
+    minify: false,
+    treeshake: false,
+    compress: false,
+    removeUnusedCSS: false,
+    optimizeImages: false,
+    bundleAnalysis: false
+  },
   plugins: {
-    enabled: [], // Enable all plugins by default for testing
+    enabled: [],
     disabled: [],
-    config: {}
+    autoDiscover: false,
+    pluginsDir: 'plugins',
+    loggerEnabled: true,
+    swaggerEnabled: false,
+    staticFilesEnabled: false,
+    viteEnabled: false,
+    viteExcludePaths: ['/api']
   },
   logging: {
-    level: 'info',
-    format: 'pretty',
-    transports: []
+    level: 'info' as const,
+    dateFormat: 'YYYY-MM-DD HH:mm:ss',
+    objectDepth: 4,
+    logToFile: false,
+    maxSize: '20m',
+    maxFiles: '14d',
+    enableColors: true,
+    enableStackTrace: true
   },
   monitoring: {
-    enabled: false,
+    monitoring: {
+      enabled: false,
+      exporters: [],
+      enableHealthChecks: false,
+      healthCheckInterval: 30000,
+      enableAlerts: false,
+      alertWebhook: undefined
+    },
     metrics: {
       enabled: false,
       collectInterval: 5000,
       httpMetrics: false,
       systemMetrics: false,
-      customMetrics: false
+      customMetrics: false,
+      exportToConsole: false,
+      exportToFile: false,
+      exportToHttp: false,
+      exportHttpUrl: undefined,
+      retentionPeriod: 3600000,
+      maxDataPoints: 1000
     },
     profiling: {
       enabled: false,
       sampleRate: 0.1,
       memoryProfiling: false,
-      cpuProfiling: false
-    },
-    exporters: []
+      cpuProfiling: false,
+      heapSnapshot: false,
+      outputDir: 'profiling',
+      maxProfiles: 10
+    }
+  },
+  runtime: {
+    enableSwagger: false,
+    enableMetrics: false,
+    enableMonitoring: false,
+    enableDebugMode: false,
+    rateLimitEnabled: false,
+    rateLimitMax: 100,
+    rateLimitWindow: 60000,
+    requestTimeout: 30000,
+    maxUploadSize: 10485760,
+    maintenanceMode: false,
+    maintenanceMessage: ''
+  },
+  system: {
+    nodeVersion: process.version,
+    platform: process.platform,
+    arch: process.arch,
+    cpuCount: 1,
+    totalMemory: 1024,
+    startTime: new Date(),
+    pid: process.pid
   }
 }
 
