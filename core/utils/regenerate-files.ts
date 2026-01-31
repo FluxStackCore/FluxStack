@@ -19,7 +19,7 @@ const BACKEND_ONLY_TEMPLATE = `/**
 
 import { startBackend, createBackendConfig } from "@/core/server/backend-entry"
 import { apiRoutes } from "./routes"
-import { serverConfig } from "@/config/server.config"
+import { serverConfig } from "@/config"
 
 // Create backend configuration from declarative config
 const backendConfig = createBackendConfig(serverConfig)
