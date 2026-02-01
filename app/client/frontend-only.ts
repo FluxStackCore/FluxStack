@@ -1,12 +1,12 @@
-// Frontend standalone entry point
+/**
+ * Frontend Standalone Entry Point
+ * Starts only the Vite dev server without the Elysia backend
+ *
+ * Usage: bun run start:frontend
+ */
+
 import { startFrontendOnly } from "@/core/client/standalone"
 
-// Configuração para frontend standalone
-const frontendConfig = {
-  clientPath: "app/client",
-  vitePort: (globalThis as any).process?.env?.FRONTEND_PORT || 5173,
-  apiUrl: (globalThis as any).process?.env?.API_URL || "http://localhost:3001"
-}
-
-// Iniciar apenas o frontend
-startFrontendOnly(frontendConfig)
+// ℹ️ Config is optional - startFrontendOnly reads from process.env automatically
+// You can override defaults here if needed
+startFrontendOnly()
