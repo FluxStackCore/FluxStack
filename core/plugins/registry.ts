@@ -231,36 +231,23 @@ export class PluginRegistry {
    */
   /**
    * Check if a plugin is allowed to be loaded (whitelist enforcement)
+   *
+   * Security model:
+   * - Project plugins (plugins/) are ALWAYS trusted (developer put them there)
+   * - NPM plugins (node_modules/) REQUIRE whitelist (supply chain protection)
    */
   private isPluginAllowed(pluginName: string, source: 'npm' | 'project'): boolean {
     const allowedPlugins = this.config?.plugins.allowedPlugins || []
-    const requireProjectWhitelist = this.config?.plugins.requireWhitelistForProject ?? true
 
+    // Project plugins are always trusted - developer explicitly added them
     if (source === 'project') {
       if (!this.config?.plugins.discoverProjectPlugins) {
         this.logger?.debug(`Project plugin '${pluginName}' skipped: discovery disabled`)
         return false
       }
 
-      if (!requireProjectWhitelist) {
-        return true
-      }
-
-      if (allowedPlugins.length === 0) {
-        this.logger?.warn(
-          `Project plugin '${pluginName}' blocked: PLUGINS_ALLOWED is empty and whitelist is required`
-        )
-        return false
-      }
-
-      if (!allowedPlugins.includes(pluginName)) {
-        this.logger?.warn(`Project plugin '${pluginName}' blocked: Not in whitelist (PLUGINS_ALLOWED)`, {
-          pluginName,
-          allowedPlugins
-        })
-        return false
-      }
-
+      // ✅ Project plugins bypass whitelist - they're trusted by design
+      this.logger?.debug(`Project plugin '${pluginName}' allowed (trusted source)`)
       return true
     }
 

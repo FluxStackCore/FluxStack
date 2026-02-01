@@ -245,11 +245,12 @@ FluxStack implementa **segurança em camadas** com **whitelist + opt-in** para p
 
 2. Project Plugins (plugins/)
    ✅ Auto-discovery ENABLED by default
-   ✅ Seu código = confiável
+   ✅ SEMPRE confiáveis (não requerem whitelist)
+   ✅ Inicializados automaticamente se discovery ativo
 
 3. NPM Plugins (node_modules/)
    🔒 Auto-discovery DISABLED by default
-   🔒 Whitelist obrigatória
+   🔒 Whitelist OBRIGATÓRIA
    ⚠️ Código de terceiros = não confiável
 ```
 
@@ -258,14 +259,14 @@ FluxStack implementa **segurança em camadas** com **whitelist + opt-in** para p
 ```bash
 # .env
 
+# Discovery de plugins de projeto (HABILITADO por padrão)
+PLUGINS_DISCOVER_PROJECT=true  # ✅ Plugins em plugins/ são sempre confiáveis
+
 # Discovery de plugins NPM (DESABILITADO por padrão)
 PLUGINS_DISCOVER_NPM=false  # ❌ Seguro por padrão
 
-# Discovery de plugins de projeto (HABILITADO por padrão)
-PLUGINS_DISCOVER_PROJECT=true  # ✅ Seu código é confiável
-
-# Whitelist de plugins NPM permitidos
-# Apenas plugins nesta lista serão carregados
+# Whitelist de plugins NPM (OBRIGATÓRIO para plugins NPM)
+# Plugins de projeto (plugins/) NÃO precisam estar aqui
 PLUGINS_ALLOWED=fluxstack-plugin-auth,@acme/fplugin-payments
 ```
 
@@ -313,17 +314,19 @@ bun run dev
 
 #### 🛡️ **Proteções Implementadas**
 - ✅ NPM plugins **bloqueados por padrão**
-- ✅ Whitelist **obrigatória** para plugins externos
+- ✅ Project plugins **sempre confiáveis** (não requerem whitelist)
+- ✅ Whitelist **obrigatória** apenas para plugins NPM
 - ✅ Logs de segurança **visíveis** sobre plugins bloqueados
-- ✅ Opt-in **explícito** necessário
+- ✅ Opt-in **explícito** necessário para NPM plugins
 
 #### 🚫 **Regras de Segurança**
-- ❌ NUNCA adicionar plugins sem auditar o código fonte
+- ❌ NUNCA adicionar plugins NPM sem auditar o código fonte
 - ❌ NUNCA desabilitar segurança globalmente
 - ❌ NUNCA confiar cegamente em packages populares
-- ✅ SEMPRE auditar plugins antes de adicionar à whitelist
-- ✅ SEMPRE usar versões exatas em package.json para plugins
+- ✅ SEMPRE auditar plugins NPM antes de adicionar à whitelist
+- ✅ SEMPRE usar versões exatas em package.json para plugins NPM
 - ✅ SEMPRE monitorar logs de segurança em produção
+- ✅ Project plugins (plugins/) podem ser adicionados livremente
 
 📖 **Documentação completa**: [`ai-context/reference/plugin-security.md`](./ai-context/reference/plugin-security.md)
 

@@ -33,7 +33,6 @@ export const pluginsConfig = defineConfig({
 
   discoverNpmPlugins: config.boolean('PLUGINS_DISCOVER_NPM', false),
   discoverProjectPlugins: config.boolean('PLUGINS_DISCOVER_PROJECT', true),
-  requireWhitelistForProject: config.boolean('PLUGINS_REQUIRE_WHITELIST', true),
 
   allowedPlugins: config.array('PLUGINS_ALLOWED', []),
   config: {
