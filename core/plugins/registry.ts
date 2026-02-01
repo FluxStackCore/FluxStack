@@ -30,7 +30,7 @@ export class PluginRegistry {
     this.config = options.config
     this.dependencyManager = new PluginDependencyManager({
       logger: this.logger,
-      autoInstall: false,
+      autoInstall: true,
       packageManager: 'bun'
     })
   }
@@ -560,17 +560,26 @@ export class PluginRegistry {
         }
       }
 
-      // Check plugin dependencies
+      // Check and install plugin dependencies
       if (manifest && manifest.dependencies && Object.keys(manifest.dependencies).length > 0) {
-        // For project plugins, check if dependencies are already in main package.json
         const isProjectPlugin = pluginPath.includes('plugins' + sep)
 
         if (isProjectPlugin) {
-          const missingDeps = this.checkMissingDependencies(manifest.dependencies)
-          if (missingDeps.length > 0) {
+          // Install dependencies locally in plugin directory
+          this.logger?.debug(
+            `Installing dependencies for plugin '${manifest.name}' in ${pluginPath}`,
+            { dependencies: Object.keys(manifest.dependencies).length }
+          )
+
+          try {
+            await this.dependencyManager.installDependenciesInPath(
+              pluginPath,
+              manifest.dependencies
+            )
+          } catch (error) {
             this.logger?.warn(
-              `Plugin '${manifest.name}' has missing dependencies: ${missingDeps.join(', ')}. ` +
-              `Run 'bun install' or 'bun run flux plugin:deps install ${manifest.name}' to install them.`
+              `Failed to install dependencies for plugin '${manifest.name}'. ` +
+              `You can install manually with: cd ${pluginPath} && bun install`
             )
           }
         } else {

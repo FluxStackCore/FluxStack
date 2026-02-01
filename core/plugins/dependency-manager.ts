@@ -231,6 +231,36 @@ export class PluginDependencyManager {
   }
 
   /**
+   * Instalar dependências diretamente em um path específico
+   */
+  async installDependenciesInPath(pluginPath: string, dependencies: Record<string, string>): Promise<void> {
+    if (!this.config.autoInstall) {
+      this.logger?.debug('Auto-instalação desabilitada')
+      return
+    }
+
+    if (Object.keys(dependencies).length === 0) {
+      return
+    }
+
+    const pluginDeps: PluginDependency[] = Object.entries(dependencies).map(([name, version]) => ({
+      name,
+      version,
+      type: 'dependency'
+    }))
+
+    this.logger?.debug(`📦 Instalando ${pluginDeps.length} dependência(s) em ${pluginPath}`)
+
+    try {
+      await this.installPluginDependenciesLocally(pluginPath, pluginDeps)
+      this.logger?.debug(`✅ Dependências instaladas com sucesso em ${pluginPath}`)
+    } catch (error) {
+      this.logger?.error(`❌ Erro ao instalar dependências em ${pluginPath}`, { error })
+      throw error
+    }
+  }
+
+  /**
    * Encontrar diretório de um plugin pelo nome
    */
   private findPluginDirectory(pluginName: string): string | null {
