@@ -58,11 +58,10 @@ describe('Backward Compatibility', () => {
 
     it('should maintain client config structure', () => {
       expect(fluxStackConfig.client.port).toBeDefined()
-      expect(fluxStackConfig.client.proxy).toBeDefined()
       expect(fluxStackConfig.client.build).toBeDefined()
 
       expect(typeof fluxStackConfig.client.port).toBe('number')
-      expect(typeof fluxStackConfig.client.proxy.target).toBe('string')
+      // ℹ️ Proxy config removed - not needed in FluxStack architecture
     })
 
     it('should maintain build config structure', () => {

@@ -13,11 +13,6 @@ describe('Client Configuration', () => {
       expect(typeof clientConfig.vite).toBe('object')
     })
 
-    it('should have proxy object', () => {
-      expect(clientConfig.proxy).toBeDefined()
-      expect(typeof clientConfig.proxy).toBe('object')
-    })
-
     it('should have build object', () => {
       expect(clientConfig.build).toBeDefined()
       expect(typeof clientConfig.build).toBe('object')
@@ -44,27 +39,8 @@ describe('Client Configuration', () => {
     })
   })
 
-  describe('Proxy Settings', () => {
-    it('should have valid target URL', () => {
-      expect(clientConfig.proxy.target).toBeDefined()
-      expect(typeof clientConfig.proxy.target).toBe('string')
-
-      // Should be a valid URL
-      if (clientConfig.proxy.target) {
-        expect(() => new URL(clientConfig.proxy.target!)).not.toThrow()
-      }
-    })
-
-    it('should have boolean proxy flags', () => {
-      expect(typeof clientConfig.proxy.changeOrigin).toBe('boolean')
-      expect(typeof clientConfig.proxy.secure).toBe('boolean')
-      expect(typeof clientConfig.proxy.ws).toBe('boolean')
-    })
-
-    it('should have rewrite as object', () => {
-      expect(typeof clientConfig.proxy.rewrite).toBe('object')
-    })
-  })
+  // ℹ️ Proxy Settings removed: Not needed in FluxStack architecture
+  // All requests go through Elysia which handles routing to Vite dev server
 
   describe('Build Settings', () => {
     it('should have valid outDir', () => {
@@ -99,11 +75,9 @@ describe('Client Configuration', () => {
   describe('Type Safety', () => {
     it('should have correct nested types', () => {
       const vite: typeof clientConfig.vite = clientConfig.vite
-      const proxy: typeof clientConfig.proxy = clientConfig.proxy
       const build: typeof clientConfig.build = clientConfig.build
 
       expect(vite).toBeDefined()
-      expect(proxy).toBeDefined()
       expect(build).toBeDefined()
     })
   })

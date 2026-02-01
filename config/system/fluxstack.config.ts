@@ -30,18 +30,9 @@ const serverWithCors = {
   }
 }
 
-const clientProxy = {
-  target: clientConfig.proxy.target,
-  secure: clientConfig.proxy.secure,
-  changeOrigin: clientConfig.proxy.changeOrigin,
-  ws: clientConfig.proxy.ws,
-  rewrite: clientConfig.proxy.rewrite
-}
-
 const client = {
   port: clientConfig.vite.port,
   host: clientConfig.vite.host,
-  proxy: clientProxy,
   build: {
     ...clientConfig.build,
     sourceMaps: true

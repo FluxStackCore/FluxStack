@@ -1,8 +1,8 @@
 import type { PluginContext } from "@/core/plugins/types"
 import { clientConfig } from '@/config'
 import type { LogLevel } from "vite"
-
-// Dynamic import type for vite
+import conf from "@/vite.config"
+// Dynamic import t@ype for vite
 type ViteDevServer = Awaited<ReturnType<typeof import('vite')['createServer']>>
 
 // Store vite server instance
@@ -24,7 +24,7 @@ export async function setupViteDev(context: PluginContext): Promise<void> {
     const { createServer } = await import('vite')
     // Start Vite dev server programmatically (silently)
     viteServer = await createServer({
-      configFile: './config/vite.config.ts',
+      configFile: './vite.config.ts',
       server: {
         port: vitePort,
         host: viteHost,

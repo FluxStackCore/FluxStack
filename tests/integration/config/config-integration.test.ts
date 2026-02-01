@@ -68,12 +68,10 @@ describe('Config Integration', () => {
 
     it('should properly nest client configuration', () => {
       expect(clientConfig.vite).toBeDefined()
-      expect(clientConfig.proxy).toBeDefined()
       expect(clientConfig.build).toBeDefined()
 
       // Nested objects should have proper structure
       expect(clientConfig.vite.port).toBeDefined()
-      expect(clientConfig.proxy.target).toBeDefined()
       expect(clientConfig.build.outDir).toBeDefined()
     })
 
@@ -90,17 +88,10 @@ describe('Config Integration', () => {
   })
 
   describe('Config Relationships', () => {
-    it('should have valid proxy target URL', () => {
-      const proxyTarget = clientConfig.proxy.target
-
-      if (proxyTarget) {
-        // Proxy target should be a valid URL
-        expect(() => new URL(proxyTarget)).not.toThrow()
-
-        // Proxy should point to server
-        const url = new URL(proxyTarget)
-        expect(url.port).toBe(serverConfig.server.port.toString())
-      }
+    // ℹ️ Proxy target URL test removed: Not needed in FluxStack architecture
+    it.skip('should have valid proxy target URL', () => {
+      // Proxy config removed - all requests go through Elysia
+      expect(true).toBe(true)
     })
 
     it('should have CORS origins including client URL', () => {

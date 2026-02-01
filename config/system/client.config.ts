@@ -45,33 +45,20 @@ const buildSchema = {
 } as const
 
 /**
- * Proxy configuration schema
- */
-const proxySchema = {
-  target: config.string('CLIENT_PROXY_TARGET', 'http://localhost:3000'),
-  changeOrigin: config.boolean('CLIENT_PROXY_CHANGE_ORIGIN', true),
-  secure: config.boolean('CLIENT_PROXY_SECURE', false),
-  ws: config.boolean('CLIENT_PROXY_WS', true),
-  rewrite: {
-    type: 'object' as const,
-    default: {
-      '^/api': '/api'
-    }
-  }
-} as const
-
-/**
  * Client Configuration (nested)
  */
 export const clientConfig = defineNestedConfig({
   vite: viteSchema,
-  proxy: proxySchema,
   build: buildSchema,
 })
 
+// ℹ️ Proxy config removed: Not needed in FluxStack architecture
+// All requests go through Elysia (localhost:3000):
+//   - /api, /swagger → Elysia handlers (viteExcludePaths)
+//   - Everything else → Proxy to Vite dev server (handled by core/plugins/built-in/vite)
+
 // Export types
 export type ViteConfig = typeof clientConfig.vite
-export type ClientProxyConfig = typeof clientConfig.proxy
 export type ClientBuildConfig = typeof clientConfig.build
 export type ClientConfig = typeof clientConfig
 

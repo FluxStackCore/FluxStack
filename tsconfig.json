@@ -24,7 +24,13 @@
       "@/core/*": ["./core/*"],
       "@/app/*": ["./app/*"],
       "@/config/*": ["./config/*"],
-      "@/shared/*": ["./app/shared/*"]
+      "@/shared/*": ["./app/shared/*"],
+
+      "@server/*": ["./app/server/*"],
+      "@client/*": ["./app/client/*"],
+      "@core/*": ["./core/*"],
+      "@config/*": ["./config/*"],
+      "@app/*": ["./app/*"],
     },
 
     // Best practices

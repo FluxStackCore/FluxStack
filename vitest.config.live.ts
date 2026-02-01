@@ -1,9 +1,13 @@
 // 🧪 Vitest Configuration for Live Components Tests
 
 import { defineConfig } from 'vitest/config'
-import path from 'path'
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
+  plugins: [
+    tsconfigPaths() // ✅ Reads aliases from tsconfig.json automatically
+  ],
+
   test: {
     name: 'live-components',
     root: './core/server/live',
@@ -56,12 +60,9 @@ export default defineConfig({
       json: './test-results/live-components.json'
     }
   },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './core'),
-      '@tests': path.resolve(__dirname, './core/server/live/__tests__')
-    }
-  },
+
+  // ℹ️ resolve.alias removed: Automatically read from tsconfig.json via tsconfigPaths plugin
+
   esbuild: {
     target: 'node18'
   }

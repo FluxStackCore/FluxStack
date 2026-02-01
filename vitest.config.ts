@@ -1,12 +1,11 @@
 import { defineConfig } from 'vitest/config'
-import { fileURLToPath } from 'url'
-import { dirname, resolve } from 'path'
-
-// ES modules compatible __dirname
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+import tsconfigPaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
+  plugins: [
+    tsconfigPaths() // ✅ Reads aliases from tsconfig.json automatically
+  ],
+
   test: {
     globals: true,
     environment: 'node',
@@ -21,14 +20,7 @@ export default defineConfig({
         'dist/'
       ]
     }
-  },
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, '.'),
-      '@/core': resolve(__dirname, './core'),
-      '@/app': resolve(__dirname, './app'),
-      '@/config': resolve(__dirname, './config'),
-      '@/shared': resolve(__dirname, './app/shared')
-    }
   }
+
+  // ℹ️ resolve.alias removed: Automatically read from tsconfig.json via tsconfigPaths plugin
 })
