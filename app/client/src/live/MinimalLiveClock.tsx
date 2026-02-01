@@ -2,7 +2,7 @@
 import { useTypedLiveComponent } from '@/core/client';
 
 // Import component type DIRECTLY from backend - full type inference!
-import type { LiveClockComponent } from '@/server/live/LiveClockComponent';
+import type { LiveClockComponent } from '@/app/server/live/LiveClockComponent';
 
 export function MinimalLiveClock() {
   const { state, setValue } = useTypedLiveComponent<LiveClockComponent>(

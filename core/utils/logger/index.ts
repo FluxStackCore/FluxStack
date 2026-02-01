@@ -52,6 +52,20 @@ function logMessage(level: 'debug' | 'info' | 'warn' | 'error', message: unknown
     level,
     message: `${context} ${finalMessage}`
   })
+
+  // Maintain backward compatibility with tests that spy on console.*
+  const consoleFn = level === 'info'
+    ? console.info
+    : level === 'warn'
+      ? console.warn
+      : level === 'error'
+        ? console.error
+        : console.debug
+  try {
+    consoleFn.call(console, finalMessage, ...args)
+  } catch {
+    // Ignore console failures (e.g., in non-TTY envs)
+  }
 }
 
 /**

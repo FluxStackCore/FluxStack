@@ -322,3 +322,5 @@ Use "flux help <command>" for more information about a specific command.`)
 
 // Global registry instance
 export const cliRegistry = new CliCommandRegistry()
+
+export type CLICommand = CliCommand

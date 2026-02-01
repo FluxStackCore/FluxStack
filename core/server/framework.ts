@@ -1,4 +1,5 @@
 import { Elysia } from "elysia"
+import { createHash as nodeCreateHash } from "crypto"
 import type { FluxStackConfig, FluxStackContext, Plugin } from "../types"
 import type { PluginContext, PluginUtils } from "../plugins/types"
 import { PluginManager } from "../plugins/manager"
@@ -37,10 +38,7 @@ export class FluxStackFramework {
       isProduction,
       isDevelopment,
       getEnvironment: () => envInfo.name,
-      createHash: (data: string) => {
-        const crypto = require('crypto')
-        return crypto.createHash('sha256').update(data).digest('hex')
-      },
+      createHash: (data: string) => nodeCreateHash('sha256').update(data).digest('hex'),
       deepMerge: (target: any, source: any) => {
         const result = { ...target }
         for (const key in source) {
@@ -84,17 +82,45 @@ export class FluxStackFramework {
   private setupCors() {
     const cors = this.context.config.cors
 
+    const allowedOrigins = cors.origins.length > 0 ? cors.origins : ['*']
+    const allowAllMethods = cors.methods.length > 0 ? cors.methods.join(", ") : "GET,POST,PUT,DELETE,OPTIONS"
+    const allowAllHeaders = cors.headers.length > 0 ? cors.headers.join(", ") : "Content-Type, Authorization"
+
+    const resolveOrigin = (requestOrigin?: string | null) => {
+      const origin = requestOrigin || allowedOrigins[0] || "*"
+      if (allowedOrigins.includes("*")) {
+        return cors.credentials ? origin : "*"
+      }
+      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0] || origin
+    }
+
     this.app
-      .onRequest(({ set }) => {
-        set.headers["Access-Control-Allow-Origin"] = cors.origins.join(", ") || "*"
-        set.headers["Access-Control-Allow-Methods"] = cors.methods.join(", ") || "*"
-        set.headers["Access-Control-Allow-Headers"] = cors.headers.join(", ") || "*"
+      .onRequest(({ request, set }) => {
+        const origin = resolveOrigin(request.headers.get("origin"))
+        set.headers["Access-Control-Allow-Origin"] = origin
+        set.headers["Access-Control-Allow-Methods"] = allowAllMethods
+        set.headers["Access-Control-Allow-Headers"] = allowAllHeaders
+        set.headers["Vary"] = "Origin"
         if (cors.credentials) {
           set.headers["Access-Control-Allow-Credentials"] = "true"
         }
+        if (cors.maxAge) {
+          set.headers["Access-Control-Max-Age"] = cors.maxAge.toString()
+        }
       })
-      .options("*", ({ set }) => {
-        set.status = 200
+      .options("*", ({ request, set }) => {
+        set.status = 204
+        const origin = resolveOrigin(request.headers.get("origin"))
+        set.headers["Access-Control-Allow-Origin"] = origin
+        set.headers["Access-Control-Allow-Methods"] = allowAllMethods
+        set.headers["Access-Control-Allow-Headers"] = allowAllHeaders
+        set.headers["Vary"] = "Origin"
+        if (cors.credentials) {
+          set.headers["Access-Control-Allow-Credentials"] = "true"
+        }
+        if (cors.maxAge) {
+          set.headers["Access-Control-Max-Age"] = cors.maxAge.toString()
+        }
         return ""
       })
   }

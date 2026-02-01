@@ -4,7 +4,7 @@ import { componentRegistry } from './ComponentRegistry'
 import { fileUploadManager } from './FileUploadManager'
 import { connectionManager } from './WebSocketConnectionManager'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
-import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@/core/plugins/types'
+import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@/core/types/types'
 import type { Plugin, PluginContext } from '@/core/index'
 import { t, Elysia } from 'elysia'
 import path from 'path'
@@ -156,20 +156,21 @@ export const liveComponentsPlugin: Plugin = {
         }),
         
         open(ws) {
+          const socket = ws as any
           const connectionId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          console.log(`🔌 Live Components WebSocket connected: ${connectionId}`)
+          console.log(`?Y"O Live Components WebSocket connected: ${connectionId}`)
           
           // Register connection with enhanced connection manager
           connectionManager.registerConnection(ws, connectionId, 'live-components')
           
           // Initialize and store connection data in ws.data
-          if (!ws.data) {
-            ws.data = {}
+          if (!socket.data) {
+            socket.data = {}
           }
-          ws.data.connectionId = connectionId
-          ws.data.components = new Map()
-          ws.data.subscriptions = new Set()
-          ws.data.connectedAt = new Date()
+          socket.data.connectionId = connectionId
+          socket.data.components = new Map()
+          socket.data.subscriptions = new Set()
+          socket.data.connectedAt = new Date()
           
           // Send connection confirmation
           ws.send(JSON.stringify({
@@ -245,7 +246,8 @@ export const liveComponentsPlugin: Plugin = {
         },
         
         close(ws) {
-          const connectionId = ws.data?.connectionId
+          const socket = ws as any
+          const connectionId = socket.data?.connectionId
           console.log(`🔌 Live Components WebSocket disconnected: ${connectionId}`)
           
           // Cleanup connection in connection manager
@@ -658,3 +660,5 @@ async function handleFileUploadComplete(ws: any, message: FileUploadCompleteMess
 
   ws.send(JSON.stringify(responseWithRequestId))
 }
+
+

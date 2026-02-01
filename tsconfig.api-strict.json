@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": [
+    "app/server/routes/**/*",
+    "app/server/controllers/**/*",
+    "app/shared/types/**/*"
+  ]
+}

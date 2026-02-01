@@ -14,7 +14,9 @@ const optimizationSchema = {
   treeshake: config.boolean('BUILD_TREESHAKE', true),
   compress: config.boolean('BUILD_COMPRESS', helpers.isProduction()),
   splitChunks: config.boolean('BUILD_SPLIT_CHUNKS', true),
-  bundleAnalyzer: config.boolean('BUILD_BUNDLE_ANALYZER', false)
+  bundleAnalyzer: config.boolean('BUILD_BUNDLE_ANALYZER', false),
+  removeUnusedCSS: config.boolean('BUILD_REMOVE_UNUSED_CSS', false),
+  optimizeImages: config.boolean('BUILD_OPTIMIZE_IMAGES', false)
 } as const
 
 /**
@@ -24,7 +26,10 @@ const buildSchema = {
   target: config.enum('BUILD_TARGET', ['bun', 'node', 'docker'] as const, 'bun', true),
   outDir: config.string('BUILD_OUT_DIR', 'dist', true),
   sourceMaps: config.boolean('BUILD_SOURCE_MAPS', helpers.isDevelopment()),
-  clean: config.boolean('BUILD_CLEAN', true)
+  clean: config.boolean('BUILD_CLEAN', true),
+  mode: config.enum('BUILD_MODE', ['development', 'production'] as const, helpers.isProduction() ? 'production' : 'development'),
+  external: config.array('BUILD_EXTERNAL', []),
+  optimize: config.boolean('BUILD_OPTIMIZE', true)
 } as const
 
 /**

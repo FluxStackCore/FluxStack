@@ -30,7 +30,7 @@ export class PluginRegistry {
     this.config = options.config
     this.dependencyManager = new PluginDependencyManager({
       logger: this.logger,
-      autoInstall: true,
+      autoInstall: false,
       packageManager: 'bun'
     })
   }
@@ -229,34 +229,56 @@ export class PluginRegistry {
    * @param isNpmPlugin - Whether this is an npm plugin (requires whitelist) or project plugin (trusted)
    * @returns true if plugin is allowed, false otherwise
    */
-  private isPluginAllowed(pluginName: string, isNpmPlugin: boolean): boolean {
-    // Project plugins (plugins/ directory) are always trusted
-    if (!isNpmPlugin) {
-      return this.config?.plugins.discoverProjectPlugins ?? true
+  /**
+   * Check if a plugin is allowed to be loaded (whitelist enforcement)
+   */
+  private isPluginAllowed(pluginName: string, source: 'npm' | 'project'): boolean {
+    const allowedPlugins = this.config?.plugins.allowedPlugins || []
+    const requireProjectWhitelist = this.config?.plugins.requireWhitelistForProject ?? true
+
+    if (source === 'project') {
+      if (!this.config?.plugins.discoverProjectPlugins) {
+        this.logger?.debug(`Project plugin '${pluginName}' skipped: discovery disabled`)
+        return false
+      }
+
+      if (!requireProjectWhitelist) {
+        return true
+      }
+
+      if (allowedPlugins.length === 0) {
+        this.logger?.warn(
+          `Project plugin '${pluginName}' blocked: PLUGINS_ALLOWED is empty and whitelist is required`
+        )
+        return false
+      }
+
+      if (!allowedPlugins.includes(pluginName)) {
+        this.logger?.warn(`Project plugin '${pluginName}' blocked: Not in whitelist (PLUGINS_ALLOWED)`, {
+          pluginName,
+          allowedPlugins
+        })
+        return false
+      }
+
+      return true
     }
 
-    // NPM plugins require whitelist
-    const allowedPlugins = this.config?.plugins.allowedPlugins || []
-
-    // Empty whitelist = no npm plugins allowed
     if (allowedPlugins.length === 0) {
       this.logger?.warn(`NPM plugin '${pluginName}' blocked: No plugins in whitelist (PLUGINS_ALLOWED is empty)`)
       return false
     }
 
-    // Check if plugin is in whitelist
-    const isAllowed = allowedPlugins.includes(pluginName)
-
-    if (!isAllowed) {
+    if (!allowedPlugins.includes(pluginName)) {
       this.logger?.warn(`NPM plugin '${pluginName}' blocked: Not in whitelist (PLUGINS_ALLOWED)`, {
         pluginName,
         allowedPlugins
       })
+      return false
     }
 
-    return isAllowed
+    return true
   }
-
   /**
    * Get registry statistics
    */
@@ -360,7 +382,7 @@ export class PluginRegistry {
 
                 if (isFluxStackPlugin) {
                   // 🔒 Security check: Verify plugin is in whitelist
-                  if (!this.isPluginAllowed(packageName, true)) {
+                  if (!this.isPluginAllowed(packageName, 'npm')) {
                     this.logger?.debug(`Skipping npm plugin (not in whitelist): ${packageName}`)
                     results.push({
                       success: false,
@@ -384,7 +406,7 @@ export class PluginRegistry {
             entry.name.startsWith('fplugin-')
           ) {
             // 🔒 Security check: Verify plugin is in whitelist
-            if (!this.isPluginAllowed(entry.name, true)) {
+            if (!this.isPluginAllowed(entry.name, 'npm')) {
               this.logger?.debug(`Skipping npm plugin (not in whitelist): ${entry.name}`)
               results.push({
                 success: false,
@@ -455,7 +477,20 @@ export class PluginRegistry {
       try {
         const pluginResults = await this.discoverPluginsInDirectory(directory, _patterns)
         this.logger?.debug(`Found ${pluginResults.length} plugins in ${directory}`)
-        results.push(...pluginResults)
+
+        for (const pluginResult of pluginResults) {
+          if (pluginResult.success && pluginResult.plugin) {
+            if (!this.isPluginAllowed(pluginResult.plugin.name, 'project')) {
+              results.push({
+                success: false,
+                error: `Plugin '${pluginResult.plugin.name}' is not in the allowed plugins whitelist (PLUGINS_ALLOWED)`
+              })
+              continue
+            }
+          }
+
+          results.push(pluginResult)
+        }
       } catch (error) {
         this.logger?.warn(`Failed to discover plugins in directory '${directory}'`, { error })
         results.push({
@@ -514,16 +549,7 @@ export class PluginRegistry {
 
       // Install dependencies BEFORE importing the plugin
       if (manifest && manifest.dependencies && Object.keys(manifest.dependencies).length > 0) {
-        try {
-          const resolution = await this.dependencyManager.resolvePluginDependencies(pluginPath)
-          if (resolution.dependencies.length > 0) {
-            // Install dependencies directly in the plugin directory
-            await this.dependencyManager.installPluginDependenciesLocally(pluginPath, resolution.dependencies)
-            this.logger?.debug(`Dependencies installed for plugin at: ${pluginPath}`)
-          }
-        } catch (error) {
-          this.logger?.warn(`Failed to install dependencies for plugin at '${pluginPath}'`, { error })
-        }
+        this.logger?.warn(`Plugin '${manifest.name}' declares dependencies. Run 'bun run flux plugin:deps install ${manifest.name}' to review and install them manually.`)
       }
 
       // Try to import the plugin (after dependencies are installed)
@@ -752,3 +778,7 @@ export class PluginRegistry {
     return results
   }
 }
+
+
+
+

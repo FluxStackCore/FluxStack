@@ -41,7 +41,8 @@
     "make:live": "bun run core/cli/index.ts make:component",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "typecheck:api": "tsc --noEmit -p tsconfig.api-strict.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

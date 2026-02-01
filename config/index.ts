@@ -38,6 +38,8 @@ export { pluginsConfig } from './system/plugins.config'
 export { monitoringConfig } from './system/monitoring.config'
 export { appRuntimeConfig } from './system/runtime.config'
 export { systemConfig, systemRuntimeInfo } from './system/system.config'
+export { databaseConfig } from './system/database.config'
+export { servicesConfig } from './system/services.config'
 
 // Main FluxStack config (composed)
 export { fluxStackConfig, config as fluxConfig, type FluxStackConfig } from './fluxstack.config'
@@ -76,6 +78,8 @@ export type {
 } from './system/monitoring.config'
 export type { SystemConfig, SystemRuntimeInfo } from './system/system.config'
 export type { AppRuntimeConfig } from './system/runtime.config'
+export type { DatabaseConfig } from './system/database.config'
+export type { ServicesConfig } from './system/services.config'
 
 // Plugin types
 export type { CryptoAuthConfig } from '../plugins/crypto-auth/config'
@@ -93,6 +97,8 @@ import { pluginsConfig } from './system/plugins.config'
 import { monitoringConfig } from './system/monitoring.config'
 import { appRuntimeConfig } from './system/runtime.config'
 import { systemConfig, systemRuntimeInfo } from './system/system.config'
+import { databaseConfig } from './system/database.config'
+import { servicesConfig } from './system/services.config'
 import { cryptoAuthConfig } from '../plugins/crypto-auth/config'
 
 /**
@@ -114,6 +120,8 @@ export const config = {
   runtime: appRuntimeConfig,
   system: systemConfig,
   systemRuntime: systemRuntimeInfo,
+  database: databaseConfig,
+  services: servicesConfig,
 
   // Plugin configs
   cryptoAuth: cryptoAuthConfig

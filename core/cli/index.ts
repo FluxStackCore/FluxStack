@@ -173,10 +173,7 @@ Examples:
 
   // Discover and register plugin-provided commands
   try {
-    const pluginCommands = await pluginDiscovery.discoverAll()
-    for (const cmd of pluginCommands) {
-      cliRegistry.register(cmd)
-    }
+    await pluginDiscovery.discoverAndRegisterCommands()
   } catch (error) {
     // Plugin command discovery is optional
     // console.warn('Failed to discover plugin commands:', error)

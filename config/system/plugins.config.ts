@@ -4,11 +4,22 @@
  */
 
 import { defineConfig, config } from '@/core/utils/config-schema'
-import { env } from '@/core/utils/env'
 import { FLUXSTACK_VERSION } from '@/core/utils/version'
 
+const defaultPluginConfigs = {
+  swagger: {
+    title: 'FluxStack API',
+    version: FLUXSTACK_VERSION,
+    description: 'API documentation for FluxStack application',
+    path: '/swagger'
+  },
+  staticFiles: {
+    publicDir: 'public',
+    uploadsDir: 'uploads'
+  }
+}
+
 export const pluginsConfig = defineConfig({
-  // Plugin management
   enabled: config.array(
     'FLUXSTACK_PLUGINS_ENABLED',
     ['logger', 'swagger', 'vite', 'cors', 'static-files']
@@ -16,26 +27,22 @@ export const pluginsConfig = defineConfig({
 
   disabled: config.array('FLUXSTACK_PLUGINS_DISABLED', []),
 
-  // 🔍 Auto-discovery (ONLY finds plugins, does NOT auto-load)
   autoDiscover: config.boolean('PLUGINS_AUTO_DISCOVER', true),
 
   pluginsDir: config.string('PLUGINS_DIR', 'plugins'),
 
-  // 🔒 SECURITY: Discovery behavior
-  discoverNpmPlugins: config.boolean('PLUGINS_DISCOVER_NPM', false),  // ❌ Disabled by default for security
-  discoverProjectPlugins: config.boolean('PLUGINS_DISCOVER_PROJECT', true),  // ✅ Project plugins safe
+  discoverNpmPlugins: config.boolean('PLUGINS_DISCOVER_NPM', false),
+  discoverProjectPlugins: config.boolean('PLUGINS_DISCOVER_PROJECT', true),
+  requireWhitelistForProject: config.boolean('PLUGINS_REQUIRE_WHITELIST', true),
 
-  // 🛡️ SECURITY: Plugin whitelist (REQUIRED for npm plugins)
-  // Only plugins in this list will be loaded and executed
-  // Empty array = no external plugins allowed
-  // Example: PLUGINS_ALLOWED=fluxstack-plugin-auth,@acme/fplugin-payments
   allowedPlugins: config.array('PLUGINS_ALLOWED', []),
+  config: {
+    type: 'object' as const,
+    default: defaultPluginConfigs
+  },
 
-  // Plugin-specific configurations
-  // Logger plugin (handled by logger.config.ts)
   loggerEnabled: config.boolean('LOGGER_PLUGIN_ENABLED', true),
 
-  // Swagger plugin
   swaggerEnabled: config.boolean('SWAGGER_ENABLED', true),
   swaggerTitle: config.string('SWAGGER_TITLE', 'FluxStack API'),
   swaggerVersion: config.string('SWAGGER_VERSION', FLUXSTACK_VERSION),
@@ -45,36 +52,27 @@ export const pluginsConfig = defineConfig({
   ),
   swaggerPath: config.string('SWAGGER_PATH', '/swagger'),
 
-  // Swagger advanced options
   swaggerExcludePaths: config.array('SWAGGER_EXCLUDE_PATHS', []),
 
-  // Swagger servers (comma-separated list of URLs)
-  // Format: "url1|description1,url2|description2"
-  // Example: "https://api.prod.com|Production,https://api.staging.com|Staging"
   swaggerServers: config.string('SWAGGER_SERVERS', ''),
 
-  // Swagger UI options
   swaggerPersistAuthorization: config.boolean('SWAGGER_PERSIST_AUTH', true),
   swaggerDisplayRequestDuration: config.boolean('SWAGGER_DISPLAY_DURATION', true),
   swaggerEnableFilter: config.boolean('SWAGGER_ENABLE_FILTER', true),
   swaggerShowExtensions: config.boolean('SWAGGER_SHOW_EXTENSIONS', true),
   swaggerTryItOutEnabled: config.boolean('SWAGGER_TRY_IT_OUT', true),
 
-  // Swagger authentication (Basic Auth)
   swaggerAuthEnabled: config.boolean('SWAGGER_AUTH_ENABLED', false),
   swaggerAuthUsername: config.string('SWAGGER_AUTH_USERNAME', 'admin'),
   swaggerAuthPassword: config.string('SWAGGER_AUTH_PASSWORD', ''),
 
-  // Static files plugin
   staticFilesEnabled: config.boolean('STATIC_FILES_ENABLED', true),
   staticPublicDir: config.string('STATIC_PUBLIC_DIR', 'public'),
   staticUploadsDir: config.string('STATIC_UPLOADS_DIR', 'uploads'),
-  staticCacheMaxAge: config.number('STATIC_CACHE_MAX_AGE', 31536000), // 1 year
+  staticCacheMaxAge: config.number('STATIC_CACHE_MAX_AGE', 31536000),
   staticEnableUploads: config.boolean('STATIC_ENABLE_UPLOADS', true),
   staticEnablePublic: config.boolean('STATIC_ENABLE_PUBLIC', true),
 
-  // CORS plugin (configuration via server.config.ts)
-  // Vite plugin
   viteEnabled: config.boolean('VITE_PLUGIN_ENABLED', true),
   viteExcludePaths: config.array('VITE_EXCLUDE_PATHS', [
     '/api',
@@ -82,8 +80,6 @@ export const pluginsConfig = defineConfig({
   ])
 })
 
-// Export type
 export type PluginsConfig = typeof pluginsConfig
 
-// Export default
 export default pluginsConfig

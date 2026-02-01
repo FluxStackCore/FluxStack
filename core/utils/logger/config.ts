@@ -7,6 +7,7 @@ import { loggerConfig } from '@/config'
 
 export interface LoggerConfig {
   level: 'debug' | 'info' | 'warn' | 'error'
+  format: 'pretty' | 'json'
   dateFormat: string
   logToFile: boolean
   maxSize: string
@@ -14,6 +15,7 @@ export interface LoggerConfig {
   objectDepth: number
   enableColors: boolean
   enableStackTrace: boolean
+  transports: string[]
 }
 
 /**
@@ -22,13 +24,15 @@ export interface LoggerConfig {
 export function getLoggerConfig(): LoggerConfig {
   return {
     level: loggerConfig.level,
+    format: (loggerConfig as any).format ?? 'pretty',
     dateFormat: loggerConfig.dateFormat,
     logToFile: loggerConfig.logToFile,
     maxSize: loggerConfig.maxSize,
     maxFiles: loggerConfig.maxFiles,
     objectDepth: loggerConfig.objectDepth,
     enableColors: loggerConfig.enableColors,
-    enableStackTrace: loggerConfig.enableStackTrace
+    enableStackTrace: loggerConfig.enableStackTrace,
+    transports: (loggerConfig as any).transports ?? ['console']
   }
 }
 

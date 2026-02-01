@@ -63,9 +63,10 @@ export class FluxStackError extends Error {
     if (typeof this.stack === 'string') return this.stack
 
     // If stack is an array of CallSite objects (Bun), format them
-    if (Array.isArray(this.stack)) {
-      return this.stack
-        .map((site: any, index: number) => {
+    const stackValue = this.stack as unknown
+    if (Array.isArray(stackValue)) {
+      return stackValue
+        .map((site: any) => {
           try {
             const fileName = site.getFileName?.() || 'unknown'
             const lineNumber = site.getLineNumber?.() || 0

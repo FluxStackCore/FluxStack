@@ -13,7 +13,11 @@ export const appConfig = defineConfig({
   name: config.string('APP_NAME', 'fluxstack-app', true),
   version: config.string('APP_VERSION', '1.0.0', true),
   description: config.string('APP_DESCRIPTION', 'A FluxStack application', false),
-  env: config.enum('NODE_ENV', ['development', 'production', 'test'] as const, 'development', false)
+  env: config.enum('NODE_ENV', ['development', 'production', 'test'] as const, 'development', false),
+
+  // Security
+  trustProxy: config.boolean('APP_TRUST_PROXY', false),
+  sessionSecret: config.string('APP_SESSION_SECRET', '')
 })
 
 // Export type

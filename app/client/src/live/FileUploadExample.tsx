@@ -3,7 +3,7 @@ import { useState, useRef } from 'react'
 import { useTypedLiveComponent, useChunkedUpload, useLiveComponents } from '@/core/client'
 
 // Import component type DIRECTLY from backend - full type inference!
-import type { LiveFileUploadComponent } from '@/server/live/LiveFileUploadComponent'
+import type { LiveFileUploadComponent } from '@/app/server/live/LiveFileUploadComponent'
 
 export function FileUploadExample() {
   const fileInputRef = useRef<HTMLInputElement>(null)

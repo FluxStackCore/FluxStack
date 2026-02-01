@@ -19,22 +19,31 @@ export class FluxStackBuilder {
     this.config = config
     this.pluginRegistry = pluginRegistry
 
+    const optimization = this.config.optimization || {
+      minify: true,
+      treeshake: true,
+      compress: true,
+      removeUnusedCSS: false,
+      optimizeImages: false,
+      bundleAnalyzer: false
+    }
+
     // Initialize bundler with configuration
     this.bundler = new Bundler({
       target: config.build.target,
       outDir: config.build.outDir,
       sourceMaps: config.build.sourceMaps,
-      minify: config.build.minify,
-      external: config.build.external
+      minify: optimization.minify,
+      external: config.build.external || []
     })
 
     // Initialize optimizer with configuration
     this.optimizer = new Optimizer({
-      treeshake: config.build.treeshake,
-      compress: config.build.compress || false,
-      removeUnusedCSS: config.build.removeUnusedCSS || false,
-      optimizeImages: config.build.optimizeImages || false,
-      bundleAnalysis: config.build.bundleAnalysis || false
+      treeshake: optimization.treeshake,
+      compress: optimization.compress || false,
+      removeUnusedCSS: optimization.removeUnusedCSS || false,
+      optimizeImages: optimization.optimizeImages || false,
+      bundleAnalysis: optimization.bundleAnalyzer || false
     })
   }
 
@@ -439,9 +448,9 @@ MONITORING_ENABLED=true
       },
       assets: [],
       optimization: {
-        minified: this.config.build.minify,
-        treeshaken: this.config.build.treeshake,
-        compressed: this.config.build.compress || false,
+        minified: this.config.optimization?.minify ?? false,
+        treeshaken: this.config.optimization?.treeshake ?? false,
+        compressed: this.config.optimization?.compress ?? false,
         originalSize: optimizationResult?.originalSize || 0,
         optimizedSize: optimizationResult?.optimizedSize || 0,
         compressionRatio: optimizationResult?.compressionRatio || 0

@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia'
 import { UsersController } from '@/app/server/controllers/users.controller'
+import type { CreateUserRequest } from '@/app/shared/types'
 
 // ===== Request/Response Schemas =====
 
@@ -77,9 +78,7 @@ const ErrorResponseSchema = t.Object({
  */
 export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
   // GET /users - Get all users
-  .get('/', async () => {
-    return await UsersController.getUsers()
-  }, {
+  .get('/', async () => UsersController.getUsers(), {
     detail: {
       summary: 'Get All Users',
       description: 'Retrieves a list of all registered users',
@@ -90,19 +89,18 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
 
   // GET /users/:id - Get user by ID
   .get('/:id', async ({ params, set }) => {
-    const id = parseInt(params.id)
+    const id = Number(params.id)
 
-    // Handle invalid ID
-    if (isNaN(id)) {
+    if (!Number.isFinite(id)) {
       set.status = 400
-      return { error: 'ID inválido' }
+      return { success: false, error: 'ID invalido' }
     }
 
     const result = await UsersController.getUserById(id)
 
-    if (!result) {
+    if (!result.success) {
       set.status = 404
-      return { error: 'Usuário não encontrado' }
+      return result
     }
 
     return result
@@ -124,17 +122,17 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
 
   // POST /users - Create new user
   .post('/', async ({ body, set }) => {
-    // Validate required fields
-    if (!body.name || !body.email) {
+    const payload = body as CreateUserRequest
+
+    if (!payload.name || !payload.email) {
       set.status = 400
       return {
         success: false,
-        error: 'Nome e email são obrigatórios'
+        error: 'Nome e email sao obrigatorios'
       }
     }
 
-    // Validate name length
-    if (body.name.length < 2) {
+    if (payload.name.trim().length < 2) {
       set.status = 400
       return {
         success: false,
@@ -142,23 +140,28 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
       }
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(body.email)) {
+    if (!emailRegex.test(payload.email)) {
       set.status = 400
       return {
         success: false,
-        error: 'Email inválido'
+        error: 'Email invalido'
       }
     }
 
-    const result = await UsersController.createUser(body)
+    const sanitizedPayload: CreateUserRequest = {
+      name: payload.name.trim(),
+      email: payload.email.trim()
+    }
 
-    // If email is duplicate, still return 200 but with success: false
+    const result = await UsersController.createUser(sanitizedPayload)
+
     if (!result.success) {
+      set.status = 409
       return result
     }
 
+    set.status = 201
     return result
   }, {
     detail: {
@@ -168,8 +171,12 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
     },
     body: CreateUserRequestSchema,
     response: {
-      200: CreateUserResponseSchema,
+      201: CreateUserResponseSchema,
       400: t.Object({
+        success: t.Literal(false),
+        error: t.String()
+      }),
+      409: t.Object({
         success: t.Literal(false),
         error: t.String()
       })
@@ -178,20 +185,20 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
 
   // DELETE /users/:id - Delete user
   .delete('/:id', async ({ params, set }) => {
-    const id = parseInt(params.id)
+    const id = Number(params.id)
 
-    if (isNaN(id)) {
+    if (!Number.isFinite(id)) {
       set.status = 400
       return {
         success: false,
-        message: 'ID inválido'
+        message: 'ID invalido'
       }
     }
 
     const result = await UsersController.deleteUser(id)
 
     if (!result.success) {
-      // Don't set 404 status, just return success: false
+      set.status = 404
       return result
     }
 
@@ -210,6 +217,7 @@ export const usersRoutes = new Elysia({ prefix: '/users', tags: ['Users'] })
       400: t.Object({
         success: t.Literal(false),
         message: t.String()
-      })
+      }),
+      404: DeleteUserResponseSchema
     }
   })

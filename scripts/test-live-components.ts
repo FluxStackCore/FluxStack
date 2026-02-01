@@ -131,8 +131,10 @@ class LiveComponentsTestRunner {
 }
 
 // CLI interface
+const cliArgs = process.argv.slice(2)
+
 async function main() {
-  const args = process.argv.slice(2)
+  const args = cliArgs
   
   const options: TestOptions = {
     coverage: args.includes('--coverage') || args.includes('-c'),
@@ -176,7 +178,7 @@ Examples:
 `)
 }
 
-if (args.includes('--help') || args.includes('-h')) {
+if (cliArgs.includes('--help') || cliArgs.includes('-h')) {
   printHelp()
   process.exit(0)
 }

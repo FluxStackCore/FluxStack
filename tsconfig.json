@@ -36,8 +36,6 @@
     "strictFunctionTypes": false,
     "noImplicitReturns": false,
     "noImplicitThis": false,
-
-    // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false

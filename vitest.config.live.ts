@@ -51,7 +51,7 @@ export default defineConfig({
         maxThreads: 4
       }
     },
-    reporter: ['verbose', 'json'],
+    reporters: ['verbose', 'json'],
     outputFile: {
       json: './test-results/live-components.json'
     }

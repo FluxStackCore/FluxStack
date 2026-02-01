@@ -94,6 +94,71 @@ const DEFAULTS = {
   alerts: [] as AlertThreshold[]
 }
 
+type MonitoringOptions = typeof DEFAULTS
+
+function mergeMonitoringOptions(base: MonitoringOptions, overrides: Partial<MonitoringOptions>): MonitoringOptions {
+  const result: MonitoringOptions = { ...base }
+
+  for (const key of Object.keys(overrides) as (keyof MonitoringOptions)[]) {
+    const value = overrides[key]
+    if (value === undefined) continue
+
+    if (Array.isArray(value)) {
+      ;(result as any)[key] = value
+    } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+      ;(result as any)[key] = { ...(base as any)[key], ...value }
+    } else {
+      ;(result as any)[key] = value
+    }
+  }
+
+  return result
+}
+
+function resolveMonitoringOptions(source: any): MonitoringOptions {
+  if (source?.monitoringConfig) return source.monitoringConfig
+  if (source?.context?.monitoringConfig) return source.context.monitoringConfig
+  return DEFAULTS
+}
+
+function normalizeRuntimeMonitoringConfig(runtime: any): Partial<MonitoringOptions> {
+  if (!runtime) return {}
+  const overrides: Partial<MonitoringOptions> = {}
+
+  if (typeof runtime.enabled === 'boolean') overrides.enabled = runtime.enabled
+  if (runtime.metrics) {
+    overrides.httpMetrics = runtime.metrics.httpMetrics
+    overrides.systemMetrics = runtime.metrics.systemMetrics
+    overrides.customMetrics = runtime.metrics.customMetrics
+    overrides.collectInterval = runtime.metrics.collectInterval
+    overrides.retentionPeriod = runtime.metrics.retentionPeriod
+  }
+  if (Array.isArray(runtime.exporters)) {
+    overrides.exporters = runtime.exporters as MetricsExporter[]
+  }
+  if (runtime.thresholds) {
+    overrides.thresholds = { ...DEFAULTS.thresholds, ...runtime.thresholds }
+  }
+  if (Array.isArray(runtime.alerts)) {
+    overrides.alerts = runtime.alerts
+  }
+
+  return overrides
+}
+
+const monitoringPluginConfigSchema = {
+  type: 'object' as const,
+  properties: {
+    enabled: { type: 'boolean' },
+    httpMetrics: { type: 'boolean' },
+    systemMetrics: { type: 'boolean' },
+    customMetrics: { type: 'boolean' },
+    collectInterval: { type: 'number' },
+    retentionPeriod: { type: 'number' },
+    exporters: { type: 'array' }
+  }
+}
+
 export const monitoringPlugin: Plugin = {
   name: "monitoring",
   version: "1.0.0",
@@ -103,64 +168,64 @@ export const monitoringPlugin: Plugin = {
   category: "monitoring",
   tags: ["monitoring", "metrics", "performance", "observability"],
   dependencies: [],
+  configSchema: monitoringPluginConfigSchema,
+  defaultConfig: DEFAULTS,
 
   setup: async (context: PluginContext) => {
-    if (!DEFAULTS.enabled) {
+    const runtimeOverrides = normalizeRuntimeMonitoringConfig((context as any).config?.monitoring)
+    const pluginOverrides = (context as any).config?.plugins?.config?.monitoring as Partial<MonitoringOptions> | undefined
+    const resolvedConfig = mergeMonitoringOptions(
+      mergeMonitoringOptions(DEFAULTS, runtimeOverrides),
+      pluginOverrides || {}
+    )
+
+    if (!resolvedConfig.enabled) {
       context.logger.info('Monitoring plugin disabled by configuration')
       return
     }
 
     context.logger.info('Initializing monitoring plugin', {
-      httpMetrics: DEFAULTS.httpMetrics,
-      systemMetrics: DEFAULTS.systemMetrics,
-      customMetrics: DEFAULTS.customMetrics,
-      exporters: DEFAULTS.exporters.length,
-      alerts: DEFAULTS.alerts.length
+      httpMetrics: resolvedConfig.httpMetrics,
+      systemMetrics: resolvedConfig.systemMetrics,
+      customMetrics: resolvedConfig.customMetrics,
+      exporters: resolvedConfig.exporters.length,
+      alerts: resolvedConfig.alerts.length
     })
 
-    // Initialize enhanced metrics registry
     const metricsRegistry: MetricsRegistry = {
       counters: new Map(),
       gauges: new Map(),
       histograms: new Map()
     }
 
-    // Initialize metrics collector
     const metricsCollector = new MetricsCollector()
 
-    // Store registry and collector in context for access by other hooks
     ;(context as any).metricsRegistry = metricsRegistry
     ;(context as any).metricsCollector = metricsCollector
+    ;(context as any).monitoringConfig = resolvedConfig
 
-    // Initialize HTTP metrics
-    if (DEFAULTS.httpMetrics) {
+    if (resolvedConfig.httpMetrics) {
       initializeHttpMetrics(metricsRegistry, metricsCollector)
     }
 
-    // Start system metrics collection
-    if (DEFAULTS.systemMetrics) {
-      startSystemMetricsCollection(context, metricsCollector)
+    if (resolvedConfig.systemMetrics) {
+      startSystemMetricsCollection(context, metricsCollector, resolvedConfig)
     }
 
-    // Setup metrics endpoint for Prometheus
-    setupMetricsEndpoint(context, metricsRegistry, metricsCollector)
+    setupMetricsEndpoint(context, metricsRegistry, metricsCollector, resolvedConfig)
+    startMetricsExporters(context, metricsRegistry, metricsCollector, resolvedConfig)
+    setupMetricsCleanup(context, metricsRegistry, resolvedConfig)
 
-    // Start metrics exporters
-    startMetricsExporters(context, metricsRegistry, metricsCollector)
-
-    // Setup metrics cleanup
-    setupMetricsCleanup(context, metricsRegistry)
-
-    // Setup alert monitoring
-    if (DEFAULTS.alerts.length > 0) {
-      setupAlertMonitoring(context, metricsRegistry)
+    if (resolvedConfig.alerts.length > 0) {
+      setupAlertMonitoring(context, metricsRegistry, resolvedConfig.alerts)
     }
 
     context.logger.info('Monitoring plugin initialized successfully')
   },
 
   onServerStart: async (context: PluginContext) => {
-    if (DEFAULTS.enabled) {
+    const options = resolveMonitoringOptions(context)
+    if (options.enabled) {
       context.logger.info('Monitoring plugin: Server monitoring started', {
         pid: process.pid,
         nodeVersion: process.version,
@@ -178,7 +243,8 @@ export const monitoringPlugin: Plugin = {
   },
 
   onServerStop: async (context: PluginContext) => {
-    if (DEFAULTS.enabled) {
+    const options = resolveMonitoringOptions(context)
+    if (options.enabled) {
       context.logger.info('Monitoring plugin: Server monitoring stopped')
 
       // Record server stop metric
@@ -267,14 +333,14 @@ export const monitoringPlugin: Plugin = {
       responseContext.size
     )
 
-    // Check thresholds and log warnings
-    if (DEFAULTS.thresholds.responseTime && duration > DEFAULTS.thresholds.responseTime) {
+    const options = resolveMonitoringOptions(responseContext)
+    if (options.thresholds.responseTime && duration > options.thresholds.responseTime) {
       const logger = (responseContext as any).logger || console
       logger.warn(`Slow request detected: ${responseContext.method} ${responseContext.path} took ${duration}ms`, {
         method: responseContext.method,
         path: responseContext.path,
         duration,
-        threshold: DEFAULTS.thresholds.responseTime
+        threshold: options.thresholds.responseTime
       })
     }
   },
@@ -347,7 +413,7 @@ function initializeHttpMetrics(registry: MetricsRegistry, collector: MetricsColl
   collector.createHistogram('http_response_size_bytes', 'HTTP response size in bytes', [100, 1000, 10000, 100000, 1000000])
 }
 
-function startSystemMetricsCollection(context: PluginContext, collector: MetricsCollector) {
+function startSystemMetricsCollection(context: PluginContext, collector: MetricsCollector, options: MonitoringOptions) {
   const intervals: NodeJS.Timeout[] = []
 
   // Initialize system metrics in collector
@@ -421,16 +487,15 @@ function startSystemMetricsCollection(context: PluginContext, collector: Metrics
 
   // Collect metrics immediately and then at intervals
   collectSystemMetrics()
-  const interval = setInterval(collectSystemMetrics, DEFAULTS.collectInterval)
+  const interval = setInterval(collectSystemMetrics, options.collectInterval)
   intervals.push(interval)
 
   // Store intervals for cleanup
   ;(context as any).monitoringIntervals = intervals
 }
 
-function setupMetricsEndpoint(context: PluginContext, _registry: MetricsRegistry, collector: MetricsCollector) {
-  // Find Prometheus exporter configuration
-  const prometheusExporter = DEFAULTS.exporters.find((e: any) => e.type === 'prometheus' && e.enabled)
+function setupMetricsEndpoint(context: PluginContext, _registry: MetricsRegistry, collector: MetricsCollector, options: MonitoringOptions) {
+  const prometheusExporter = options.exporters.find((e: any) => e.type === 'prometheus' && e.enabled)
   if (!prometheusExporter) return
 
   const endpoint = prometheusExporter.endpoint || '/metrics'
@@ -450,10 +515,10 @@ function setupMetricsEndpoint(context: PluginContext, _registry: MetricsRegistry
   }
 }
 
-function startMetricsExporters(context: PluginContext, registry: MetricsRegistry, collector: MetricsCollector) {
+function startMetricsExporters(context: PluginContext, registry: MetricsRegistry, collector: MetricsCollector, options: MonitoringOptions) {
   const intervals: NodeJS.Timeout[] = (context as any).monitoringIntervals || []
 
-  for (const exporterConfig of DEFAULTS.exporters) {
+  for (const exporterConfig of options.exporters) {
     if (!exporterConfig.enabled) continue
 
     const exportMetrics = () => {
@@ -491,11 +556,11 @@ function startMetricsExporters(context: PluginContext, registry: MetricsRegistry
   ;(context as any).monitoringIntervals = intervals
 }
 
-function setupAlertMonitoring(context: PluginContext, registry: MetricsRegistry) {
+function setupAlertMonitoring(context: PluginContext, registry: MetricsRegistry, alerts: AlertThreshold[]) {
   const intervals: NodeJS.Timeout[] = (context as any).monitoringIntervals || []
 
   const checkAlerts = () => {
-    for (const alert of DEFAULTS.alerts) {
+    for (const alert of alerts) {
       try {
         const metricValue = getMetricValue(registry, alert.metric)
         if (metricValue !== null && evaluateThreshold(metricValue, alert.operator, alert.value)) {
@@ -543,12 +608,12 @@ function setupAlertMonitoring(context: PluginContext, registry: MetricsRegistry)
   ;(context as any).monitoringIntervals = intervals
 }
 
-function setupMetricsCleanup(context: PluginContext, registry: MetricsRegistry) {
+function setupMetricsCleanup(context: PluginContext, registry: MetricsRegistry, options: MonitoringOptions) {
   const intervals: NodeJS.Timeout[] = (context as any).monitoringIntervals || []
 
   const cleanup = () => {
     const now = Date.now()
-    const cutoff = now - DEFAULTS.retentionPeriod
+    const cutoff = now - options.retentionPeriod
 
     // Clean up old metrics
     for (const [key, metric] of registry.counters.entries()) {

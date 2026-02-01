@@ -28,9 +28,28 @@ export { PluginDiscovery, pluginDiscovery } from './plugins/discovery'
 export { PluginManager } from './plugins/manager'
 export { PluginUtils } from './plugins'
 
-// Utilities
-export * from './utils/logger'
-// Note: errors are already exported via ./server (BuildError), avoid duplicate export
+// Utilities (avoid wildcard export to prevent type duplication)
+export {
+  LOGGER_CONFIG,
+  LOG,
+  WARN,
+  ERROR,
+  DEBUG,
+  START,
+  SUCCESS,
+  IMPORTANT,
+  SECTION,
+  request as logRequest,
+  plugin as logPlugin,
+  framework as logFramework,
+  time as logTime,
+  timeEnd as logTimeEnd,
+  clearCache as clearLoggerCache,
+  logger,
+  log
+} from './utils/logger'
+export type { Logger } from './utils/logger'
+// Note: BuildError types already exported via ./server
 
 // Version
 export { FLUXSTACK_VERSION } from './utils/version'

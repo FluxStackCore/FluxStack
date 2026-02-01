@@ -16,6 +16,59 @@ import { pluginsConfig } from './plugins.config'
 import { monitoringConfig } from './monitoring.config'
 import { appRuntimeConfig } from './runtime.config'
 import { systemConfig } from './system.config'
+import { databaseConfig } from './database.config'
+import { servicesConfig } from './services.config'
+
+const serverWithCors = {
+  ...serverConfig.server,
+  cors: {
+    origins: serverConfig.cors.origins,
+    methods: serverConfig.cors.methods,
+    headers: serverConfig.cors.headers,
+    credentials: serverConfig.cors.credentials,
+    maxAge: serverConfig.cors.maxAge
+  }
+}
+
+const clientProxy = {
+  target: clientConfig.proxy.target,
+  secure: clientConfig.proxy.secure,
+  changeOrigin: clientConfig.proxy.changeOrigin,
+  ws: clientConfig.proxy.ws,
+  rewrite: clientConfig.proxy.rewrite
+}
+
+const client = {
+  port: clientConfig.vite.port,
+  host: clientConfig.vite.host,
+  proxy: clientProxy,
+  build: {
+    ...clientConfig.build,
+    sourceMaps: true
+  }
+}
+
+const monitoring = {
+  ...monitoringConfig.monitoring,
+  metrics: monitoringConfig.metrics,
+  profiling: monitoringConfig.profiling
+}
+
+const environments = {
+  development: {
+    logging: { level: 'debug', format: 'pretty' },
+    build: { optimization: { ...buildConfig.optimization, minify: false } }
+  },
+  production: {
+    logging: { level: 'warn', format: 'json' },
+    monitoring: { enabled: true }
+  },
+  test: {
+    logging: { level: 'error', format: 'pretty' },
+    server: { port: 0 },
+    client: { port: 0 }
+  }
+}
 
 /**
  * FluxStack complete configuration
@@ -24,9 +77,15 @@ import { systemConfig } from './system.config'
 export const fluxStackConfig = {
   // Core system configs
   app: appConfig,
-  server: serverConfig.server,
-  client: clientConfig.vite,
-  build: buildConfig.build,
+  server: serverWithCors,
+  client,
+  build: {
+    ...buildConfig.build,
+    optimization: {
+      ...buildConfig.optimization,
+      minify: true
+    }
+  },
 
   // CORS (from server)
   cors: serverConfig.cors,
@@ -40,11 +99,16 @@ export const fluxStackConfig = {
   // Logging, plugins, monitoring
   logging: loggerConfig,
   plugins: pluginsConfig,
-  monitoring: monitoringConfig,
+  monitoring,
 
   // Runtime & system
   runtime: appRuntimeConfig.values,
-  system: systemConfig
+  system: systemConfig,
+  database: databaseConfig,
+  services: servicesConfig,
+
+  // Environment defaults (backward compatibility)
+  environments
 } as const
 
 /**

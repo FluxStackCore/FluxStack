@@ -11,8 +11,20 @@ export interface CreateUserRequest {
   email: string
 }
 
-export interface UserResponse {
+export interface UserListResponse {
+  success: true
+  users: User[]
+  count: number
+}
+
+export interface UserDetailResponse {
   success: boolean
   user?: User
+  error?: string
+}
+
+export interface MutationResponse {
+  success: boolean
   message?: string
+  error?: string
 }
