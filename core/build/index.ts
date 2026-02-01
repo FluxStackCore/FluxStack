@@ -41,8 +41,8 @@ export class FluxStackBuilder {
   async buildClient() {
     return await this.bundler.bundleClient({
       env: {
-        VITE_BUILD_OUTDIR: this.config.client.build.outDir,
-        VITE_BUILD_SOURCEMAPS: this.config.client.build.sourceMaps.toString()
+        VITE_BUILD_OUTDIR: this.config.clientBuild.outDir,
+        VITE_BUILD_SOURCEMAPS: this.config.clientBuild.sourceMaps.toString()
       }
     })
   }
