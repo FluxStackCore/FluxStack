@@ -6,7 +6,7 @@ import type { Logger } from "@/core/utils/logger"
 import { FluxStackError } from "@/core/utils/errors"
 import { PluginDependencyManager } from "./dependency-manager"
 import { readdir, readFile } from "fs/promises"
-import { join, resolve } from "path"
+import { join, resolve, sep } from "path"
 import { existsSync } from "fs"
 
 export interface PluginRegistryConfig {
@@ -220,6 +220,32 @@ export class PluginRegistry {
    */
   has(name: string): boolean {
     return this.plugins.has(name)
+  }
+
+  /**
+   * Check which dependencies are missing from main package.json
+   */
+  private checkMissingDependencies(pluginDeps: Record<string, string>): string[] {
+    try {
+      const mainPackageJsonPath = join(process.cwd(), 'package.json')
+      if (!existsSync(mainPackageJsonPath)) {
+        return Object.keys(pluginDeps)
+      }
+
+      const mainPackageJson = JSON.parse(
+        require('fs').readFileSync(mainPackageJsonPath, 'utf-8')
+      )
+
+      const allDeps = {
+        ...mainPackageJson.dependencies,
+        ...mainPackageJson.devDependencies
+      }
+
+      return Object.keys(pluginDeps).filter(dep => !allDeps[dep])
+    } catch (error) {
+      // If we can't read package.json, assume all deps are missing
+      return Object.keys(pluginDeps)
+    }
   }
 
   /**
@@ -534,9 +560,23 @@ export class PluginRegistry {
         }
       }
 
-      // Install dependencies BEFORE importing the plugin
+      // Check plugin dependencies
       if (manifest && manifest.dependencies && Object.keys(manifest.dependencies).length > 0) {
-        this.logger?.warn(`Plugin '${manifest.name}' declares dependencies. Run 'bun run flux plugin:deps install ${manifest.name}' to review and install them manually.`)
+        // For project plugins, check if dependencies are already in main package.json
+        const isProjectPlugin = pluginPath.includes('plugins' + sep)
+
+        if (isProjectPlugin) {
+          const missingDeps = this.checkMissingDependencies(manifest.dependencies)
+          if (missingDeps.length > 0) {
+            this.logger?.warn(
+              `Plugin '${manifest.name}' has missing dependencies: ${missingDeps.join(', ')}. ` +
+              `Run 'bun install' or 'bun run flux plugin:deps install ${manifest.name}' to install them.`
+            )
+          }
+        } else {
+          // NPM plugins always show warning
+          this.logger?.warn(`Plugin '${manifest.name}' declares dependencies. Run 'bun run flux plugin:deps install ${manifest.name}' to review and install them manually.`)
+        }
       }
 
       // Try to import the plugin (after dependencies are installed)
