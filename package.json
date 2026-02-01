@@ -25,8 +25,8 @@
   },
   "scripts": {
     "dev": "bun run core/cli/index.ts dev",
-    "dev:frontend": "bun run core/cli/index.ts frontend",
-    "dev:backend": "bun run core/cli/index.ts backend",
+    "dev:frontend": "bun run app/client/frontend-only.ts",
+    "dev:backend": "bun run app/server/backend-only.ts",
     "sync-version": "bun run core/utils/sync-version.ts",
     "build": "cross-env NODE_ENV=production bun run core/cli/index.ts build",
     "build:frontend": "cross-env NODE_ENV=production bun run core/cli/index.ts build --frontend-only",
