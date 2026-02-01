@@ -1,57 +1,78 @@
-// Standalone frontend development
-import { spawn } from "bun"
-import { join } from "path"
+/**
+ * Standalone Frontend Development
+ * Starts Vite dev server directly without Elysia backend
+ */
 
-export const startFrontendOnly = (config: any = {}) => {
-  const clientPath = config.clientPath || "app/client"
-  const port = config.vitePort || process.env.FRONTEND_PORT || 5173
-  const apiUrl = config.apiUrl || process.env.API_URL || 'http://localhost:3000/api'
-  
-  console.log(`⚛️  FluxStack Frontend`)
-  console.log(`🌐 http://${process.env.HOST || 'localhost'}:${port}`)
-  console.log(`🔗 API: ${apiUrl}`)
+import { clientConfig } from '@/config'
+import type { LogLevel } from 'vite'
+
+type ViteDevServer = Awaited<ReturnType<typeof import('vite')['createServer']>>
+
+let viteServer: ViteDevServer | null = null
+
+export const startFrontendOnly = async (config: any = {}) => {
+  const port = config.vitePort || clientConfig.vite.port || 5173
+  const host = config.viteHost || clientConfig.vite.host || 'localhost'
+  const logLevel = (config.logLevel || clientConfig.vite.logLevel || 'info') as LogLevel
+
+  console.log(`⚛️  FluxStack Frontend Only`)
+  console.log(`🌐 http://${host}:${port}`)
   console.log()
-  
-  const viteProcess = spawn({
-    cmd: ["bun", "run", "dev"],
-    cwd: join(process.cwd(), clientPath),
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      ...process.env,
-      VITE_API_URL: apiUrl,
-      PORT: port.toString(),
-      HOST: process.env.HOST || 'localhost'
+
+  try {
+    // Dynamic import of vite
+    const { createServer } = await import('vite')
+
+    // Start Vite dev server programmatically
+    viteServer = await createServer({
+      configFile: './vite.config.ts',
+      server: {
+        port,
+        host,
+        strictPort: clientConfig.vite.strictPort
+      },
+      logLevel
+    })
+
+    await viteServer.listen()
+
+    console.log(`✅ Frontend server ready!`)
+    console.log()
+
+    // Setup cleanup on process exit
+    const cleanup = async () => {
+      if (viteServer) {
+        console.log('\n🛑 Stopping frontend...')
+        await viteServer.close()
+        viteServer = null
+        process.exit(0)
+      }
     }
-  })
 
-  if (viteProcess.stdout) {
-    viteProcess.stdout.pipeTo(new WritableStream({
-      write(chunk) {
-        const output = new TextDecoder().decode(chunk)
-        // Filtrar mensagens desnecessárias do Vite
-        if (!output.includes("hmr update") && !output.includes("Local:")) {
-          console.log(output)
-        }
-      }
-    })).catch(() => {}) // Ignore pipe errors
+    process.on('SIGINT', cleanup)
+    process.on('SIGTERM', cleanup)
+    process.on('exit', cleanup)
+
+    return viteServer
+
+  } catch (error) {
+    // Check if error is related to port already in use
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const isPortInUse = errorMessage.includes('EADDRINUSE') ||
+      errorMessage.includes('address already in use') ||
+      (errorMessage.includes('Port') && errorMessage.includes('is in use'))
+
+    if (isPortInUse) {
+      console.error(`❌ Failed to start Vite: Port ${port} is already in use`)
+      console.log(`💡 Try one of these solutions:`)
+      console.log(`   1. Stop the process using port ${port}`)
+      console.log(`   2. Change VITE_PORT in your .env file`)
+      console.log(`   3. Kill the process: ${process.platform === 'win32' ? `netstat -ano | findstr :${port}` : `lsof -ti:${port} | xargs kill -9`}`)
+      process.exit(1)
+    } else {
+      console.error('❌ Failed to start Vite server:', errorMessage)
+      console.error('Full error:', error)
+      process.exit(1)
+    }
   }
-
-  if (viteProcess.stderr) {
-    viteProcess.stderr.pipeTo(new WritableStream({
-      write(chunk) {
-        const error = new TextDecoder().decode(chunk)
-        console.error(error)
-      }
-    })).catch(() => {}) // Ignore pipe errors
-  }
-
-  // Cleanup ao sair
-  process.on("SIGINT", () => {
-    console.log("\n🛑 Stopping frontend...")
-    viteProcess.kill()
-    process.exit(0)
-  })
-  
-  return viteProcess
 }
