@@ -34,17 +34,11 @@
     },
 
     // Best practices
-    "strict": false,
+    "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "strictFunctionTypes": false,
-    "noImplicitReturns": false,
-    "noImplicitThis": false,
     "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noUnusedParameters": false
   },
   "exclude": [
     "examples/**/*",

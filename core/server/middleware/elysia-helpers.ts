@@ -144,8 +144,8 @@ export function createRateLimit(options: {
 
   const requests = new Map<string, { count: number; resetTime: number }>()
 
-  // Cleanup old entries periodically
-  setInterval(() => {
+  // Cleanup old entries periodically (store ref for proper disposal)
+  const cleanupInterval = setInterval(() => {
     const now = Date.now()
     for (const [key, data] of requests.entries()) {
       if (now > data.resetTime) {
@@ -153,6 +153,11 @@ export function createRateLimit(options: {
       }
     }
   }, Math.max(windowMs, 60000)) // At least every minute
+
+  // Prevent interval from keeping the process alive
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref()
+  }
 
   return new Elysia({ name })
     .onBeforeHandle((ctx) => {

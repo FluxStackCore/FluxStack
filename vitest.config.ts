@@ -17,8 +17,16 @@ export default defineConfig({
         'node_modules/',
         'tests/',
         '*.config.ts',
-        'dist/'
-      ]
+        'dist/',
+        'ai-context/',
+        'examples/'
+      ],
+      thresholds: {
+        branches: 60,
+        functions: 60,
+        lines: 60,
+        statements: 60
+      }
     }
   }
 

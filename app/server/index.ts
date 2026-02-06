@@ -45,4 +45,3 @@ const framework = new FluxStackFramework()
 await framework.listen()
 
 export const app = framework
-export type App = typeof app

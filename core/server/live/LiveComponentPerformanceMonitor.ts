@@ -136,7 +136,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
   private alerts = new Map<string, PerformanceAlert[]>() // componentId -> alerts
   private suggestions = new Map<string, OptimizationSuggestion[]>()
   private config: MonitoringConfig
-  private dashboardUpdateInterval: NodeJS.Timeout
+  private dashboardUpdateInterval!: NodeJS.Timeout
   private alertCooldowns = new Map<string, number>() // alertType -> lastAlertTime
   private performanceObserver?: any
 

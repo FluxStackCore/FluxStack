@@ -28,7 +28,7 @@ export const cryptoAuthAdmin = (options: CryptoAuthMiddlewareOptions = {}) => {
         name: 'crypto-auth-admin-check',
         check: ({ request }) => {
           const user = (request as any).user as CryptoAuthUser | undefined
-          return user && user.isAdmin
+          return !!(user && user.isAdmin)
         },
         onFail: (set, { request }) => {
           const user = (request as any).user as CryptoAuthUser | undefined

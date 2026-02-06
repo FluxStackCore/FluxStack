@@ -284,9 +284,9 @@ export class FluxStackFramework {
 
       // Pass through all other stderr output
       if (typeof encoding === 'function') {
-        return originalStderrWrite.call(process.stderr, chunk, encoding)
+        return (originalStderrWrite as Function).call(process.stderr, chunk, encoding)
       } else {
-        return originalStderrWrite.call(process.stderr, chunk, encoding, callback)
+        return (originalStderrWrite as Function).call(process.stderr, chunk, encoding, callback)
       }
     }
 

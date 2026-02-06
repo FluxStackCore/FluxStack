@@ -30,16 +30,16 @@ export class FluxStackBuilder {
 
     // Initialize bundler with configuration
     this.bundler = new Bundler({
-      target: config.build.target,
-      outDir: config.build.outDir,
-      sourceMaps: config.build.sourceMaps,
+      target: config.build.target ?? 'bun',
+      outDir: config.build.outDir ?? 'dist',
+      sourceMaps: config.build.sourceMaps ?? false,
       minify: optimization.minify,
       external: config.build.external || []
     })
 
     // Initialize optimizer with configuration
     this.optimizer = new Optimizer({
-      treeshake: optimization.treeshake,
+      treeshake: optimization.treeshake ?? true,
       compress: optimization.compress || false,
       removeUnusedCSS: optimization.removeUnusedCSS || false,
       optimizeImages: optimization.optimizeImages || false,
@@ -50,8 +50,8 @@ export class FluxStackBuilder {
   async buildClient() {
     return await this.bundler.bundleClient({
       env: {
-        VITE_BUILD_OUTDIR: this.config.clientBuild.outDir,
-        VITE_BUILD_SOURCEMAPS: this.config.clientBuild.sourceMaps.toString()
+        VITE_BUILD_OUTDIR: this.config.clientBuild.outDir ?? 'dist/client',
+        VITE_BUILD_SOURCEMAPS: (this.config.clientBuild.sourceMaps ?? false).toString()
       }
     })
   }
@@ -69,7 +69,7 @@ export class FluxStackBuilder {
   async createDockerFiles() {
     buildLogger.section('Docker Configuration', '🐳')
 
-    const distDir = this.config.build.outDir
+    const distDir = this.config.build.outDir ?? 'dist'
     buildLogger.step(`Output directory: ${distDir}`)
 
     // Ensure dist directory exists
@@ -254,9 +254,9 @@ MONITORING_ENABLED=true
     const startTime = Date.now()
 
     const buildContext: BuildContext = {
-      target: this.config.build.target,
-      outDir: this.config.build.outDir,
-      mode: (this.config.build.mode || 'production') as 'development' | 'production',
+      target: this.config.build.target ?? 'bun',
+      outDir: this.config.build.outDir ?? 'dist',
+      mode: (this.config.build.mode ?? 'production') as 'development' | 'production',
       config: this.config
     }
 
@@ -316,12 +316,12 @@ MONITORING_ENABLED=true
       }
 
       // Process assets and execute onBuildAsset hooks
-      await this.processAssets(this.config.build.outDir)
+      await this.processAssets(this.config.build.outDir ?? 'dist')
 
       // Optimize build if enabled
       let optimizationResult
       if (this.config.build.optimize) {
-        optimizationResult = await this.optimizer.optimize(this.config.build.outDir)
+        optimizationResult = await this.optimizer.optimize(this.config.build.outDir ?? 'dist')
       }
 
       // Create Docker files
@@ -338,7 +338,7 @@ MONITORING_ENABLED=true
       // Print build summary
       buildLogger.summary('Build Completed Successfully', [
         { label: 'Build Time', value: buildLogger.formatDuration(duration), highlight: true },
-        { label: 'Output Directory', value: this.config.build.outDir },
+        { label: 'Output Directory', value: this.config.build.outDir ?? 'dist' },
         { label: 'Client Assets', value: clientResult.assets?.length || 0 },
         { label: 'Total Size', value: buildLogger.formatSize(optimizationResult?.optimizedSize || 0) },
         { label: 'Compression', value: optimizationResult?.compressionRatio ? `${optimizationResult.compressionRatio.toFixed(2)}%` : 'N/A' },
@@ -431,10 +431,10 @@ MONITORING_ENABLED=true
     optimizationResult?: any
   ): Promise<BuildManifest> {
     return {
-      version: this.config.app.version,
+      version: this.config.app.version ?? '0.0.0',
       timestamp: new Date().toISOString(),
-      target: this.config.build.target,
-      mode: this.config.build.mode || 'production',
+      target: this.config.build.target ?? 'bun',
+      mode: this.config.build.mode ?? 'production',
       client: {
         entryPoints: [],
         chunks: [],

@@ -72,7 +72,7 @@ export class ComponentRegistry {
   private autoDiscoveredComponents = new Map<string, any>() // Auto-discovered component classes
   private dependencies = new Map<string, ComponentDependency[]>()
   private services: ServiceContainer
-  private healthCheckInterval: NodeJS.Timeout
+  private healthCheckInterval!: NodeJS.Timeout
   private recoveryStrategies = new Map<string, () => Promise<void>>()
   
   constructor() {
@@ -494,8 +494,8 @@ export class ComponentRegistry {
     if (!component) return
 
     // Cleanup
-    component.destroy()
-    
+    component.destroy?.()
+
     // Remove from room subscriptions
     this.unsubscribeFromAllRooms(componentId)
     
@@ -516,7 +516,7 @@ export class ComponentRegistry {
     }
 
     try {
-      return await component.executeAction(action, payload)
+      return await component.executeAction?.(action, payload)
     } catch (error: any) {
       console.error(`❌ Error executing action '${action}' on component '${componentId}':`, error.message)
       throw error
@@ -532,7 +532,7 @@ export class ComponentRegistry {
 
     // Update state
     const updates = { [property]: value }
-    component.setState(updates)
+    component.setState?.(updates)
 
     console.log(`📝 Updated property '${property}' on component '${componentId}'`)
   }
@@ -926,11 +926,11 @@ export class ComponentRegistry {
     try {
       console.log(`🔄 Migrating component ${componentId} from v${fromVersion} to v${toVersion}`)
       
-      const oldState = component.getSerializableState()
+      const oldState = component.getSerializableState?.()
       const newState = migrationFn(oldState)
-      
+
       // Update component state
-      component.setState(newState)
+      component.setState?.(newState)
       
       // Record migration
       const migration: StateMigration = {
@@ -1006,7 +1006,7 @@ export class ComponentRegistry {
     
     if (component) {
       try {
-        component.destroy()
+        component.destroy?.()
       } catch (error) {
         console.error(`❌ Error destroying component ${componentId}:`, error)
       }

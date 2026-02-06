@@ -23,15 +23,15 @@ export interface LoggerConfig {
  */
 export function getLoggerConfig(): LoggerConfig {
   return {
-    level: loggerConfig.level,
+    level: loggerConfig.level ?? 'info',
     format: (loggerConfig as any).format ?? 'pretty',
-    dateFormat: loggerConfig.dateFormat,
-    logToFile: loggerConfig.logToFile,
-    maxSize: loggerConfig.maxSize,
-    maxFiles: loggerConfig.maxFiles,
-    objectDepth: loggerConfig.objectDepth,
-    enableColors: loggerConfig.enableColors,
-    enableStackTrace: loggerConfig.enableStackTrace,
+    dateFormat: loggerConfig.dateFormat ?? 'YYYY-MM-DD HH:mm:ss',
+    logToFile: loggerConfig.logToFile ?? false,
+    maxSize: loggerConfig.maxSize ?? '20m',
+    maxFiles: loggerConfig.maxFiles ?? '14d',
+    objectDepth: loggerConfig.objectDepth ?? 4,
+    enableColors: loggerConfig.enableColors ?? true,
+    enableStackTrace: loggerConfig.enableStackTrace ?? true,
     transports: (loggerConfig as any).transports ?? ['console']
   }
 }

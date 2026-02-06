@@ -219,7 +219,7 @@ jobs:
           echo "🧪 Testing with updated dependencies..."
           
           # Run tests to ensure nothing breaks
-          bun run test:run
+          bun run test run
           
           # Try builds to ensure they still work
           echo "🏗️ Testing frontend build..."

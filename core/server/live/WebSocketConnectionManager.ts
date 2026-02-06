@@ -60,7 +60,7 @@ export class WebSocketConnectionManager extends EventEmitter {
   private connectionMetrics = new Map<string, ConnectionMetrics>()
   private connectionPools = new Map<string, Set<string>>() // poolId -> connectionIds
   private messageQueues = new Map<string, QueuedMessage[]>() // connectionId -> queued messages
-  private healthCheckInterval: NodeJS.Timeout
+  private healthCheckInterval!: NodeJS.Timeout
   private config: ConnectionConfig
   private loadBalancerIndex = 0
 
