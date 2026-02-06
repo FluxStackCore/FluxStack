@@ -15,11 +15,22 @@ export interface ModuleResolverConfig {
 export class PluginModuleResolver {
   private config: ModuleResolverConfig
   private logger?: Logger
+  private static readonly MAX_CACHE_SIZE = 1000
   private resolveCache: Map<string, string> = new Map()
 
   constructor(config: ModuleResolverConfig) {
     this.config = config
     this.logger = config.logger
+  }
+
+  private cacheSet(key: string, value: string): void {
+    if (this.resolveCache.size >= PluginModuleResolver.MAX_CACHE_SIZE) {
+      const firstKey = this.resolveCache.keys().next().value
+      if (firstKey !== undefined) {
+        this.resolveCache.delete(firstKey)
+      }
+    }
+    this.cacheSet(key, value)
   }
 
   /**
@@ -41,7 +52,7 @@ export class PluginModuleResolver {
     const localPath = this.tryResolveLocal(moduleName, pluginPath)
     if (localPath) {
       this.logger?.debug(`✅ Módulo '${moduleName}' encontrado localmente: ${localPath}`)
-      this.resolveCache.set(cacheKey, localPath)
+      this.cacheSet(cacheKey, localPath)
       return localPath
     }
 
@@ -49,7 +60,7 @@ export class PluginModuleResolver {
     const projectPath = this.tryResolveProject(moduleName)
     if (projectPath) {
       this.logger?.debug(`✅ Módulo '${moduleName}' encontrado no projeto: ${projectPath}`)
-      this.resolveCache.set(cacheKey, projectPath)
+      this.cacheSet(cacheKey, projectPath)
       return projectPath
     }
 
@@ -152,7 +163,7 @@ export class PluginModuleResolver {
       const resolvedLocal = this.findFileWithExtension(localPath)
       if (resolvedLocal) {
         this.logger?.debug(`✅ Subpath '${fullModule}' encontrado localmente: ${resolvedLocal}`)
-        this.resolveCache.set(cacheKey, resolvedLocal)
+        this.cacheSet(cacheKey, resolvedLocal)
         return resolvedLocal
       }
     }
@@ -164,7 +175,7 @@ export class PluginModuleResolver {
       const resolvedProject = this.findFileWithExtension(projectPath)
       if (resolvedProject) {
         this.logger?.debug(`✅ Subpath '${fullModule}' encontrado no projeto: ${resolvedProject}`)
-        this.resolveCache.set(cacheKey, resolvedProject)
+        this.cacheSet(cacheKey, resolvedProject)
         return resolvedProject
       }
     }
