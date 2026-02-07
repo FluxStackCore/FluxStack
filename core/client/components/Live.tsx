@@ -4,7 +4,11 @@
 //   import { Live } from '@/core/client'
 //   import { LiveForm } from '@server/live/LiveForm'
 //
-//   const form = Live.use(LiveForm, { name: '', email: '' })
+//   // Sem estado inicial - usa defaultState do componente
+//   const form = Live.use(LiveForm)
+//
+//   // Com estado inicial parcial (override)
+//   const form = Live.use(LiveForm, { name: 'João' })
 //
 //   return (
 //     <input {...form.$field('name', { syncOn: 'blur' })} />
@@ -16,10 +20,15 @@ import type { UseLiveComponentOptions, LiveProxy } from '../hooks/useLiveCompone
 
 // ===== Tipos para Inferência do Servidor =====
 
-// Extrai o State da classe do servidor
-type ExtractState<T> = T extends { new(...args: any[]): { state: infer S } }
+// Extrai o defaultState estático da classe
+type ExtractDefaultState<T> = T extends { defaultState: infer S }
   ? S extends Record<string, any> ? S : Record<string, any>
   : Record<string, any>
+
+// Extrai o State da classe do servidor (via instance.state)
+type ExtractState<T> = T extends { new(...args: any[]): { state: infer S } }
+  ? S extends Record<string, any> ? S : Record<string, any>
+  : ExtractDefaultState<T>
 
 // Extrai as Actions (métodos públicos async) da classe do servidor
 type ExtractActions<T> = T extends { new(...args: any[]): infer Instance }
@@ -35,15 +44,20 @@ type ExtractActions<T> = T extends { new(...args: any[]): infer Instance }
 
 // ===== Hook Principal =====
 
-function useLive<T extends { new(...args: any[]): any }>(
+function useLive<T extends { new(...args: any[]): any; defaultState?: Record<string, any> }>(
   ComponentClass: T,
-  initialState: ExtractState<T>,
+  initialState?: Partial<ExtractState<T>>,
   options?: UseLiveComponentOptions
 ): LiveProxy<ExtractState<T>, ExtractActions<T>> {
   const componentName = ComponentClass.name.replace(/Component$/, '')
+
+  // Usa defaultState da classe se não passar initialState
+  const defaultState = (ComponentClass as any).defaultState || {}
+  const mergedState = { ...defaultState, ...initialState } as ExtractState<T>
+
   return useLiveComponent<ExtractState<T>, ExtractActions<T>>(
     componentName,
-    initialState,
+    mergedState,
     options
   )
 }

@@ -2,13 +2,14 @@
 // ZERO interfaces! TypeScript infere tudo automaticamente.
 import { LiveComponent } from "@core/types/types"
 
-const defaultState = {
+export const defaultState = {
   currentTime: '',
   format: '24h' as '12h' | '24h',
   showSeconds: true
 }
 
 export class LiveClock extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
   private clockInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {

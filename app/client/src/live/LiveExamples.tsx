@@ -3,13 +3,8 @@ import { Live } from '@/core/client'
 import { LiveForm } from '@server/live/LiveForm'
 
 export function FormExample() {
-  const form = Live.use(LiveForm, {
-    name: '',
-    email: '',
-    message: '',
-    submitted: false,
-    submittedAt: null
-  })
+  // ✨ Sem initialState! Usa defaultState do backend automaticamente
+  const form = Live.use(LiveForm)
 
   // Sucesso
   if (form.submitted) {
@@ -102,7 +97,7 @@ export function LiveComponentExamples() {
 {`import { Live } from '@/core/client'
 import { LiveForm } from '@server/live/LiveForm'
 
-const form = Live.use(LiveForm, { name: '', email: '' })
+const form = Live.use(LiveForm)  // usa defaultState do backend
 
 // Campos com sync automático
 <input {...form.$field('name', { syncOn: 'blur' })} />

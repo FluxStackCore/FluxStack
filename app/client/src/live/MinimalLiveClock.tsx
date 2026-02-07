@@ -1,13 +1,10 @@
-// 🔥 MinimalLiveClock - usando nova API Live.use()
+// 🔥 MinimalLiveClock - usando nova API Live.use() com defaultState automático
 import { Live } from '@/core/client'
 import { LiveClock } from '@server/live/LiveClock'
 
 export function MinimalLiveClock() {
-  const clock = Live.use(LiveClock, {
-    currentTime: '--:--:--',
-    format: '24h',
-    showSeconds: true
-  })
+  // ✨ Sem initialState! Usa defaultState do componente do backend automaticamente
+  const clock = Live.use(LiveClock)
 
   return (
     <div className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-xl p-4 border border-blue-400/20">

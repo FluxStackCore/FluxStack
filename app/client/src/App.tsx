@@ -10,13 +10,8 @@ import { LiveComponentExamples } from './live/LiveExamples'
 // ===== Live Form Demo =====
 
 function LiveFormDemo() {
-  const form = Live.use(LiveForm, {
-    name: '',
-    email: '',
-    message: '',
-    submitted: false,
-    submittedAt: null
-  })
+  // ✨ Sem initialState! Usa defaultState do backend automaticamente
+  const form = Live.use(LiveForm)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -8,11 +8,8 @@ export function FileUploadExample() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const { sendMessageAndWait } = useLiveComponents()
 
-  // Nova API simplificada
-  const upload = Live.use(LiveFileUpload, {
-    uploadedFiles: [],
-    maxFiles: 10
-  })
+  // ✨ Sem initialState! Usa defaultState do backend automaticamente
+  const upload = Live.use(LiveFileUpload)
 
   // Chunked Upload Hook
   const {

@@ -12,13 +12,15 @@ const getServerTemplate = (name: string, type: string, room?: string) => {
       return `// 🔥 ${name} - Counter
 import { LiveComponent } from '@core/types/types'
 
-const defaultState = {
+export const defaultState = {
   count: 0,
   title: '${name}',
   step: 1
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
+
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`🔢 ${name} created: \${this.id}\`)
@@ -54,7 +56,7 @@ export class ${name} extends LiveComponent<typeof defaultState> {
       return `// 🔥 ${name} - Form
 import { LiveComponent } from '@core/types/types'
 
-const defaultState = {
+export const defaultState = {
   name: '',
   email: '',
   message: '',
@@ -63,6 +65,8 @@ const defaultState = {
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
+
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`📝 ${name} created: \${this.id}\`)
@@ -88,13 +92,15 @@ export class ${name} extends LiveComponent<typeof defaultState> {
       return `// 🔥 ${name} - Chat
 import { LiveComponent } from '@core/types/types'
 
-const defaultState = {
+export const defaultState = {
   messages: [] as Array<{ id: string; text: string; username: string; timestamp: string }>,
   username: '',
   currentMessage: ''
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
+
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`💬 ${name} created: \${this.id}\`)
@@ -127,12 +133,14 @@ export class ${name} extends LiveComponent<typeof defaultState> {
       return `// 🔥 ${name} - Live Component
 import { LiveComponent } from '@core/types/types'
 
-const defaultState = {
+export const defaultState = {
   message: 'Hello from ${name}!',
   count: 0
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
+
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`🔥 ${name} created: \${this.id}\`)

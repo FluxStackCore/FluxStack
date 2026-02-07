@@ -2,7 +2,7 @@
 // ZERO interfaces! TypeScript infere tudo automaticamente.
 import { LiveComponent } from '@core/types/types'
 
-const defaultState = {
+export const defaultState = {
   uploadedFiles: [] as Array<{
     id: string
     filename: string
@@ -13,6 +13,7 @@ const defaultState = {
 }
 
 export class LiveFileUpload extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)
     console.log(`📤 LiveFileUpload created: ${this.id}`)

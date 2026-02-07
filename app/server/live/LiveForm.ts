@@ -3,7 +3,7 @@
 import { LiveComponent } from "@core/types/types"
 
 // Estado definido inline - TypeScript infere automaticamente
-const defaultState = {
+export const defaultState = {
   name: '',
   email: '',
   message: '',
@@ -12,6 +12,7 @@ const defaultState = {
 }
 
 export class LiveForm extends LiveComponent<typeof defaultState> {
+  static defaultState = defaultState
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)
     console.log(`📝 LiveForm created: ${this.id}`)

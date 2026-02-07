@@ -1,13 +1,10 @@
-// 🔥 ClockDemo - usando nova API Live.use()
+// 🔥 ClockDemo - usando nova API Live.use() com defaultState automático
 import { Live } from '@/core/client'
 import { LiveClock } from '@server/live/LiveClock'
 
 export function ClockDemo() {
-  const clock = Live.use(LiveClock, {
-    currentTime: '--:--:--',
-    format: '24h',
-    showSeconds: true
-  })
+  // ✨ Sem initialState! Usa defaultState do backend automaticamente
+  const clock = Live.use(LiveClock)
 
   return (
     <div className="p-6 space-y-4">

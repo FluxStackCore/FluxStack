@@ -8,10 +8,8 @@ export function QuickUploadTest() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const { sendMessageAndWait } = useLiveComponents()
 
-  const upload = Live.use(LiveFileUpload, {
-    uploadedFiles: [],
-    maxFiles: 10
-  })
+  // ✨ Sem initialState! Usa defaultState do backend automaticamente
+  const upload = Live.use(LiveFileUpload)
 
   const {
     uploading,
