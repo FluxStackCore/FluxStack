@@ -74,8 +74,8 @@ export const cryptoAuthPlugin: Plugin = {
 
     // Inicializar serviço de autenticação (SEM SESSÕES)
     const authService = new CryptoAuthService({
-      maxTimeDrift: cryptoAuthConfig.maxTimeDrift,
-      adminKeys: cryptoAuthConfig.adminKeys,
+      maxTimeDrift: cryptoAuthConfig.maxTimeDrift ?? 300000,
+      adminKeys: cryptoAuthConfig.adminKeys ?? [],
       logger: context.logger
     })
 
@@ -95,7 +95,7 @@ export const cryptoAuthPlugin: Plugin = {
     (global as any).__fluxstackPlugins.push({
       name: 'Crypto Auth',
       status: 'Active',
-      details: `${cryptoAuthConfig.adminKeys.length} admin keys`
+      details: `${(cryptoAuthConfig.adminKeys ?? []).length} admin keys`
     })
   },
 

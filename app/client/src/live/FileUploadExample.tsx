@@ -293,7 +293,9 @@ export function FileUploadExample() {
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
                           target.style.display = 'none'
-                          target.parentElement!.innerHTML = `<div class="text-6xl">${getFileIcon(file.filename)}</div>`
+                          if (target.parentElement) {
+                            target.parentElement.textContent = getFileIcon(file.filename)
+                          }
                         }}
                       />
                     ) : (

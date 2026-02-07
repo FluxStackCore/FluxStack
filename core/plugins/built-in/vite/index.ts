@@ -16,7 +16,7 @@ function createStaticFallback() {
   // Discover base directory once
   const baseDir = existsSync('client') ? 'client'
     : existsSync('dist/client') ? 'dist/client'
-    : clientConfig.build.outDir
+    : clientConfig.build.outDir ?? 'dist/client'
 
   return (c: { request?: Request }) => {
     const req = c.request
@@ -118,7 +118,7 @@ export const vitePlugin: Plugin = {
   onBeforeRoute: async (ctx: RequestContext) => {
     if (!isDevelopment()) return
 
-    const shouldSkip = pluginsConfig.viteExcludePaths.some(prefix =>
+    const shouldSkip = (pluginsConfig.viteExcludePaths ?? []).some(prefix =>
       ctx.path === prefix || ctx.path.startsWith(prefix + '/')
     )
 

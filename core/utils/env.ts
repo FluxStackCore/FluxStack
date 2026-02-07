@@ -51,13 +51,7 @@ class EnvLoader {
         return global['process']['env']
       }
 
-      // Last resort: eval to bypass static analysis
-      try {
-        const proc = eval('typeof process !== "undefined" ? process : null')
-        return proc?.env || {}
-      } catch {
-        return {}
-      }
+      return {}
     }
   }
 

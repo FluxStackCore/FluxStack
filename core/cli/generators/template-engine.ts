@@ -77,7 +77,9 @@ export class TemplateEngine {
     options: GeneratorOptions
   ): Promise<Record<string, any>> {
     const variables: Record<string, any> = {
-      // Built-in variables
+      // Spread options first so built-in variables take precedence
+      ...options,
+      // Built-in variables (override any same-named keys from options)
       name: options.name,
       Name: this.capitalize(options.name),
       NAME: options.name.toUpperCase(),
@@ -90,8 +92,7 @@ export class TemplateEngine {
       date: new Date().toLocaleDateString(),
       year: new Date().getFullYear(),
       author: 'FluxStack Developer',
-      projectName: context.config.app?.name || 'fluxstack-app',
-      ...options
+      projectName: context.config.app?.name || 'fluxstack-app'
     }
 
     // Process template-specific variables

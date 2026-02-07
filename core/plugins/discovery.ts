@@ -306,12 +306,24 @@ export class PluginDiscovery {
    * Validate if an object is a valid plugin
    */
   private isValidPlugin(plugin: any): plugin is Plugin {
-    return (
-      plugin &&
-      typeof plugin === 'object' &&
-      typeof plugin.name === 'string' &&
-      plugin.name.length > 0
-    )
+    if (!plugin || typeof plugin !== 'object' || typeof plugin.name !== 'string' || plugin.name.length === 0) {
+      return false
+    }
+
+    const hookNames = [
+      'setup', 'onConfigLoad', 'onBeforeServerStart', 'onServerStart',
+      'onAfterServerStart', 'onBeforeServerStop', 'onServerStop',
+      'onRequest', 'onResponse', 'onError'
+    ]
+
+    for (const hook of hookNames) {
+      if (hook in plugin && typeof plugin[hook] !== 'function') {
+        this.logger?.warn(`Plugin "${plugin.name}" has invalid hook "${hook}" (expected function, got ${typeof plugin[hook]})`)
+        return false
+      }
+    }
+
+    return true
   }
 
   /**

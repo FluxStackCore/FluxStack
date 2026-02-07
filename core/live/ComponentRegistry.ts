@@ -17,7 +17,7 @@ export class ComponentRegistry {
   
   // Register component definition
   registerComponent<TState>(definition: ComponentDefinition<TState>) {
-    this.definitions.set(definition.name, definition)
+    this.definitions.set(definition.name, definition as unknown as ComponentDefinition)
     console.log(`📝 Registered component: ${definition.name}`)
   }
 

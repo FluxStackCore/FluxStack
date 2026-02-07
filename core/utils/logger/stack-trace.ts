@@ -60,7 +60,9 @@ export function getCallerInfo(): CallerInfo {
         if (callerCache.size >= MAX_CACHE_SIZE) {
           // Remove oldest entry
           const firstKey = callerCache.keys().next().value
-          callerCache.delete(firstKey)
+          if (firstKey !== undefined) {
+            callerCache.delete(firstKey)
+          }
         }
 
         callerCache.set(cacheKey, callerInfo)

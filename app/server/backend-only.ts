@@ -12,7 +12,15 @@ import { appInstance } from "./app"
 import { serverConfig } from "@/config"
 
 // Create backend configuration from declarative config
-const backendConfig = createBackendConfig(serverConfig)
+// Provide fallback defaults matching the schema to satisfy strict type checking,
+// since the config system's type inference marks optional fields as potentially undefined.
+const backendConfig = createBackendConfig({
+  server: {
+    backendPort: serverConfig.server.backendPort ?? 3001,
+    apiPrefix: serverConfig.server.apiPrefix ?? '/api',
+    host: serverConfig.server.host ?? 'localhost',
+  }
+})
 
 // Start backend in standalone mode
 startBackend(appInstance, backendConfig)

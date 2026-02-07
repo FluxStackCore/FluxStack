@@ -236,7 +236,7 @@ export const monitoringPlugin: Plugin = {
       const metricsRegistry = (context as any).metricsRegistry as MetricsRegistry
       if (metricsRegistry) {
         recordCounter(metricsRegistry, 'server_starts_total', 1, {
-          version: appConfig.version
+          version: appConfig.version ?? '1.0.0'
         })
       }
     }
@@ -613,7 +613,7 @@ function setupMetricsCleanup(context: PluginContext, registry: MetricsRegistry, 
 
   const cleanup = () => {
     const now = Date.now()
-    const cutoff = now - options.retentionPeriod
+    const cutoff = now - (options.retentionPeriod ?? 3600000)
 
     // Clean up old metrics
     for (const [key, metric] of registry.counters.entries()) {

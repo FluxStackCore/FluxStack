@@ -33,7 +33,7 @@ export const swaggerPlugin: Plugin = {
     }
 
     // Build servers list
-    const servers = parseServers(pluginsConfig.swaggerServers)
+    const servers = parseServers(pluginsConfig.swaggerServers ?? '')
     if (servers.length === 0) {
       servers.push({
         url: `http://${serverConfig.server.host}:${serverConfig.server.port}`,
@@ -43,16 +43,16 @@ export const swaggerPlugin: Plugin = {
 
     // Swagger configuration
     const config = {
-      path: pluginsConfig.swaggerPath,
+      path: pluginsConfig.swaggerPath ?? '/swagger',
       documentation: {
         info: {
-          title: pluginsConfig.swaggerTitle || appConfig.name || 'FluxStack API',
-          version: pluginsConfig.swaggerVersion || appConfig.version,
-          description: pluginsConfig.swaggerDescription || 'API documentation'
+          title: pluginsConfig.swaggerTitle ?? appConfig.name ?? 'FluxStack API',
+          version: pluginsConfig.swaggerVersion ?? appConfig.version ?? '1.0.0',
+          description: pluginsConfig.swaggerDescription ?? 'API documentation'
         },
         servers
       },
-      exclude: pluginsConfig.swaggerExcludePaths,
+      exclude: pluginsConfig.swaggerExcludePaths ?? [],
       swaggerOptions: {
         persistAuthorization: pluginsConfig.swaggerPersistAuthorization,
         displayRequestDuration: pluginsConfig.swaggerDisplayRequestDuration,
@@ -64,8 +64,8 @@ export const swaggerPlugin: Plugin = {
 
     // Add Basic Auth if enabled
     if (pluginsConfig.swaggerAuthEnabled && pluginsConfig.swaggerAuthPassword) {
-      context.app.onBeforeHandle({ as: 'global' }, ({ request, set, path }) => {
-        if (!path.startsWith(pluginsConfig.swaggerPath)) return
+      context.app.onBeforeHandle({ as: 'global' }, ({ request, set, path }: { request: Request; set: any; path: string }) => {
+        if (!path.startsWith(pluginsConfig.swaggerPath ?? '/swagger')) return
 
         const authHeader = request.headers.get('authorization')
         if (!authHeader?.startsWith('Basic ')) {

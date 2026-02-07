@@ -51,8 +51,9 @@ export class PluginRegistry {
     this.validatePlugin(plugin)
 
     // Validate plugin configuration if schema is provided
-    if (plugin.configSchema && this.config?.plugins.config[plugin.name]) {
-      this.validatePluginConfig(plugin, this.config.plugins.config[plugin.name])
+    const pluginConfigs = this.config?.plugins.config as Record<string, unknown> | undefined
+    if (plugin.configSchema && pluginConfigs?.[plugin.name]) {
+      this.validatePluginConfig(plugin, pluginConfigs[plugin.name])
     }
 
     this.plugins.set(plugin.name, plugin)
@@ -298,8 +299,8 @@ export class PluginRegistry {
   getStats() {
     return {
       totalPlugins: this.plugins.size,
-      enabledPlugins: this.config?.plugins.enabled.length || 0,
-      disabledPlugins: this.config?.plugins.disabled.length || 0,
+      enabledPlugins: this.config?.plugins.enabled?.length ?? 0,
+      disabledPlugins: this.config?.plugins.disabled?.length ?? 0,
       conflicts: this.conflicts.length,
       loadOrder: this.loadOrder.length
     }

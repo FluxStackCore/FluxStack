@@ -615,7 +615,19 @@ export const wrapError = (error: Error, metadata?: ErrorMetadata): FluxStackErro
   if (isFluxStackError(error)) {
     return metadata ? error.withMetadata(metadata) : error
   }
-  
+
+  // Detect Elysia validation errors (thrown by TypeBox schema validation)
+  const errorAny = error as any
+  if (
+    error.constructor?.name === 'ValidationError' ||
+    error.constructor?.name === 'TransformDecodeError' ||
+    (typeof errorAny.status === 'number' && errorAny.status >= 400 && errorAny.status < 500)
+  ) {
+    const status = errorAny.status ?? 422
+    const message = error.message || 'Validation failed'
+    return new ValidationError(message, { originalError: error.name, status }, metadata)
+  }
+
   return new InternalServerError(error.message, { originalError: error.name }, metadata)
 }
 

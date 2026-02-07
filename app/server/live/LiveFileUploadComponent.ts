@@ -12,12 +12,12 @@ interface FileUploadState {
 }
 
 export class LiveFileUploadComponent extends LiveComponent<FileUploadState> {
-  constructor(initialState: FileUploadState, ws: any, options?: { room?: string; userId?: string }) {
-    super({
+  constructor(initialState: Partial<FileUploadState>, ws: any, options?: { room?: string; userId?: string }) {
+    const defaults: FileUploadState = {
       uploadedFiles: [],
       maxFiles: 10,
-      ...initialState
-    }, ws, options)
+    };
+    super({ ...defaults, ...initialState }, ws, options)
   }
 
   /**

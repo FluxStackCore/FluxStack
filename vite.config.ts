@@ -50,7 +50,7 @@ export default defineConfig({
 
   build: {
     target: clientConfig.build.target,               // ✅ From config
-    outDir: resolve(rootDir, clientConfig.build.outDir), // ✅ From config
+    outDir: resolve(rootDir, clientConfig.build.outDir ?? 'dist/client'), // ✅ From config
     sourcemap: clientConfig.build.sourceMaps,        // ✅ From config
     minify: clientConfig.build.minify,               // ✅ From config
     assetsDir: clientConfig.build.assetsDir,         // ✅ From config

@@ -1,10 +1,23 @@
 import { defineConfig } from 'vitest/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [
-    tsconfigPaths() // ✅ Reads aliases from tsconfig.json automatically
+    tsconfigPaths()
   ],
+
+  resolve: {
+    alias: {
+      '@/': resolve(__dirname, './') + '/',
+      '@server/': resolve(__dirname, './app/server/') + '/',
+      '@client/': resolve(__dirname, './app/client/') + '/',
+      '@core/': resolve(__dirname, './core/') + '/',
+      '@config/': resolve(__dirname, './config/') + '/',
+      '@app/': resolve(__dirname, './app/') + '/',
+      '@shared/': resolve(__dirname, './app/shared/') + '/',
+    }
+  },
 
   test: {
     globals: true,
@@ -17,10 +30,16 @@ export default defineConfig({
         'node_modules/',
         'tests/',
         '*.config.ts',
-        'dist/'
-      ]
+        'dist/',
+        'ai-context/',
+        'examples/'
+      ],
+      thresholds: {
+        branches: 60,
+        functions: 60,
+        lines: 60,
+        statements: 60
+      }
     }
   }
-
-  // ℹ️ resolve.alias removed: Automatically read from tsconfig.json via tsconfigPaths plugin
 })

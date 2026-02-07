@@ -16,9 +16,9 @@ export class LiveClockComponent extends LiveComponent<LiveClockState> {
   private clockInterval: NodeJS.Timeout | null = null;
   private startTime: Date;
 
-  constructor(initialState: LiveClockState, ws: any, options?: { room?: string; userId?: string }) {
+  constructor(initialState: Partial<LiveClockState>, ws: any, options?: { room?: string; userId?: string }) {
     const now = new Date();
-    super({
+    const defaults: LiveClockState = {
       currentTime: now.toLocaleTimeString('pt-BR'),
       timeZone: 'America/Sao_Paulo',
       format: '24h',
@@ -26,8 +26,8 @@ export class LiveClockComponent extends LiveComponent<LiveClockState> {
       showDate: true,
       lastSync: now,
       serverUptime: 0,
-      ...initialState
-    }, ws, options);
+    };
+    super({ ...defaults, ...initialState }, ws, options);
     
     this.startTime = now;
     console.log(`🕐 ${this.constructor.name} created: ${this.id}`);

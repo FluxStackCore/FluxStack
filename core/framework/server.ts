@@ -8,7 +8,7 @@ import { getEnvironmentInfo } from "@/core/config"
 import { logger } from "@/core/utils/logger"
 import { displayStartupBanner, type StartupInfo } from "@/core/utils/logger/startup-banner"
 import { componentRegistry } from "@/core/server/live/ComponentRegistry"
-import { createErrorHandler } from "@/core/utils/errors/handlers"
+import { FluxStackError } from "@/core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@/core/utils/helpers"
 import type { Plugin } from "@/core/plugins"
 
@@ -284,9 +284,9 @@ export class FluxStackFramework {
 
       // Pass through all other stderr output
       if (typeof encoding === 'function') {
-        return originalStderrWrite.call(process.stderr, chunk, encoding)
+        return (originalStderrWrite as Function).call(process.stderr, chunk, encoding)
       } else {
-        return originalStderrWrite.call(process.stderr, chunk, encoding, callback)
+        return (originalStderrWrite as Function).call(process.stderr, chunk, encoding, callback)
       }
     }
 
@@ -451,47 +451,53 @@ export class FluxStackFramework {
   }
 
   private setupErrorHandling() {
-    const errorHandler = createErrorHandler({
-      logger: this.pluginContext.logger,
-      isDevelopment: this.context.isDevelopment
-    })
-
-    this.app.onError(async ({ error, request, path, set }) => {
-      const startTime = Date.now()
+    this.app.onError(async ({ error, request, code, set }) => {
       const url = this.parseRequestURL(request)
 
+      // Let plugins handle errors first (e.g. Vite SPA fallback)
       const errorContext = {
         request,
         path: url.pathname,
         method: request.method,
-        headers: (() => {
-          const headers: Record<string, string> = {}
-          request.headers.forEach((value: string, key: string) => {
-            headers[key] = value
-          })
-          return headers
-        })(),
-        query: Object.fromEntries(url.searchParams.entries()),
-        params: {},
         error: error instanceof Error ? error : new Error(String(error)),
-        duration: Date.now() - startTime,
         handled: false,
-        startTime
+        startTime: Date.now()
       }
 
-      // Execute onError hooks for all plugins - allow them to handle the error
       const handledResponse = await this.executePluginErrorHooks(errorContext)
-
-      // If a plugin handled the error, return the response
       if (handledResponse) {
         return handledResponse
       }
 
-      // Vite proxy logic is now handled by the Vite plugin via onBeforeRoute hook
+      // For Elysia's own errors (validation, not found, parse), let them pass through
+      // Elysia sets proper status codes and messages natively
+      if (code === 'VALIDATION' || code === 'PARSE' || code === 'NOT_FOUND') {
+        return
+      }
 
-      // Convert Elysia error to standard Error if needed
-      const standardError = error instanceof Error ? error : new Error(String(error))
-      return errorHandler(standardError, request, path)
+      // For FluxStackErrors, use their status code and message
+      if (error instanceof FluxStackError) {
+        set.status = error.statusCode
+        return {
+          error: error.code,
+          message: error.userMessage || error.message,
+          ...(this.context.isDevelopment && { stack: error.stack })
+        }
+      }
+
+      // Log unexpected errors (actual 500s)
+      logger.error(`Unhandled error: ${error instanceof Error ? error.message : String(error)}`, {
+        path: url.pathname,
+        method: request.method
+      })
+
+      set.status = 500
+      return {
+        error: 'INTERNAL_SERVER_ERROR',
+        message: this.context.isDevelopment
+          ? (error instanceof Error ? error.message : String(error))
+          : 'An unexpected error occurred'
+      }
     })
   }
 

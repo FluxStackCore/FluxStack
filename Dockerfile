@@ -1,10 +1,10 @@
-# 🐳 FluxStack Production Dockerfile
+# FluxStack Production Dockerfile
 # Multi-stage build for optimized production image
 
 # =====================================
 # Stage 1: Dependencies
 # =====================================
-FROM oven/bun:1.1.34-alpine AS deps
+FROM oven/bun:1.2-alpine AS deps
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN bun install --production --frozen-lockfile
 # =====================================
 # Stage 2: Builder
 # =====================================
-FROM oven/bun:1.1.34-alpine AS builder
+FROM oven/bun:1.2-alpine AS builder
 
 WORKDIR /app
 
@@ -34,7 +34,7 @@ RUN bun run build
 # =====================================
 # Stage 3: Production Runner
 # =====================================
-FROM oven/bun:1.1.34-alpine AS runner
+FROM oven/bun:1.2-alpine AS runner
 
 WORKDIR /app
 
@@ -62,9 +62,9 @@ USER fluxstack
 # Expose application port
 EXPOSE 3000
 
-# Health check disabled for now
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-#   CMD bun run -e 'fetch("http://localhost:3000/api/health").then(r => r.ok ? process.exit(0) : process.exit(1))' || exit 1
+# Health check for container orchestrators
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD bun -e 'fetch("http://localhost:3000/api/health").then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))'
 
 # Start the application
 CMD ["bun", "run", "start"]

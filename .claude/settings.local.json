@@ -96,7 +96,10 @@
       "Bash(netstat:*)",
       "Bash(PORT=9999 bun run vite:*)",
       "Bash(LOG_LEVEL=debug bun run:*)",
-      "Bash(LOG_LEVEL=debug timeout 8 bun run dev)"
+      "Bash(LOG_LEVEL=debug timeout 8 bun run dev)",
+      "Bash(git rm:*)",
+      "Bash(git mv:*)",
+      "Bash(git stash:*)"
     ],
     "deny": []
   }

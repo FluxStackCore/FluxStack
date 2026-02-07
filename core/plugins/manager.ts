@@ -402,20 +402,20 @@ export class PluginManager extends EventEmitter {
    */
   private getEnabledPlugins(): Plugin[] {
     const allPlugins = this.registry.getAll()
-    const enabledNames = this.config.plugins.enabled
-    const disabledNames = this.config.plugins.disabled
+    const enabledNames = this.config.plugins.enabled ?? []
+    const disabledNames = this.config.plugins.disabled ?? []
 
     return allPlugins.filter(plugin => {
       // If explicitly disabled, exclude
       if (disabledNames.includes(plugin.name)) {
         return false
       }
-      
+
       // If enabled list is empty, include all non-disabled
       if (enabledNames.length === 0) {
         return true
       }
-      
+
       // Otherwise, only include if explicitly enabled
       return enabledNames.includes(plugin.name)
     })
