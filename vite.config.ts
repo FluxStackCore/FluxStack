@@ -9,6 +9,9 @@ import { clientConfig } from './config/system/client.config'
 // Root directory (vite.config.ts is in project root)
 const rootDir = import.meta.dirname
 
+// Skip type checking in production builds (CI already does this separately)
+const isProduction = process.env.NODE_ENV === 'production'
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -17,11 +20,12 @@ export default defineConfig({
     tsconfigPaths({
       projects: [resolve(rootDir, 'tsconfig.json')]
     }),
-    checker({
+    // Only run type checker in development (saves ~5+ minutes in Docker builds)
+    !isProduction && checker({
       typescript: true,
       overlay: true
     })
-  ],
+  ].filter(Boolean),
 
   root: resolve(rootDir, 'app/client'),
 

@@ -442,6 +442,7 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t fluxstack:test .
+        timeout-minutes: 5
 
       - name: Test Docker container
         run: |
