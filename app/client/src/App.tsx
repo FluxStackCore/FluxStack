@@ -1,147 +1,13 @@
 import { useState, useEffect } from 'react'
 import { api } from './lib/eden-api'
-import { FaFire, FaBook, FaGithub, FaClock, FaImage, FaCode } from 'react-icons/fa'
-import { LiveComponentsProvider, Live } from '@/core/client'
-import { LiveForm } from '@server/live/LiveForm'
-import { FileUploadExample } from './live/FileUploadExample'
-import { MinimalLiveClock } from './live/MinimalLiveClock'
-import { LiveComponentExamples } from './live/LiveExamples'
-
-// ===== Live Form Demo =====
-
-function LiveFormDemo() {
-  // ✨ Sem initialState! Usa defaultState do backend automaticamente
-  const form = Live.use(LiveForm)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      // Sincroniza campos pendentes antes de enviar
-      await form.$sync()
-      const result = await form.submit()
-      console.log('Submitted:', result)
-    } catch (err: any) {
-      alert(err.message)
-    }
-  }
-
-  if (form.submitted) {
-    return (
-      <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 max-w-md w-full">
-        <div className="text-center">
-          <div className="text-6xl mb-4">✅</div>
-          <h2 className="text-2xl font-bold text-white mb-2">Enviado!</h2>
-          <p className="text-gray-300 mb-4">
-            Obrigado, <span className="text-purple-400">{form.name}</span>!
-          </p>
-          <p className="text-gray-400 text-sm mb-6">
-            Enviado em: {form.submittedAt ? new Date(form.submittedAt).toLocaleString() : '-'}
-          </p>
-          <button
-            onClick={() => form.reset()}
-            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
-          >
-            Enviar outro
-          </button>
-        </div>
-
-        {/* Debug - mostra estado após submit */}
-        <details className="mt-6 text-left" open>
-          <summary className="text-gray-400 text-sm cursor-pointer">Debug State (servidor)</summary>
-          <pre className="mt-2 p-3 bg-black/40 rounded-lg text-xs text-green-400 overflow-auto">
-{JSON.stringify(form.$state, null, 2)}
-          </pre>
-        </details>
-      </div>
-    )
-  }
-
-  return (
-    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 max-w-md w-full">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-white">Live Form</h2>
-        <span className={`px-3 py-1 rounded-full text-xs ${
-          form.$connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-        }`}>
-          {form.$connected ? '🟢 Conectado' : '🔴 Desconectado'}
-        </span>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Nome - syncOn: blur (sincroniza ao sair do campo) */}
-        <div>
-          <label className="block text-gray-300 text-sm mb-2">
-            Nome <span className="text-purple-400 text-xs">(sync: blur)</span>
-          </label>
-          <input
-            type="text"
-            {...form.$field('name', { syncOn: 'blur' })}
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all"
-            placeholder="Seu nome"
-          />
-        </div>
-
-        {/* Email - syncOn: change com debounce maior */}
-        <div>
-          <label className="block text-gray-300 text-sm mb-2">
-            Email <span className="text-blue-400 text-xs">(sync: 500ms)</span>
-          </label>
-          <input
-            type="email"
-            {...form.$field('email', { syncOn: 'change', debounce: 500 })}
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all"
-            placeholder="seu@email.com"
-          />
-        </div>
-
-        {/* Mensagem - syncOn: manual (só sincroniza no submit) */}
-        <div>
-          <label className="block text-gray-300 text-sm mb-2">
-            Mensagem <span className="text-orange-400 text-xs">(sync: manual)</span>
-          </label>
-          <textarea
-            {...form.$field('message', { syncOn: 'manual' })}
-            rows={3}
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all resize-none"
-            placeholder="Sua mensagem..."
-          />
-        </div>
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={!form.$connected}
-          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {form.$loading ? 'Enviando...' : 'Enviar'}
-        </button>
-      </form>
-
-      {/* Legenda */}
-      <div className="mt-4 p-3 bg-white/5 rounded-lg text-xs text-gray-400 space-y-1">
-        <p><span className="text-purple-400">blur:</span> Sincroniza ao sair do campo</p>
-        <p><span className="text-blue-400">500ms:</span> Sincroniza 500ms após parar de digitar</p>
-        <p><span className="text-orange-400">manual:</span> Sincroniza só no submit</p>
-      </div>
-
-      {/* Debug */}
-      <details className="mt-4">
-        <summary className="text-gray-400 text-sm cursor-pointer">Debug State (servidor)</summary>
-        <pre className="mt-2 p-3 bg-black/40 rounded-lg text-xs text-green-400 overflow-auto">
-{JSON.stringify(form.$state, null, 2)}
-        </pre>
-      </details>
-    </div>
-  )
-}
-
+import { FaFire, FaBook, FaGithub } from 'react-icons/fa'
+import { LiveComponentsProvider } from '@/core/client'
+import { FormDemo } from './live/FormDemo'
 
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
-  const [showDemo, setShowDemo] = useState(false)
-  const [showApiTest, setShowApiTest] = useState(false)
   const [showForm, setShowForm] = useState(false)
-  const [showLiveExamples, setShowLiveExamples] = useState(false)
+  const [showApiTest, setShowApiTest] = useState(false)
   const [apiResponse, setApiResponse] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -200,20 +66,18 @@ function AppContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
         <div className="container mx-auto px-4 py-8 max-w-4xl">
-          {/* Header */}
           <div className="flex items-center gap-4 mb-8">
             <button
               onClick={() => setShowApiTest(false)}
               className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
             >
-              ← Back
+              ← Voltar
             </button>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
               Eden Treaty API Test
             </h1>
           </div>
 
-          {/* Test Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <button
               onClick={testHealthCheck}
@@ -246,7 +110,6 @@ function AppContent() {
             </button>
           </div>
 
-          {/* Response Panel */}
           <div className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-white">Response</h2>
@@ -264,7 +127,6 @@ function AppContent() {
             </pre>
           </div>
 
-          {/* Info */}
           <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-6">
             <h3 className="text-lg font-semibold text-white mb-3">How it works</h3>
             <div className="text-gray-400 text-sm space-y-2">
@@ -273,28 +135,6 @@ function AppContent() {
               <p>✅ <code className="text-purple-400">{'{ data, error }'}</code> → Response is typed automatically</p>
             </div>
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Live Component Examples
-  if (showLiveExamples) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-          <div className="flex items-center gap-4 mb-8">
-            <button
-              onClick={() => setShowLiveExamples(false)}
-              className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
-            >
-              ← Voltar
-            </button>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Live Components - React Style
-            </h1>
-          </div>
-          <LiveComponentExamples />
         </div>
       </div>
     )
@@ -312,36 +152,13 @@ function AppContent() {
             ← Voltar
           </button>
         </div>
-        <LiveFormDemo />
+        <div className="max-w-md w-full">
+          <FormDemo />
+        </div>
         <p className="mt-6 text-gray-400 text-sm max-w-md text-center">
-          ✨ Este formulário usa <code className="text-purple-400">useLiveComponent</code> -
+          ✨ Este formulário usa <code className="text-purple-400">Live.use()</code> -
           cada campo sincroniza automaticamente com o servidor!
         </p>
-      </div>
-    )
-  }
-
-  // If demo mode is active, show demo content
-  if (showDemo) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-        <div className="container mx-auto px-4 py-8">
-          {/* Header with back button */}
-          <div className="flex items-center gap-4 mb-8">
-            <button
-              onClick={() => setShowDemo(false)}
-              className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
-            >
-              ← Back
-            </button>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              FluxStack Demos
-            </h1>
-          </div>
-
-          {/* Demo Content */}
-          <FileUploadExample />
-        </div>
       </div>
     )
   }
@@ -384,7 +201,7 @@ function AppContent() {
         </div>
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12 max-w-6xl">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 max-w-4xl">
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
             <div className="text-3xl mb-3">⚡</div>
             <h3 className="text-lg font-semibold text-white mb-2">Ultra Rápido</h3>
@@ -398,21 +215,9 @@ function AppContent() {
           </div>
 
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
-            <div className="text-3xl mb-3">🎨</div>
-            <h3 className="text-lg font-semibold text-white mb-2">Moderno</h3>
-            <p className="text-gray-400 text-sm">React 19 + Vite + Tailwind CSS</p>
-          </div>
-
-          {/* Live Clock Card */}
-          <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 hover:bg-white/10 transition-all">
-            <div className="flex items-center gap-3 mb-3">
-              <FaClock className="text-2xl text-emerald-400" />
-              <div>
-                <h3 className="text-lg font-semibold text-white">Live Clock</h3>
-                <p className="text-gray-400 text-sm">Provido via LiveComponent</p>
-              </div>
-            </div>
-            <MinimalLiveClock />
+            <div className="text-3xl mb-3">🔥</div>
+            <h3 className="text-lg font-semibold text-white mb-2">Live Components</h3>
+            <p className="text-gray-400 text-sm">Estado reativo no servidor estilo Livewire</p>
           </div>
         </div>
 
@@ -425,24 +230,10 @@ function AppContent() {
             📝 Live Form
           </button>
           <button
-            onClick={() => setShowLiveExamples(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
-          >
-            <FaCode />
-            Live.* Sintaxe
-          </button>
-          <button
             onClick={() => setShowApiTest(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-orange-500/50 transition-all"
           >
             🧪 Test API
-          </button>
-          <button
-            onClick={() => setShowDemo(true)}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-emerald-500/50 transition-all"
-          >
-            <FaImage />
-            View Demos
           </button>
           <a
             href="/swagger"
@@ -461,14 +252,6 @@ function AppContent() {
           >
             <FaGithub />
             GitHub
-          </a>
-          <a
-            href="/api"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-xl font-medium hover:bg-white/20 transition-all"
-          >
-            🚀 API Root
           </a>
         </div>
 
