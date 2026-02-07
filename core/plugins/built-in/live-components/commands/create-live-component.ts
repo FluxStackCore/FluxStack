@@ -2,1192 +2,371 @@ import type { CliCommand } from "@core/plugins/types";
 import { promises as fs } from "fs";
 import path from "path";
 
-// Component templates for different types
-const getServerTemplate = (componentName: string, type: string, room?: string) => {
-  const roomComment = room ? `\n    // Default room: ${room}` : '';
-  const roomInit = room ? `\n      this.room = '${room}';` : '';
+// ===== SERVER TEMPLATES =====
+
+const getServerTemplate = (name: string, type: string, room?: string) => {
+  const roomInit = room ? `\n    this.room = '${room}'` : '';
 
   switch (type) {
     case 'counter':
-      return `// 🔥 ${componentName} - Counter Live Component
-import { LiveComponent } from "@core/types/types";
+      return `// 🔥 ${name} - Counter
+import { LiveComponent } from '@core/types/types'
 
-interface ${componentName}State {
-  count: number;
-  title: string;
-  step: number;
-  lastUpdated: Date;
+const defaultState = {
+  count: 0,
+  title: '${name}',
+  step: 1
 }
 
-export class ${componentName}Component extends LiveComponent<${componentName}State> {
-  constructor(initialState: ${componentName}State, ws: any, options?: { room?: string; userId?: string }) {
-    super({
-      count: 0,
-      title: "${componentName} Counter",
-      step: 1,
-      lastUpdated: new Date(),
-      ...initialState
-    }, ws, options);${roomComment}${roomInit}
-    
-    console.log(\`🔢 \${this.constructor.name} component created: \${this.id}\`);
+export class ${name} extends LiveComponent<typeof defaultState> {
+  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
+    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+    console.log(\`🔢 ${name} created: \${this.id}\`)
   }
 
-  async increment(amount: number = this.state.step) {
-    const newCount = this.state.count + amount;
-    
-    this.setState({
-      count: newCount,
-      lastUpdated: new Date()
-    });
-    
-    // Broadcast to room for multi-user sync
-    if (this.room) {
-      this.broadcast('COUNTER_INCREMENTED', {
-        count: newCount,
-        amount,
-        userId: this.userId
-      });
-    }
-    
-    console.log(\`🔢 Counter incremented to \${newCount} (step: \${amount})\`);
-    return { success: true, count: newCount };
+  async increment(payload?: { amount?: number }) {
+    const amount = payload?.amount ?? this.state.step
+    this.setState({ count: this.state.count + amount })
+    if (this.room) this.broadcast('COUNTER_UPDATED', { count: this.state.count })
+    return { success: true, count: this.state.count }
   }
 
-  async decrement(amount: number = this.state.step) {
-    const newCount = Math.max(0, this.state.count - amount);
-    
-    this.setState({
-      count: newCount,
-      lastUpdated: new Date()
-    });
-    
-    if (this.room) {
-      this.broadcast('COUNTER_DECREMENTED', {
-        count: newCount,
-        amount,
-        userId: this.userId
-      });
-    }
-    
-    console.log(\`🔢 Counter decremented to \${newCount} (step: \${amount})\`);
-    return { success: true, count: newCount };
+  async decrement(payload?: { amount?: number }) {
+    const amount = payload?.amount ?? this.state.step
+    this.setState({ count: Math.max(0, this.state.count - amount) })
+    if (this.room) this.broadcast('COUNTER_UPDATED', { count: this.state.count })
+    return { success: true, count: this.state.count }
   }
 
   async reset() {
-    this.setState({
-      count: 0,
-      lastUpdated: new Date()
-    });
-    
-    if (this.room) {
-      this.broadcast('COUNTER_RESET', { userId: this.userId });
-    }
-    
-    console.log(\`🔢 Counter reset\`);
-    return { success: true, count: 0 };
+    this.setState({ count: 0 })
+    return { success: true }
   }
 
-  async setStep(step: number) {
-    this.setState({
-      step: Math.max(1, step),
-      lastUpdated: new Date()
-    });
-    
-    return { success: true, step };
+  async setStep(payload: { step: number }) {
+    this.setState({ step: Math.max(1, payload.step) })
+    return { success: true }
   }
-
-  async updateTitle(data: { title: string }) {
-    const newTitle = data.title.trim();
-    
-    if (!newTitle || newTitle.length > 50) {
-      throw new Error('Title must be 1-50 characters');
-    }
-    
-    this.setState({
-      title: newTitle,
-      lastUpdated: new Date()
-    });
-    
-    return { success: true, title: newTitle };
-  }
-}`;
+}
+`;
 
     case 'form':
-      return `// 🔥 ${componentName} - Form Live Component
-import { LiveComponent } from "@core/types/types";
+      return `// 🔥 ${name} - Form
+import { LiveComponent } from '@core/types/types'
 
-interface ${componentName}State {
-  formData: Record<string, any>;
-  errors: Record<string, string>;
-  isSubmitting: boolean;
-  isValid: boolean;
-  lastUpdated: Date;
+const defaultState = {
+  name: '',
+  email: '',
+  message: '',
+  submitted: false,
+  submittedAt: null as string | null
 }
 
-export class ${componentName}Component extends LiveComponent<${componentName}State> {
-  constructor(initialState: ${componentName}State, ws: any, options?: { room?: string; userId?: string }) {
-    super({
-      formData: {},
-      errors: {},
-      isSubmitting: false,
-      isValid: false,
-      lastUpdated: new Date(),
-      ...initialState
-    }, ws, options);${roomComment}${roomInit}
-    
-    console.log(\`📝 \${this.constructor.name} component created: \${this.id}\`);
+export class ${name} extends LiveComponent<typeof defaultState> {
+  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
+    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+    console.log(\`📝 ${name} created: \${this.id}\`)
   }
 
-  async updateField(data: { field: string; value: any }) {
-    const { field, value } = data;
-    const newFormData = { ...this.state.formData, [field]: value };
-    const newErrors = { ...this.state.errors };
-    
-    // Clear error for this field
-    delete newErrors[field];
-    
-    // Basic validation example
-    if (field === 'email' && value && !this.isValidEmail(value)) {
-      newErrors[field] = 'Invalid email format';
+  async submit() {
+    if (!this.state.name?.trim() || !this.state.email?.trim()) {
+      throw new Error('Nome e email são obrigatórios')
     }
-    
-    this.setState({
-      formData: newFormData,
-      errors: newErrors,
-      isValid: Object.keys(newErrors).length === 0,
-      lastUpdated: new Date()
-    });
-    
-    return { success: true, field, value };
+    this.setState({ submitted: true, submittedAt: new Date().toISOString() })
+    console.log(\`📝 Form submitted:\`, { name: this.state.name, email: this.state.email })
+    return { success: true, data: this.state }
   }
 
-  async submitForm() {
-    this.setState({ isSubmitting: true });
-    
-    try {
-      // Simulate form submission
-      await this.sleep(1000);
-      
-      // Validate all fields
-      const errors = this.validateForm(this.state.formData);
-      
-      if (Object.keys(errors).length > 0) {
-        this.setState({
-          errors,
-          isSubmitting: false,
-          isValid: false
-        });
-        return { success: false, errors };
-      }
-      
-      // Success
-      this.setState({
-        isSubmitting: false,
-        errors: {},
-        isValid: true,
-        lastUpdated: new Date()
-      });
-      
-      if (this.room) {
-        this.broadcast('FORM_SUBMITTED', {
-          formData: this.state.formData,
-          userId: this.userId
-        });
-      }
-      
-      console.log(\`📝 Form submitted successfully\`);
-      return { success: true, data: this.state.formData };
-      
-    } catch (error: any) {
-      this.setState({ isSubmitting: false });
-      throw error;
-    }
+  async reset() {
+    this.setState({ name: '', email: '', message: '', submitted: false, submittedAt: null })
+    return { success: true }
   }
-
-  async resetForm() {
-    this.setState({
-      formData: {},
-      errors: {},
-      isSubmitting: false,
-      isValid: false,
-      lastUpdated: new Date()
-    });
-    
-    return { success: true };
-  }
-
-  private validateForm(data: Record<string, any>): Record<string, string> {
-    const errors: Record<string, string> = {};
-    
-    // Add your validation rules here
-    if (!data.name || data.name.trim().length < 2) {
-      errors.name = 'Name must be at least 2 characters';
-    }
-    
-    if (!data.email || !this.isValidEmail(data.email)) {
-      errors.email = 'Valid email is required';
-    }
-    
-    return errors;
-  }
-
-  private isValidEmail(email: string): boolean {
-    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-}`;
+}
+`;
 
     case 'chat':
-      return `// 🔥 ${componentName} - Chat Live Component
-import { LiveComponent } from "@core/types/types";
+      return `// 🔥 ${name} - Chat
+import { LiveComponent } from '@core/types/types'
 
-interface Message {
-  id: string;
-  text: string;
-  userId: string;
-  username: string;
-  timestamp: Date;
+const defaultState = {
+  messages: [] as Array<{ id: string; text: string; username: string; timestamp: string }>,
+  username: '',
+  currentMessage: ''
 }
 
-interface ${componentName}State {
-  messages: Message[];
-  users: Record<string, { username: string; isOnline: boolean }>;
-  currentMessage: string;
-  isTyping: Record<string, boolean>;
-  lastUpdated: Date;
+export class ${name} extends LiveComponent<typeof defaultState> {
+  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
+    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+    console.log(\`💬 ${name} created: \${this.id}\`)
+  }
+
+  async sendMessage(payload: { text: string }) {
+    if (!payload.text?.trim()) throw new Error('Message cannot be empty')
+    const message = {
+      id: \`msg-\${Date.now()}-\${Math.random().toString(36).slice(2, 9)}\`,
+      text: payload.text.trim(),
+      username: this.state.username || 'Anonymous',
+      timestamp: new Date().toISOString()
+    }
+    this.setState({ messages: [...this.state.messages.slice(-49), message], currentMessage: '' })
+    if (this.room) this.broadcast('NEW_MESSAGE', { message })
+    return { success: true, message }
+  }
+
+  async setUsername(payload: { username: string }) {
+    if (!payload.username?.trim() || payload.username.length > 20) {
+      throw new Error('Username must be 1-20 characters')
+    }
+    this.setState({ username: payload.username.trim() })
+    return { success: true }
+  }
 }
-
-export class ${componentName}Component extends LiveComponent<${componentName}State> {
-  constructor(initialState: ${componentName}State, ws: any, options?: { room?: string; userId?: string }) {
-    super({
-      messages: [],
-      users: {},
-      currentMessage: "",
-      isTyping: {},
-      lastUpdated: new Date(),
-      ...initialState
-    }, ws, options);${roomComment}${roomInit}
-    
-    console.log(\`💬 \${this.constructor.name} component created: \${this.id}\`);
-    
-    // Add user to online users
-    if (this.userId) {
-      this.addUser(this.userId, \`User \${this.userId.slice(-4)}\`);
-    }
-  }
-
-  async sendMessage(data: { text: string; username?: string }) {
-    const { text, username = \`User \${this.userId?.slice(-4) || 'Anonymous'}\` } = data;
-    
-    if (!text.trim()) {
-      throw new Error('Message cannot be empty');
-    }
-    
-    const message: Message = {
-      id: \`msg-\${Date.now()}-\${Math.random().toString(36).substr(2, 9)}\`,
-      text: text.trim(),
-      userId: this.userId || 'anonymous',
-      username,
-      timestamp: new Date()
-    };
-    
-    const newMessages = [...this.state.messages, message];
-    
-    this.setState({
-      messages: newMessages.slice(-50), // Keep last 50 messages
-      currentMessage: "",
-      lastUpdated: new Date()
-    });
-    
-    // Broadcast to all users in the room
-    if (this.room) {
-      this.broadcast('NEW_MESSAGE', {
-        message,
-        totalMessages: newMessages.length
-      });
-    }
-    
-    console.log(\`💬 Message sent: "\${text}" by \${username}\`);
-    return { success: true, message };
-  }
-
-  async updateTyping(data: { isTyping: boolean; username?: string }) {
-    const { isTyping, username = \`User \${this.userId?.slice(-4)}\` } = data;
-    const userId = this.userId || 'anonymous';
-    
-    const newTyping = { ...this.state.isTyping };
-    
-    if (isTyping) {
-      newTyping[userId] = true;
-    } else {
-      delete newTyping[userId];
-    }
-    
-    this.setState({
-      isTyping: newTyping,
-      lastUpdated: new Date()
-    });
-    
-    // Broadcast typing status
-    if (this.room) {
-      this.broadcast('USER_TYPING', {
-        userId,
-        username,
-        isTyping
-      });
-    }
-    
-    // Auto-clear typing after 3 seconds
-    if (isTyping) {
-      setTimeout(() => {
-        this.updateTyping({ isTyping: false, username });
-      }, 3000);
-    }
-    
-    return { success: true };
-  }
-
-  async joinRoom(data: { username: string }) {
-    const { username } = data;
-    
-    this.addUser(this.userId || 'anonymous', username);
-    
-    if (this.room) {
-      this.broadcast('USER_JOINED', {
-        userId: this.userId,
-        username,
-        timestamp: new Date()
-      });
-    }
-    
-    return { success: true, username };
-  }
-
-  async leaveRoom() {
-    const userId = this.userId || 'anonymous';
-    const users = { ...this.state.users };
-    delete users[userId];
-    
-    this.setState({
-      users,
-      lastUpdated: new Date()
-    });
-    
-    if (this.room) {
-      this.broadcast('USER_LEFT', {
-        userId,
-        timestamp: new Date()
-      });
-    }
-    
-    return { success: true };
-  }
-
-  private addUser(userId: string, username: string) {
-    const users = {
-      ...this.state.users,
-      [userId]: { username, isOnline: true }
-    };
-    
-    this.setState({
-      users,
-      lastUpdated: new Date()
-    });
-  }
-
-  public destroy() {
-    this.leaveRoom();
-    super.destroy();
-  }
-}`;
+`;
 
     default: // basic
-      return `// 🔥 ${componentName} - Live Component
-import { LiveComponent } from "@core/types/types";
+      return `// 🔥 ${name} - Live Component
+import { LiveComponent } from '@core/types/types'
 
-interface ${componentName}State {
-  message: string;
-  count: number;
-  lastUpdated: Date;
+const defaultState = {
+  message: 'Hello from ${name}!',
+  count: 0
 }
 
-export class ${componentName}Component extends LiveComponent<${componentName}State> {
-  constructor(initialState: ${componentName}State, ws: any, options?: { room?: string; userId?: string }) {
-    super({
-      message: "Hello from ${componentName}!",
-      count: 0,
-      lastUpdated: new Date(),
-      ...initialState
-    }, ws, options);${roomComment}${roomInit}
-    
-    console.log(\`🔥 \${this.constructor.name} component created: \${this.id}\`);
+export class ${name} extends LiveComponent<typeof defaultState> {
+  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
+    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+    console.log(\`🔥 ${name} created: \${this.id}\`)
   }
 
   async updateMessage(payload: { message: string }) {
-    const { message } = payload;
-    
-    if (!message || message.trim().length === 0) {
-      throw new Error('Message cannot be empty');
-    }
-    
-    this.setState({
-      message: message.trim(),
-      lastUpdated: new Date()
-    });
-    
-    // Broadcast to room if in multi-user mode
-    if (this.room) {
-      this.broadcast('MESSAGE_UPDATED', {
-        message: message.trim(),
-        userId: this.userId
-      });
-    }
-    
-    console.log(\`📝 Message updated: "\${message}"\`);
-    return { success: true, message: message.trim() };
+    if (!payload.message?.trim()) throw new Error('Message cannot be empty')
+    this.setState({ message: payload.message.trim() })
+    if (this.room) this.broadcast('MESSAGE_UPDATED', { message: this.state.message })
+    return { success: true }
   }
 
-  async incrementCounter() {
-    const newCount = this.state.count + 1;
-    
-    this.setState({
-      count: newCount,
-      lastUpdated: new Date()
-    });
-    
-    if (this.room) {
-      this.broadcast('COUNTER_INCREMENTED', {
-        count: newCount,
-        userId: this.userId
-      });
-    }
-    
-    return { success: true, count: newCount };
+  async increment() {
+    this.setState({ count: this.state.count + 1 })
+    return { success: true, count: this.state.count }
   }
 
-  async resetData() {
-    this.setState({
-      message: "Hello from ${componentName}!",
-      count: 0,
-      lastUpdated: new Date()
-    });
-    
-    return { success: true };
+  async reset() {
+    this.setState({ message: 'Hello from ${name}!', count: 0 })
+    return { success: true }
   }
-
-  async getData() {
-    return {
-      success: true,
-      data: {
-        ...this.state,
-        componentId: this.id,
-        room: this.room,
-        userId: this.userId
-      }
-    };
-  }
-}`;
+}
+`;
   }
 };
 
-const getClientTemplate = (componentName: string, type: string, room?: string) => {
-  const roomProps = room ? `, { room: '${room}' }` : '';
+// ===== CLIENT TEMPLATES =====
 
+const getClientTemplate = (name: string, type: string) => {
   switch (type) {
     case 'counter':
-      return `// 🔥 ${componentName} - Counter Client Component
-import { useTypedLiveComponent } from '@core/client';
-import type { InferComponentState } from '@core/client';
+      return `// 🔥 ${name}
+import { Live } from '@/core/client'
+import { ${name} } from '@server/live/${name}'
 
-// Import component type DIRECTLY from backend - full type inference!
-import type { ${componentName}Component } from '@/server/live/${componentName}Component';
+export function ${name}Demo() {
+  const counter = Live.use(${name}, { count: 0, title: '${name}', step: 1 })
 
-// State type inferred from backend component
-type ${componentName}State = InferComponentState<${componentName}Component>;
-
-const initialState: ${componentName}State = {
-  count: 0,
-  title: "${componentName} Counter",
-  step: 1,
-  lastUpdated: new Date(),
-};
-
-export function ${componentName}() {
-  const { state, call, connected, loading } = useTypedLiveComponent<${componentName}Component>('${componentName}', initialState${roomProps});
-
-  if (!connected) {
-    return (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Connecting to ${componentName}...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!counter.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 m-4 relative">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">{state.title}</h2>
-        <span className={
-          \`px-2 py-1 rounded-full text-xs font-medium \${
-            connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }\`
-        }>
-          {connected ? '🟢 Connected' : '🔴 Disconnected'}
-        </span>
+    <div className="p-6 bg-white rounded-xl shadow-sm border">
+      <h2 className="text-xl font-bold mb-4">{counter.title}</h2>
+      <div className="text-5xl font-bold text-blue-600 text-center mb-6">{counter.count}</div>
+      <div className="flex gap-2 justify-center">
+        <button onClick={() => counter.decrement()} disabled={counter.count <= 0} className="px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50">-</button>
+        <button onClick={() => counter.increment()} className="px-4 py-2 bg-blue-500 text-white rounded-lg">+</button>
+        <button onClick={() => counter.reset()} className="px-4 py-2 bg-gray-500 text-white rounded-lg">Reset</button>
       </div>
-      
-      <div className="text-center mb-6">
-        <div className="text-6xl font-bold text-blue-600 mb-2">{state.count}</div>
-        <p className="text-gray-600">Current Count</p>
-      </div>
-      
-      <div className="flex gap-2 justify-center mb-4">
-        <button
-          onClick={() => call('decrement', {})}
-          disabled={loading || state.count <= 0}
-          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ➖ Decrement
-        </button>
-
-        <button
-          onClick={() => call('increment', {})}
-          disabled={loading}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          ➕ Increment
-        </button>
-
-        <button
-          onClick={() => call('reset', {})}
-          disabled={loading}
-          className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          🔄 Reset
-        </button>
-      </div>
-      
-      <div className="border-t pt-4">
-        <div className="flex gap-2 items-center mb-2">
-          <label className="text-sm font-medium text-gray-700">Step Size:</label>
-          <input
-            type="number"
-            min="1"
-            max="10"
-            value={state.step}
-            onChange={(e) => call('setStep', parseInt(e.target.value) || 1)}
-            className="w-20 px-2 py-1 border rounded"
-            disabled={loading}
-          />
-        </div>
-        
-        <div className="flex gap-2 items-center">
-          <label className="text-sm font-medium text-gray-700">Title:</label>
-          <input
-            type="text"
-            value={state.title}
-            onChange={(e) => call('updateTitle', { title: e.target.value })}
-            className="flex-1 px-2 py-1 border rounded"
-            disabled={loading}
-            maxLength={50}
-          />
-        </div>
-      </div>
-      
-      <div className="mt-4 text-xs text-gray-500 text-center">
-        Last updated: {new Date(state.lastUpdated).toLocaleTimeString()}
-      </div>
-      
-      {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        </div>
-      )}
     </div>
-  );
-}`;
+  )
+}
+`;
 
     case 'form':
-      return `// 🔥 ${componentName} - Form Client Component
-import { useTypedLiveComponent } from '@core/client';
-import type { InferComponentState } from '@core/client';
+      return `// 🔥 ${name}
+import { Live } from '@/core/client'
+import { ${name} } from '@server/live/${name}'
 
-// Import component type DIRECTLY from backend - full type inference!
-import type { ${componentName}Component } from '@/server/live/${componentName}Component';
+export function ${name}Demo() {
+  const form = Live.use(${name}, { name: '', email: '', message: '', submitted: false, submittedAt: null })
 
-// State type inferred from backend component
-type ${componentName}State = InferComponentState<${componentName}Component>;
+  if (!form.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
-const initialState: ${componentName}State = {
-  formData: {},
-  errors: {},
-  isSubmitting: false,
-  isValid: false,
-  lastUpdated: new Date(),
-};
-
-export function ${componentName}() {
-  const { state, call, connected, loading } = useTypedLiveComponent<${componentName}Component>('${componentName}', initialState${roomProps});
-
-  if (!connected) {
+  if (form.submitted) {
     return (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Connecting to ${componentName}...</p>
-        </div>
+      <div className="p-6 bg-green-50 rounded-xl text-center">
+        <h2 className="text-xl font-bold text-green-700 mb-2">Enviado!</h2>
+        <p className="text-gray-600">Obrigado, {form.name}!</p>
+        <button onClick={() => form.reset()} className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg">Novo</button>
       </div>
-    );
+    )
   }
 
-  const handleFieldChange = (field: string, value: any) => {
-    call('updateField', { field, value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const result = await call('submitForm', {});
-      if (result?.success) {
-        alert('Form submitted successfully!');
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-    }
-  };
-
-  const handleReset = () => {
-    call('resetForm', {});
-  };
-
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 m-4 max-w-md mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">${componentName} Form</h2>
-        <span className={
-          \`px-2 py-1 rounded-full text-xs font-medium \${
-            connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }\`
-        }>
-          {connected ? '🟢 Connected' : '🔴 Disconnected'}
-        </span>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name *
-          </label>
-          <input
-            type="text"
-            value={state.formData.name || ''}
-            onChange={(e) => handleFieldChange('name', e.target.value)}
-            className={\`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 \${
-              state.errors.name ? 'border-red-500' : 'border-gray-300'
-            }\`}
-            disabled={loading || state.isSubmitting}
-            placeholder="Enter your name"
-          />
-          {state.errors.name && (
-            <p className="text-red-500 text-xs mt-1">{state.errors.name}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email *
-          </label>
-          <input
-            type="email"
-            value={state.formData.email || ''}
-            onChange={(e) => handleFieldChange('email', e.target.value)}
-            className={\`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 \${
-              state.errors.email ? 'border-red-500' : 'border-gray-300'
-            }\`}
-            disabled={loading || state.isSubmitting}
-            placeholder="Enter your email"
-          />
-          {state.errors.email && (
-            <p className="text-red-500 text-xs mt-1">{state.errors.email}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Message
-          </label>
-          <textarea
-            value={state.formData.message || ''}
-            onChange={(e) => handleFieldChange('message', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={loading || state.isSubmitting}
-            placeholder="Enter your message"
-            rows={3}
-          />
-        </div>
-
+    <div className="p-6 bg-white rounded-xl shadow-sm border">
+      <h2 className="text-xl font-bold mb-4">${name}</h2>
+      <div className="space-y-4">
+        <input {...form.$field('name', { syncOn: 'blur' })} placeholder="Nome" className="w-full px-3 py-2 border rounded-lg" />
+        <input {...form.$field('email', { syncOn: 'change', debounce: 500 })} type="email" placeholder="Email" className="w-full px-3 py-2 border rounded-lg" />
+        <textarea {...form.$field('message', { syncOn: 'blur' })} placeholder="Mensagem" rows={3} className="w-full px-3 py-2 border rounded-lg" />
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={loading || state.isSubmitting || !state.isValid}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-          >
-            {state.isSubmitting ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Submitting...
-              </>
-            ) : (
-              '📤 Submit'
-            )}
-          </button>
-          
-          <button
-            type="button"
-            onClick={handleReset}
-            disabled={loading || state.isSubmitting}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            🔄 Reset
-          </button>
+          <button onClick={async () => { try { await form.$sync(); await form.submit() } catch (e: any) { alert(e.message) }}} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg">Enviar</button>
+          <button onClick={() => form.reset()} className="px-4 py-2 bg-gray-500 text-white rounded-lg">Limpar</button>
         </div>
-      </form>
-      
-      <div className="mt-4 text-xs text-gray-500 text-center">
-        Last updated: {new Date(state.lastUpdated).toLocaleTimeString()}
       </div>
     </div>
-  );
-}`;
+  )
+}
+`;
 
     case 'chat':
-      return `// 🔥 ${componentName} - Chat Client Component
-import React, { useState, useEffect, useRef } from 'react';
-import { useTypedLiveComponent } from '@core/client';
-import type { InferComponentState } from '@core/client';
+      return `// 🔥 ${name}
+import { useRef, useEffect } from 'react'
+import { Live } from '@/core/client'
+import { ${name} } from '@server/live/${name}'
 
-// Import component type DIRECTLY from backend - full type inference!
-import type { ${componentName}Component } from '@/server/live/${componentName}Component';
+export function ${name}Demo() {
+  const chat = Live.use(${name}, { messages: [], username: '', currentMessage: '' })
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
-// State type inferred from backend component
-type ${componentName}State = InferComponentState<${componentName}Component>;
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat.messages])
 
-const initialState: ${componentName}State = {
-  messages: [],
-  users: {},
-  currentMessage: "",
-  isTyping: {},
-  lastUpdated: new Date(),
-};
+  if (!chat.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
-export function ${componentName}() {
-  const { state, call, connected, loading } = useTypedLiveComponent<${componentName}Component>('${componentName}', initialState${roomProps});
-  const [username, setUsername] = useState(\`User\${Math.random().toString(36).substr(2, 4)}\`);
-  const [hasJoined, setHasJoined] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [state.messages]);
-
-  if (!connected) {
+  if (!chat.username) {
     return (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Connecting to ${componentName}...</p>
-        </div>
+      <div className="p-6 bg-white rounded-xl shadow-sm border max-w-md mx-auto">
+        <h2 className="text-xl font-bold mb-4">Entrar no ${name}</h2>
+        <input {...chat.$field('username', { syncOn: 'blur' })} placeholder="Seu nome" className="w-full px-3 py-2 border rounded-lg mb-4" maxLength={20} />
+        <button onClick={async () => { await chat.$sync(); if (chat.username.trim()) await chat.setUsername({ username: chat.username }) }} className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg">Entrar</button>
       </div>
-    );
+    )
   }
-
-  if (!hasJoined) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 m-4 max-w-md mx-auto">
-        <h2 className="text-2xl font-bold text-gray-800 mb-4">Join ${componentName}</h2>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Enter your username"
-              maxLength={20}
-            />
-          </div>
-          <button
-            onClick={async () => {
-              if (username.trim()) {
-                await call('joinRoom', { username: username.trim() });
-                setHasJoined(true);
-              }
-            }}
-            disabled={!username.trim() || loading}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            💬 Join Chat
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (state.currentMessage.trim()) {
-      await call('sendMessage', { text: state.currentMessage, username });
-    }
-  };
-
-  const typingUsers = Object.keys(state.isTyping).filter(userId => state.isTyping[userId]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm m-4 max-w-2xl mx-auto flex flex-col h-96">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <h2 className="text-xl font-bold text-gray-800">${componentName}</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600">
-            {Object.keys(state.users).length} online
-          </span>
-          <span className={
-            \`px-2 py-1 rounded-full text-xs font-medium \${
-              connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }\`
-          }>
-            {connected ? '🟢 Connected' : '🔴 Disconnected'}
-          </span>
-        </div>
-      </div>
-
-      {/* Messages */}
+    <div className="flex flex-col h-96 bg-white rounded-xl shadow-sm border">
+      <div className="p-4 border-b flex justify-between"><h2 className="font-bold">${name}</h2><span className="text-sm text-gray-500">{chat.username}</span></div>
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        {state.messages.map((message) => (
-          <div
-            key={message.id}
-            className={\`flex \${message.username === username ? 'justify-end' : 'justify-start'}\`}
-          >
-            <div
-              className={\`max-w-xs px-3 py-2 rounded-lg \${
-                message.username === username
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-800'
-              }\`}
-            >
-              {message.username !== username && (
-                <div className="text-xs font-medium mb-1">{message.username}</div>
-              )}
-              <div className="text-sm">{message.text}</div>
-              <div className={\`text-xs mt-1 \${
-                message.username === username ? 'text-blue-100' : 'text-gray-500'
-              }\`}>
-                {new Date(message.timestamp).toLocaleTimeString()}
-              </div>
+        {chat.messages.map((msg) => (
+          <div key={msg.id} className={\`flex \${msg.username === chat.username ? 'justify-end' : 'justify-start'}\`}>
+            <div className={\`max-w-xs px-3 py-2 rounded-lg \${msg.username === chat.username ? 'bg-blue-500 text-white' : 'bg-gray-100'}\`}>
+              {msg.username !== chat.username && <div className="text-xs font-medium mb-1">{msg.username}</div>}
+              <div>{msg.text}</div>
             </div>
           </div>
         ))}
-        
-        {typingUsers.length > 0 && (
-          <div className="text-xs text-gray-500 italic">
-            {typingUsers.map(userId => state.users[userId]?.username || userId).join(', ')} 
-            {typingUsers.length === 1 ? ' is' : ' are'} typing...
-          </div>
-        )}
-        
         <div ref={messagesEndRef} />
       </div>
-
-      {/* Input */}
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={state.currentMessage}
-            onChange={(e) => {
-              call('updateField', { field: 'currentMessage', value: e.target.value });
-              call('updateTyping', { isTyping: e.target.value.length > 0, username });
-            }}
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Type a message..."
-            disabled={loading}
-            maxLength={500}
-          />
-          <button
-            type="submit"
-            disabled={!state.currentMessage.trim() || loading}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            📤
-          </button>
-        </div>
+      <form onSubmit={async (e) => { e.preventDefault(); if (chat.currentMessage.trim()) await chat.sendMessage({ text: chat.currentMessage }) }} className="p-4 border-t flex gap-2">
+        <input {...chat.$field('currentMessage', { syncOn: 'change', debounce: 100 })} placeholder="Mensagem..." className="flex-1 px-3 py-2 border rounded-lg" />
+        <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded-lg">Enviar</button>
       </form>
     </div>
-  );
-}`;
+  )
+}
+`;
 
     default: // basic
-      return `// 🔥 ${componentName} - Client Component
-import { useTypedLiveComponent } from '@core/client';
-import type { InferComponentState } from '@core/client';
+      return `// 🔥 ${name}
+import { Live } from '@/core/client'
+import { ${name} } from '@server/live/${name}'
 
-// Import component type DIRECTLY from backend - full type inference!
-import type { ${componentName}Component } from '@/server/live/${componentName}Component';
+export function ${name}Demo() {
+  const component = Live.use(${name}, { message: 'Carregando...', count: 0 })
 
-// State type inferred from backend component
-type ${componentName}State = InferComponentState<${componentName}Component>;
-
-const initialState: ${componentName}State = {
-  message: "Loading...",
-  count: 0,
-  lastUpdated: new Date(),
-};
-
-export function ${componentName}() {
-  const { state, call, connected, loading } = useTypedLiveComponent<${componentName}Component>('${componentName}', initialState${roomProps});
-
-  if (!connected) {
-    return (
-      <div className="flex items-center justify-center p-8 border-2 border-dashed border-gray-300 rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-2"></div>
-          <p className="text-gray-600">Connecting to ${componentName}...</p>
-        </div>
-      </div>
-    );
-  }
+  if (!component.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6 m-4 relative">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-gray-800">${componentName} Live Component</h2>
-        <span className={
-          \`px-2 py-1 rounded-full text-xs font-medium \${
-            connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }\`
-        }>
-          {connected ? '🟢 Connected' : '🔴 Disconnected'}
-        </span>
-      </div>
-      
+    <div className="p-6 bg-white rounded-xl shadow-sm border">
+      <h2 className="text-xl font-bold mb-4">${name}</h2>
       <div className="space-y-4">
-        <div>
-          <p className="text-gray-600 mb-2">Server message:</p>
-          <p className="text-lg font-semibold text-blue-600">{state.message}</p>
-        </div>
-        
-        <div>
-          <p className="text-gray-600 mb-2">Counter: <span className="font-bold text-2xl">{state.count}</span></p>
-        </div>
-        
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => call('updateMessage', { message: 'Hello from the client!' })}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            📝 Update Message
-          </button>
-          
-          <button
-            onClick={() => call('incrementCounter', {})}
-            disabled={loading}
-            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            ➕ Increment
-          </button>
-
-          <button
-            onClick={() => call('resetData', {})}
-            disabled={loading}
-            className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            🔄 Reset
-          </button>
-
-          <button
-            onClick={async () => {
-              const result = await call('getData', {});
-              console.log('Component data:', result);
-              alert('Data logged to console');
-            }}
-            disabled={loading}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            📊 Get Data
-          </button>
+        <p className="text-lg text-blue-600">{component.message}</p>
+        <p className="text-gray-600">Count: <span className="font-bold text-2xl">{component.count}</span></p>
+        <div className="flex gap-2">
+          <button onClick={() => component.updateMessage({ message: 'Hello!' })} className="px-4 py-2 bg-blue-500 text-white rounded-lg">Update</button>
+          <button onClick={() => component.increment()} className="px-4 py-2 bg-green-500 text-white rounded-lg">+1</button>
+          <button onClick={() => component.reset()} className="px-4 py-2 bg-gray-500 text-white rounded-lg">Reset</button>
         </div>
       </div>
-      
-      <div className="mt-4 text-xs text-gray-500 text-center">
-        Last updated: {new Date(state.lastUpdated).toLocaleTimeString()}
-      </div>
-      
-      {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-lg">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        </div>
-      )}
     </div>
-  );
-}`;
+  )
+}
+`;
   }
 };
 
 export const createLiveComponentCommand: CliCommand = {
-  name: "make:component",
-  description: "Create a new Live Component with server and client files",
+  name: "make:live",
+  description: "Create a new Live Component",
   category: "Live Components",
-  aliases: ["make:live", "create:component", "create:live-component"],
-  usage: "flux make:component <ComponentName> [options]",
+  aliases: ["make:component", "create:live"],
+  usage: "flux make:live <Name> [options]",
   examples: [
-    "flux make:component UserProfile                # Basic component",
-    "flux make:component TodoCounter --type=counter # Counter component",  
-    "flux make:component ContactForm --type=form    # Form component",
-    "flux make:component LiveChat --type=chat       # Chat component",
-    "flux make:component ServerOnly --no-client     # Server-only component",
-    "flux make:component MultiUser --room=lobby     # Component with room support"
+    "flux make:live Counter --type=counter",
+    "flux make:live ContactForm --type=form",
+    "flux make:live Chat --type=chat",
+    "flux make:live MyComponent"
   ],
-  arguments: [
-    {
-      name: "ComponentName",
-      description: "The name of the component in PascalCase (e.g., UserProfile, TodoCounter)",
-      required: true,
-      type: "string"
-    },
-  ],
+  arguments: [{ name: "Name", description: "Component name in PascalCase", required: true, type: "string" }],
   options: [
-    {
-      name: "type",
-      short: "t",
-      description: "Type of component template to generate",
-      type: "string",
-      default: "basic",
-      choices: ["basic", "counter", "form", "chat"]
-    },
-    {
-      name: "no-client",
-      description: "Generate only server component (no client file)",
-      type: "boolean"
-    },
-    {
-      name: "room",
-      short: "r",
-      description: "Default room name for multi-user features",
-      type: "string"
-    },
-    {
-      name: "force",
-      short: "f",
-      description: "Overwrite existing files if they exist",
-      type: "boolean"
-    }
+    { name: "type", short: "t", description: "Template type", type: "string", default: "basic", choices: ["basic", "counter", "form", "chat"] },
+    { name: "no-client", description: "Server only", type: "boolean" },
+    { name: "room", short: "r", description: "Default room", type: "string" },
+    { name: "force", short: "f", description: "Overwrite", type: "boolean" }
   ],
   handler: async (args, options, context) => {
-    const [componentName] = args;
+    const [name] = args;
     const { type = 'basic', 'no-client': noClient, room, force } = options;
 
-    // Validation
-    if (!componentName || !/^[A-Z][a-zA-Z0-9]*$/.test(componentName)) {
-      context.logger.error("❌ Invalid component name. It must be in PascalCase (e.g., UserProfile, TodoCounter).");
-      context.logger.info("Examples: UserProfile, TodoCounter, ContactForm, LiveChat");
+    if (!name || !/^[A-Z][a-zA-Z0-9]*$/.test(name)) {
+      context.logger.error("❌ Nome inválido. Use PascalCase (ex: MeuComponente)");
       return;
     }
 
-    if (!['basic', 'counter', 'form', 'chat'].includes(type)) {
-      context.logger.error(`❌ Invalid component type: ${type}`);
-      context.logger.info("Available types: basic, counter, form, chat");
-      return;
-    }
-
-    // File paths
-    const serverFilePath = path.join(context.workingDir, "app", "server", "live", `${componentName}Component.ts`);
-    const clientFilePath = path.join(context.workingDir, "app", "client", "src", "live", `${componentName}.tsx`);
+    const serverPath = path.join(context.workingDir, "app", "server", "live", `${name}.ts`);
+    const clientPath = path.join(context.workingDir, "app", "client", "src", "live", `${name}.tsx`);
 
     try {
-      // Check if files exist (unless force flag is used)
       if (!force) {
-        const serverExists = await fs.access(serverFilePath).then(() => true).catch(() => false);
-        const clientExists = !noClient && await fs.access(clientFilePath).then(() => true).catch(() => false);
-        
+        const serverExists = await fs.access(serverPath).then(() => true).catch(() => false);
+        const clientExists = !noClient && await fs.access(clientPath).then(() => true).catch(() => false);
         if (serverExists || clientExists) {
-          context.logger.error(`❌ Component files already exist. Use --force to overwrite.`);
-          if (serverExists) context.logger.info(`   Server: ${serverFilePath}`);
-          if (clientExists) context.logger.info(`   Client: ${clientFilePath}`);
+          context.logger.error("❌ Arquivos existem. Use --force para sobrescrever.");
           return;
         }
       }
 
-      // Ensure directories exist
-      await fs.mkdir(path.dirname(serverFilePath), { recursive: true });
-      if (!noClient) {
-        await fs.mkdir(path.dirname(clientFilePath), { recursive: true });
-      }
+      await fs.mkdir(path.dirname(serverPath), { recursive: true });
+      if (!noClient) await fs.mkdir(path.dirname(clientPath), { recursive: true });
 
-      // Generate server component
-      context.logger.info(`🔥 Creating server component: ${componentName}Component.ts`);
-      const serverTemplate = getServerTemplate(componentName, type, room);
-      await fs.writeFile(serverFilePath, serverTemplate);
+      context.logger.info(`🔥 Criando ${name}...`);
 
-      // Generate client component (unless --no-client)
-      if (!noClient) {
-        context.logger.info(`⚛️ Creating client component: ${componentName}.tsx`);
-        const clientTemplate = getClientTemplate(componentName, type, room);
-        await fs.writeFile(clientFilePath, clientTemplate);
-      }
+      await fs.writeFile(serverPath, getServerTemplate(name, type, room));
+      context.logger.info(`   ✅ Server: app/server/live/${name}.ts`);
 
-      // Success message
-      context.logger.info(`✅ Successfully created '${componentName}' live component!`);
-      context.logger.info("");
-      context.logger.info("📁 Files created:");
-      context.logger.info(`   🔥 Server: app/server/live/${componentName}Component.ts`);
       if (!noClient) {
-        context.logger.info(`   ⚛️ Client: app/client/src/live/${componentName}.tsx`);
-      }
-      
-      context.logger.info("");
-      context.logger.info("🚀 Next steps:");
-      context.logger.info("   1. Start dev server: bun run dev");
-      if (!noClient) {
-        context.logger.info(`   2. Import component in your App.tsx:`);
-        context.logger.info(`      import { ${componentName} } from './live/${componentName}'`);
-        context.logger.info(`   3. Add component to your JSX: <${componentName} />`);
-      }
-      
-      if (room) {
-        context.logger.info(`   4. Component supports multi-user features with room: ${room}`);
-      }
-      
-      if (type !== 'basic') {
-        context.logger.info(`   5. Template type '${type}' includes specialized functionality`);
+        await fs.writeFile(clientPath, getClientTemplate(name, type));
+        context.logger.info(`   ✅ Client: app/client/src/live/${name}.tsx`);
       }
 
       context.logger.info("");
-      context.logger.info("📚 Import guide (Type Inference):");
-      context.logger.info("   # Import typed hook and type helpers:");
-      context.logger.info("   import { useTypedLiveComponent } from '@core/client';");
-      context.logger.info("   import type { InferComponentState } from '@core/client';");
+      context.logger.info("🚀 Uso:");
+      context.logger.info(`   import { ${name}Demo } from './live/${name}'`);
+      context.logger.info(`   <${name}Demo />`);
       context.logger.info("");
-      context.logger.info("   # Import backend component type for full inference:");
-      context.logger.info(`   import type { ${componentName}Component } from '@/server/live/${componentName}Component';`);
-      context.logger.info("");
-      context.logger.info("   # Use with automatic type inference:");
-      context.logger.info(`   const { state, call } = useTypedLiveComponent<${componentName}Component>(...);`);
+      context.logger.info("📖 API:");
+      context.logger.info(`   const x = Live.use(${name}, { ... })`);
+      context.logger.info(`   x.property    // estado`);
+      context.logger.info(`   x.action()    // ação`);
+      context.logger.info(`   x.$connected  // status`);
 
     } catch (error) {
-      context.logger.error(`❌ Failed to create component files: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
+      context.logger.error(`❌ Erro: ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 };

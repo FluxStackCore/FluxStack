@@ -1,28 +1,23 @@
 // 🔥 LiveForm - Formulário reativo com estado no servidor
+// ZERO interfaces! TypeScript infere tudo automaticamente.
 import { LiveComponent } from "@core/types/types"
 
-interface FormState {
-  name: string
-  email: string
-  message: string
-  submitted: boolean
-  submittedAt: string | null
+// Estado definido inline - TypeScript infere automaticamente
+const defaultState = {
+  name: '',
+  email: '',
+  message: '',
+  submitted: false,
+  submittedAt: null as string | null
 }
 
-export class LiveFormComponent extends LiveComponent<FormState> {
-  constructor(initialState: Partial<FormState>, ws: any, options?: { room?: string; userId?: string }) {
-    const defaults: FormState = {
-      name: '',
-      email: '',
-      message: '',
-      submitted: false,
-      submittedAt: null
-    }
-    super({ ...defaults, ...initialState }, ws, options)
+export class LiveForm extends LiveComponent<typeof defaultState> {
+  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
+    super({ ...defaultState, ...initialState }, ws, options)
     console.log(`📝 LiveForm created: ${this.id}`)
   }
 
-  // Submit do formulário
+  // Actions - tipos de retorno inferidos automaticamente
   async submit() {
     const { name, email, message } = this.state
 
@@ -44,7 +39,6 @@ export class LiveFormComponent extends LiveComponent<FormState> {
     }
   }
 
-  // Reset do formulário
   async reset() {
     this.setState({
       name: '',
@@ -57,7 +51,6 @@ export class LiveFormComponent extends LiveComponent<FormState> {
     return { success: true }
   }
 
-  // Validação em tempo real
   async validate() {
     const errors: Record<string, string> = {}
 

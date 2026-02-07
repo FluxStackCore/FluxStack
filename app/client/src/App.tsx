@@ -1,27 +1,16 @@
 import { useState, useEffect } from 'react'
 import { api } from './lib/eden-api'
-import { FaFire, FaBook, FaGithub, FaClock, FaImage } from 'react-icons/fa'
-import { LiveComponentsProvider, useLiveComponent } from '@/core/client'
+import { FaFire, FaBook, FaGithub, FaClock, FaImage, FaCode } from 'react-icons/fa'
+import { LiveComponentsProvider, Live } from '@/core/client'
+import { LiveForm } from '@server/live/LiveForm'
 import { FileUploadExample } from './live/FileUploadExample'
 import { MinimalLiveClock } from './live/MinimalLiveClock'
+import { LiveComponentExamples } from './live/LiveExamples'
 
 // ===== Live Form Demo =====
-interface FormState {
-  name: string
-  email: string
-  message: string
-  submitted: boolean
-  submittedAt: string | null
-}
-
-type FormActions = {
-  submit: () => Promise<{ success: boolean; data: any }>
-  reset: () => Promise<{ success: boolean }>
-  validate: () => Promise<{ valid: boolean; errors: Record<string, string> }>
-}
 
 function LiveFormDemo() {
-  const form = useLiveComponent<FormState, FormActions>('LiveForm', {
+  const form = Live.use(LiveForm, {
     name: '',
     email: '',
     message: '',
@@ -151,11 +140,13 @@ function LiveFormDemo() {
   )
 }
 
+
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [showDemo, setShowDemo] = useState(false)
   const [showApiTest, setShowApiTest] = useState(false)
   const [showForm, setShowForm] = useState(false)
+  const [showLiveExamples, setShowLiveExamples] = useState(false)
   const [apiResponse, setApiResponse] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -292,6 +283,28 @@ function AppContent() {
     )
   }
 
+  // Live Component Examples
+  if (showLiveExamples) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setShowLiveExamples(false)}
+              className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
+            >
+              ← Voltar
+            </button>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Live Components - React Style
+            </h1>
+          </div>
+          <LiveComponentExamples />
+        </div>
+      </div>
+    )
+  }
+
   // Live Form Demo
   if (showForm) {
     return (
@@ -415,6 +428,13 @@ function AppContent() {
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all"
           >
             📝 Live Form
+          </button>
+          <button
+            onClick={() => setShowLiveExamples(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
+          >
+            <FaCode />
+            Live.* Sintaxe
           </button>
           <button
             onClick={() => setShowApiTest(true)}
