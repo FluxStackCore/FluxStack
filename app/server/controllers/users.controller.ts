@@ -7,20 +7,24 @@ export interface User {
   createdAt: Date
 }
 
-let users: User[] = []
-let nextId = 1
-
+/**
+ * In-memory user store for demonstration purposes.
+ * Replace with a real database (e.g. Drizzle, Prisma) for production use.
+ */
 export class UsersController {
+  private static users: User[] = []
+  private static nextId = 1
+
   static async getUsers() {
     return {
       success: true as const,
-      users,
-      count: users.length
+      users: this.users,
+      count: this.users.length
     }
   }
 
   static async getUserById(id: number) {
-    const user = users.find(u => u.id === id)
+    const user = this.users.find(u => u.id === id)
     if (!user) {
       return {
         success: false as const,
@@ -34,7 +38,7 @@ export class UsersController {
   }
 
   static async createUser(data: CreateUserRequest) {
-    const existingUser = users.find(u => u.email === data.email)
+    const existingUser = this.users.find(u => u.email === data.email)
     if (existingUser) {
       return {
         success: false as const,
@@ -43,13 +47,13 @@ export class UsersController {
     }
 
     const newUser: User = {
-      id: nextId++,
+      id: this.nextId++,
       name: data.name,
       email: data.email,
       createdAt: new Date()
     }
 
-    users.push(newUser)
+    this.users.push(newUser)
 
     return {
       success: true as const,
@@ -59,7 +63,7 @@ export class UsersController {
   }
 
   static async deleteUser(id: number) {
-    const userIndex = users.findIndex(u => u.id === id)
+    const userIndex = this.users.findIndex(u => u.id === id)
 
     if (userIndex === -1) {
       return {
@@ -68,7 +72,7 @@ export class UsersController {
       }
     }
 
-    users.splice(userIndex, 1)
+    this.users.splice(userIndex, 1)
 
     return {
       success: true as const,
@@ -77,7 +81,7 @@ export class UsersController {
   }
 
   static resetForTesting() {
-    users = []
-    nextId = 1
+    this.users = []
+    this.nextId = 1
   }
 }
