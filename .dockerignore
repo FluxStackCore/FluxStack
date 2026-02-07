@@ -48,9 +48,8 @@ docs/
 # Development tools
 .eslintrc*
 .prettierrc*
-tsconfig*.json
 vitest.config.ts
-vite.config.ts
+# Note: tsconfig.json is needed for Bun path alias resolution during build
 
 # OS files
 .DS_Store
