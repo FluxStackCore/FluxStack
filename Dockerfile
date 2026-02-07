@@ -67,4 +67,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD bun -e 'fetch("http://localhost:3000/api/health").then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))'
 
 # Start the application
-CMD ["bun", "run", "start"]
+CMD ["bun", "dist/index.js"]

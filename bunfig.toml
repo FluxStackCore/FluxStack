@@ -11,18 +11,23 @@ lockfile = true
 [run]
 preload = []
 
-# Path mapping (alias support) for runtime
+# Path mapping (alias support) - matches tsconfig.json
 [run.alias]
-"@" = "."
-"@/core" = "./core"
-"@/app" = "./app"
-"@/config" = "./config"
-"@/shared" = "./app/shared"
+"@/*" = "./*"
+"@server/*" = "./app/server/*"
+"@client/*" = "./app/client/*"
+"@core/*" = "./core/*"
+"@config" = "./config/index.ts"
+"@config/*" = "./config/*"
+"@app/*" = "./app/*"
+"@shared/*" = "./app/shared/*"
 
-# Path mapping (alias support) for build
 [build.alias]
-"@" = "."
-"@/core" = "./core"
-"@/app" = "./app"
-"@/config" = "./config"
-"@/shared" = "./app/shared"
+"@/*" = "./*"
+"@server/*" = "./app/server/*"
+"@client/*" = "./app/client/*"
+"@core/*" = "./core/*"
+"@config" = "./config/index.ts"
+"@config/*" = "./config/*"
+"@app/*" = "./app/*"
+"@shared/*" = "./app/shared/*"
