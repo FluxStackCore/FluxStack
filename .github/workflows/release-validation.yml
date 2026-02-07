@@ -182,7 +182,7 @@ jobs:
       - name: 🌐 Start production server
         run: |
           echo "🚀 Starting production server simulation..."
-          bun run start &
+          bun dist/index.js &
           SERVER_PID=$!
           sleep 10
 
@@ -252,7 +252,7 @@ jobs:
           # Cold start benchmark
           echo "🚀 Testing cold start performance..."
           time_start=$(date +%s%3N)
-          timeout 30s bun run start &
+          timeout 30s bun dist/index.js &
           SERVER_PID=$!
           sleep 5
           time_end=$(date +%s%3N)

@@ -372,7 +372,7 @@ jobs:
       - name: 🚀 Test production server simulation
         run: |
           echo "🌐 Testing production server startup..."
-          timeout 15s bun run start &
+          timeout 15s bun dist/index.js &
           sleep 5
           
           # Test API endpoint
