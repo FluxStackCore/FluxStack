@@ -372,7 +372,7 @@ jobs:
       - name: 🚀 Test production server simulation
         run: |
           echo "🌐 Testing production server startup..."
-          timeout 15s bun run start &
+          timeout 15s bun dist/index.js &
           sleep 5
           
           # Test API endpoint
@@ -421,7 +421,7 @@ jobs:
           if [ "${{ matrix.mode }}" == "backend" ]; then
             timeout 30s bun run dev:backend &  
             sleep 10
-            if curl -f http://localhost:3001/api/health; then
+            if curl -f http://localhost:3000/api/health; then
               echo "✅ Backend dev server responding"
             else
               echo "❌ Backend dev server not responding"  

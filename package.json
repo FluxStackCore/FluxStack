@@ -31,7 +31,7 @@
     "build:frontend": "cross-env NODE_ENV=production bun run core/cli/index.ts build --frontend-only",
     "build:backend": "cross-env NODE_ENV=production bun run core/cli/index.ts build --backend-only",
     "build:exe": "cross-env NODE_ENV=production && bun run core/cli/index.ts build && bun run core/cli/index.ts build:exe",
-    "start": "bun run core/cli/index.ts start",
+    "start": "NODE_ENV=production bun dist/index.js",
     "create": "bun run core/cli/index.ts create",
     "cli": "bun run core/cli/index.ts",
     "make:component": "bun run core/cli/index.ts make:component",
