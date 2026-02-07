@@ -1,5 +1,7 @@
 // 🔥 FluxStack Live Components - Shared Types
 
+import { roomEvents } from '@core/server/live/RoomEventBus'
+
 export interface LiveMessage {
   type: 'COMPONENT_MOUNT' | 'COMPONENT_UNMOUNT' |
   'COMPONENT_REHYDRATE' | 'COMPONENT_ACTION' | 'CALL_ACTION' |
@@ -143,6 +145,12 @@ export abstract class LiveComponent<TState = ComponentState> {
   public userId?: string
   public broadcastToRoom: (message: BroadcastMessage) => void = () => {} // Will be injected by registry
 
+  // Room event subscriptions (cleaned up on destroy)
+  private roomEventUnsubscribers: (() => void)[] = []
+
+  // Room type for typed events (override in subclass)
+  protected roomType: string = 'default'
+
   constructor(initialState: TState, ws: any, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
     this.state = initialState
@@ -204,8 +212,13 @@ export abstract class LiveComponent<TState = ComponentState> {
     }
   }
 
-  // Broadcast to all clients in room
+  // Broadcast to all clients in room (via WebSocket)
   protected broadcast(type: string, payload: any, excludeCurrentUser = false) {
+    if (!this.room) {
+      console.warn(`⚠️ [${this.id}] Cannot broadcast '${type}' - no room set`)
+      return
+    }
+
     const message: BroadcastMessage = {
       type,
       payload,
@@ -213,8 +226,82 @@ export abstract class LiveComponent<TState = ComponentState> {
       excludeUser: excludeCurrentUser ? this.userId : undefined
     }
 
+    console.log(`📤 [${this.id}] Broadcasting '${type}' to room '${this.room}'`)
+
     // This will be handled by the registry
     this.broadcastToRoom(message)
+  }
+
+  // ========================================
+  // 🔥 Room Events - Internal Server Events
+  // ========================================
+
+  /**
+   * Emite um evento para todos os componentes da sala (server-side)
+   * Cada componente inscrito pode reagir e atualizar seu próprio cliente
+   *
+   * @param event - Nome do evento
+   * @param data - Dados do evento
+   * @param notifySelf - Se true, este componente também recebe (default: false)
+   */
+  protected emitRoomEvent(event: string, data: any, notifySelf = false): number {
+    if (!this.room) {
+      console.warn(`⚠️ [${this.id}] Cannot emit room event '${event}' - no room set`)
+      return 0
+    }
+
+    const excludeId = notifySelf ? undefined : this.id
+    const notified = roomEvents.emit(this.roomType, this.room, event, data, excludeId)
+
+    console.log(`📡 [${this.id}] Room event '${event}' → ${notified} components`)
+    return notified
+  }
+
+  /**
+   * Inscreve este componente em um evento da sala
+   * Handler é chamado quando outro componente emite o evento
+   *
+   * @param event - Nome do evento para escutar
+   * @param handler - Função chamada quando evento é recebido
+   */
+  protected onRoomEvent<T = any>(event: string, handler: (data: T) => void): void {
+    if (!this.room) {
+      console.warn(`⚠️ [${this.id}] Cannot subscribe to room event '${event}' - no room set`)
+      return
+    }
+
+    const unsubscribe = roomEvents.on(
+      this.roomType,
+      this.room,
+      event,
+      this.id,
+      handler
+    )
+
+    // Guardar para cleanup no destroy
+    this.roomEventUnsubscribers.push(unsubscribe)
+
+    console.log(`👂 [${this.id}] Subscribed to room event '${event}'`)
+  }
+
+  /**
+   * Helper: Emite evento E atualiza estado local + envia pro cliente
+   * Útil para o componente que origina a ação
+   *
+   * @param event - Nome do evento
+   * @param data - Dados do evento
+   * @param stateUpdates - Atualizações de estado para aplicar localmente
+   */
+  protected emitRoomEventWithState(
+    event: string,
+    data: any,
+    stateUpdates: Partial<TState>
+  ): number {
+    // 1. Atualiza estado local (envia pro cliente deste componente)
+    this.setState(stateUpdates)
+
+    // 2. Emite evento para outros componentes da sala
+    return this.emitRoomEvent(event, data, false)
   }
 
   // Subscribe to room for multi-user features
@@ -236,6 +323,12 @@ export abstract class LiveComponent<TState = ComponentState> {
 
   // Cleanup when component is destroyed
   public destroy() {
+    // Limpa todas as inscrições de room events
+    for (const unsubscribe of this.roomEventUnsubscribers) {
+      unsubscribe()
+    }
+    this.roomEventUnsubscribers = []
+
     this.unsubscribeFromRoom()
     // Override in subclasses for custom cleanup
   }

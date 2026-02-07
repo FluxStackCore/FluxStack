@@ -155,6 +155,25 @@ export function LiveComponentsProvider({
             return
           }
 
+          // Broadcast messages should go to ALL components (not just sender)
+          if (response.type === 'BROADCAST') {
+            // Send to all registered components in the same room
+            const registeredComponents = Array.from(componentCallbacksRef.current.keys())
+            log('📡 Broadcast routing:', {
+              sender: response.componentId,
+              registeredComponents,
+              totalRegistered: registeredComponents.length
+            })
+
+            componentCallbacksRef.current.forEach((callback, compId) => {
+              // Don't send back to the sender component
+              if (compId !== response.componentId) {
+                callback(response)
+              }
+            })
+            return
+          }
+
           // Route message to specific component
           if (response.componentId) {
             const callback = componentCallbacksRef.current.get(response.componentId)
@@ -163,14 +182,6 @@ export function LiveComponentsProvider({
             } else {
               log('⚠️ No callback registered for component:', response.componentId)
             }
-          }
-
-          // Broadcast messages (no specific componentId)
-          if (response.type === 'BROADCAST' && !response.componentId) {
-            // Send to all registered components
-            componentCallbacksRef.current.forEach(callback => {
-              callback(response)
-            })
           }
 
         } catch (error) {

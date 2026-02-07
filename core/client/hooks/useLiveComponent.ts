@@ -75,6 +75,37 @@ export interface LiveComponentProxy<TState extends Record<string, any>> {
 
   /** Sincroniza todos os campos pendentes (para syncOn: 'manual') */
   $sync: () => Promise<void>
+
+  /** Registra handler para broadcasts recebidos de outros usuários (sem tipagem) */
+  $onBroadcast: (handler: (type: string, data: any) => void) => void
+
+  /** Atualiza estado local diretamente (para processar broadcasts) */
+  $updateLocal: (updates: Partial<TState>) => void
+}
+
+// Helper type para criar union de broadcasts
+type BroadcastEvent<T extends Record<string, any>> = {
+  [K in keyof T]: { type: K; data: T[K] }
+}[keyof T]
+
+// Proxy com broadcasts tipados
+export interface LiveComponentProxyWithBroadcasts<
+  TState extends Record<string, any>,
+  TBroadcasts extends Record<string, any> = Record<string, any>
+> extends Omit<LiveComponentProxy<TState>, '$onBroadcast'> {
+  /**
+   * Registra handler para broadcasts tipados
+   * @example
+   * // Uso com tipagem:
+   * chat.$onBroadcast<LiveChatBroadcasts>((event) => {
+   *   if (event.type === 'NEW_MESSAGE') {
+   *     console.log(event.data.message) // ✅ Tipado como ChatMessage
+   *   }
+   * })
+   */
+  $onBroadcast: <T extends TBroadcasts = TBroadcasts>(
+    handler: (event: BroadcastEvent<T>) => void
+  ) => void
 }
 
 // Actions são qualquer método que não existe no state
@@ -82,6 +113,13 @@ export type LiveProxy<
   TState extends Record<string, any>,
   TActions = {}
 > = TState & LiveComponentProxy<TState> & TActions
+
+// Proxy com broadcasts tipados
+export type LiveProxyWithBroadcasts<
+  TState extends Record<string, any>,
+  TActions = {},
+  TBroadcasts extends Record<string, any> = Record<string, any>
+> = TState & LiveComponentProxyWithBroadcasts<TState, TBroadcasts> & TActions
 
 export interface UseLiveComponentOptions extends HybridComponentOptions {
   /** Debounce para sets (ms). Default: 150 */
@@ -96,7 +134,7 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
 
 const RESERVED_PROPS = new Set([
   '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty',
-  '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set',
+  '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$onBroadcast', '$updateLocal',
   'then', 'toJSON', 'valueOf', 'toString',
   Symbol.toStringTag, Symbol.iterator,
 ])
@@ -161,12 +199,13 @@ function createStore<T>(initialState: T) {
 
 export function useLiveComponent<
   TState extends Record<string, any>,
-  TActions = {}
+  TActions = {},
+  TBroadcasts extends Record<string, any> = Record<string, any>
 >(
   componentName: string,
   initialState: TState,
   options: UseLiveComponentOptions = {}
-): LiveProxy<TState, TActions> {
+): LiveProxyWithBroadcasts<TState, TActions, TBroadcasts> {
   const {
     debounce = 150,
     optimistic = true,
@@ -206,7 +245,9 @@ export function useLiveComponent<
   const [localVersion, setLocalVersion] = useState(0) // Força re-render quando valores locais mudam
   const mountedRef = useRef(false)
   const mountingRef = useRef(false)
+  const rehydratingRef = useRef(false) // Previne múltiplas tentativas de rehydrate
   const lastComponentIdRef = useRef<string | null>(null)
+  const broadcastHandlerRef = useRef<((event: { type: string; data: any }) => void) | null>(null)
 
   // State
   const stateData = store((s) => s.state)
@@ -258,7 +299,8 @@ export function useLiveComponent<
 
   // ===== Mount =====
   const mount = useCallback(async () => {
-    if (!connected || mountedRef.current || mountingRef.current || mountFailed) return
+    // Usa refs para prevenir chamadas duplicadas (React StrictMode)
+    if (!connected || mountedRef.current || mountingRef.current || rehydratingRef.current || mountFailed) return
 
     mountingRef.current = true
     setLoading(true)
@@ -312,7 +354,8 @@ export function useLiveComponent<
 
   // ===== Rehydrate =====
   const rehydrate = useCallback(async () => {
-    if (!connected || rehydrating || mountingRef.current) return false
+    // Usa ref para prevenir chamadas duplicadas (React StrictMode)
+    if (!connected || rehydratingRef.current || mountingRef.current || mountedRef.current) return false
 
     const persisted = getPersistedState(componentName)
     if (!persisted) return false
@@ -323,6 +366,7 @@ export function useLiveComponent<
       return false
     }
 
+    rehydratingRef.current = true
     setRehydrating(true)
     try {
       const response = await sendMessageAndWait({
@@ -349,9 +393,10 @@ export function useLiveComponent<
       clearPersistedState(componentName)
       return false
     } finally {
+      rehydratingRef.current = false
       setRehydrating(false)
     }
-  }, [connected, rehydrating, componentName, sendMessageAndWait, onRehydrate])
+  }, [connected, componentName, sendMessageAndWait, onRehydrate])
 
   // ===== Call Action =====
   const call = useCallback(async (action: string, payload?: any) => {
@@ -499,6 +544,13 @@ export function useLiveComponent<
             onRehydrate?.()
           }
           break
+        case 'BROADCAST':
+          // Handle broadcast messages from other users in the same room
+          if (message.payload?.type) {
+            // Emit broadcast event for component to handle (as { type, data } object)
+            broadcastHandlerRef.current?.({ type: message.payload.type, data: message.payload.data })
+          }
+          break
         case 'ERROR':
           setError(message.payload?.error || 'Unknown error')
           onError?.(message.payload?.error)
@@ -559,7 +611,7 @@ export function useLiveComponent<
 
   // ===== Proxy =====
   const proxy = useMemo(() => {
-    return new Proxy({} as LiveProxy<TState, TActions>, {
+    return new Proxy({} as LiveProxyWithBroadcasts<TState, TActions, TBroadcasts>, {
       get(_, prop: string | symbol) {
         if (typeof prop === 'symbol') {
           if (prop === Symbol.toStringTag) return 'LiveComponent'
@@ -568,7 +620,8 @@ export function useLiveComponent<
 
         // Metadata ($ prefix)
         switch (prop) {
-          case '$state': return stateData
+          // $state returns FRESH state from store (not stale closure)
+          case '$state': return storeRef.current?.getState().state ?? stateData
           case '$connected': return connected
           case '$loading': return loading
           case '$error': return error
@@ -583,6 +636,15 @@ export function useLiveComponent<
           case '$set': return setProperty
           case '$field': return createFieldBinding
           case '$sync': return sync
+          case '$onBroadcast': return (handler: (event: { type: string; data: any }) => void) => {
+            broadcastHandlerRef.current = handler
+          }
+          case '$updateLocal': return (updates: Partial<TState>) => {
+            const currentState = storeRef.current?.getState().state
+            if (currentState) {
+              updateState({ ...currentState, ...updates } as TState)
+            }
+          }
         }
 
         // Se é propriedade do state → retorna valor
@@ -629,7 +691,7 @@ export function useLiveComponent<
       },
 
       ownKeys() {
-        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync']
+        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal']
       }
     })
   }, [stateData, connected, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion])
@@ -641,7 +703,8 @@ export function useLiveComponent<
 
 export function createLiveComponent<
   TState extends Record<string, any>,
-  TActions = {}
+  TActions = {},
+  TBroadcasts extends Record<string, any> = Record<string, any>
 >(
   componentName: string,
   defaultOptions: Omit<UseLiveComponentOptions, keyof HybridComponentOptions> = {}
@@ -649,7 +712,7 @@ export function createLiveComponent<
   return function useComponent(
     initialState: TState,
     options: UseLiveComponentOptions = {}
-  ): LiveProxy<TState, TActions> {
-    return useLiveComponent<TState, TActions>(componentName, initialState, { ...defaultOptions, ...options })
+  ): LiveProxyWithBroadcasts<TState, TActions, TBroadcasts> {
+    return useLiveComponent<TState, TActions, TBroadcasts>(componentName, initialState, { ...defaultOptions, ...options })
   }
 }

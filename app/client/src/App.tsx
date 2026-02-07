@@ -3,10 +3,12 @@ import { api } from './lib/eden-api'
 import { FaFire, FaBook, FaGithub } from 'react-icons/fa'
 import { LiveComponentsProvider } from '@/core/client'
 import { FormDemo } from './live/FormDemo'
+import { CounterDemo } from './live/CounterDemo'
 
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [showForm, setShowForm] = useState(false)
+  const [showCounter, setShowCounter] = useState(false)
   const [showApiTest, setShowApiTest] = useState(false)
   const [apiResponse, setApiResponse] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
@@ -163,6 +165,23 @@ function AppContent() {
     )
   }
 
+  // Live Counter Demo
+  if (showCounter) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4">
+        <div className="mb-8">
+          <button
+            onClick={() => setShowCounter(false)}
+            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
+          >
+            ← Voltar
+          </button>
+        </div>
+        <CounterDemo />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <div className="flex flex-col items-center justify-center min-h-screen px-6 text-center">
@@ -223,6 +242,12 @@ function AppContent() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 justify-center">
+          <button
+            onClick={() => setShowCounter(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-emerald-500/50 transition-all"
+          >
+            🔢 Live Counter
+          </button>
           <button
             onClick={() => setShowForm(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all"
