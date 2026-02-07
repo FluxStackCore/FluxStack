@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FileUploadManager } from '../FileUploadManager'
-import type { FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@/core/plugins/types'
+import type { FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@core/plugins/types'
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({

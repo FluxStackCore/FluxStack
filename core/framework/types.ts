@@ -3,8 +3,8 @@
  * Defines the main interfaces and types for the FluxStack framework
  */
 
-import type { FluxStackConfig } from "@/core/types"
-import type { Logger } from "@/core/utils/logger/index"
+import type { FluxStackConfig } from "@core/types"
+import type { Logger } from "@core/utils/logger/index"
 
 export interface FluxStackFrameworkOptions {
   config?: Partial<FluxStackConfig>

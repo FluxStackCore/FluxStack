@@ -1,9 +1,9 @@
 import type { FluxStack, PluginManifest, PluginLoadResult, PluginDiscoveryOptions } from "./types"
 
 type FluxStackPlugin = FluxStack.Plugin
-import type { FluxStackConfig } from "@/config"
-import type { Logger } from "@/core/utils/logger"
-import { FluxStackError } from "@/core/utils/errors"
+import type { FluxStackConfig } from "@config"
+import type { Logger } from "@core/utils/logger"
+import { FluxStackError } from "@core/utils/errors"
 import { PluginDependencyManager } from "./dependency-manager"
 import { readdir, readFile } from "fs/promises"
 import { join, resolve, sep } from "path"

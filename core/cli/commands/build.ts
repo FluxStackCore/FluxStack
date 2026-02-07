@@ -4,8 +4,8 @@
  */
 
 import type { CLICommand } from '../command-registry'
-import { FluxStackBuilder } from '@/core/build'
-import { fluxStackConfig } from '@/config'
+import { FluxStackBuilder } from '@core/build'
+import { fluxStackConfig } from '@config'
 
 export const buildCommand: CLICommand = {
   name: 'build',
@@ -39,8 +39,8 @@ export const buildCommand: CLICommand = {
     const config = fluxStackConfig
 
     // Load plugins for build hooks
-    const { PluginRegistry } = await import('@/core/plugins/registry')
-    const { PluginManager } = await import('@/core/plugins/manager')
+    const { PluginRegistry } = await import('@core/plugins/registry')
+    const { PluginManager } = await import('@core/plugins/manager')
     const pluginRegistry = new PluginRegistry({ config, logger: context.logger })
     const pluginManager = new PluginManager({ config, logger: context.logger })
 

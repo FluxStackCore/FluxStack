@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // TODO: Rewrite tests - apiCall/APIException/resetCircuitBreaker were removed in Eden Treaty refactor
-// import { getErrorMessage } from '@/app/client/src/lib/eden-api'
+// import { getErrorMessage } from '@app/client/src/lib/eden-api'
 
 describe.skip('Eden API Utilities', () => {
   beforeEach(() => {

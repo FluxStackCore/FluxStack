@@ -6,7 +6,7 @@ import type {
   BroadcastMessage, 
   ComponentDefinition,
   WebSocketData 
-} from '@/core/types/types'
+} from '@core/types/types'
 
 export class ComponentRegistry {
   private components = new Map<string, LiveComponent>()
@@ -35,7 +35,7 @@ export class ComponentRegistry {
       
       if (!fs.existsSync(componentsPath)) {
         // In production, components are already bundled - no need to auto-discover
-        const { appConfig } = await import('@/config')
+        const { appConfig } = await import('@config')
         if (appConfig.env !== 'production') {
           console.log(`⚠️ Components path not found: ${componentsPath}`)
         }

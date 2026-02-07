@@ -18,11 +18,11 @@ import type {
 } from "./types"
 
 type Plugin = FluxStack.Plugin
-import type { FluxStackConfig } from "@/config"
-import type { Logger } from "@/core/utils/logger"
+import type { FluxStackConfig } from "@config"
+import type { Logger } from "@core/utils/logger"
 import { PluginRegistry } from "./registry"
 import { createPluginUtils } from "./config"
-import { FluxStackError } from "@/core/utils/errors"
+import { FluxStackError } from "@core/utils/errors"
 import { EventEmitter } from "events"
 
 /**

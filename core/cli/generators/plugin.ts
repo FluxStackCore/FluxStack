@@ -110,7 +110,7 @@ export class PluginGenerator implements Generator {
  * Declarative config using FluxStack config system
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, config } from '@core/utils/config-schema'
 
 const {{camelName}}ConfigSchema = {
   // Enable/disable plugin
@@ -131,7 +131,7 @@ export default {{camelName}}Config
                 },
                 {
                     path: 'plugins/{{name}}/index.ts',
-                    content: `import type { ErrorContext, FluxStack, PluginContext, RequestContext, ResponseContext } from "@/core/plugins/types"
+                    content: `import type { ErrorContext, FluxStack, PluginContext, RequestContext, ResponseContext } from "@core/plugins/types"
 // ✅ Plugin imports its own configuration
 import { {{camelName}}Config } from './config'
 

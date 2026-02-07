@@ -5,7 +5,7 @@
  *
  * @example
  * ```ts
- * import { appConfig, serverConfig, databaseConfig } from '@/config'
+ * import { appConfig, serverConfig, databaseConfig } from '@config'
  *
  * // All configs are type-safe and validated!
  * console.log(appConfig.name)                    // string
@@ -20,7 +20,7 @@
  * ✨ For type safety with optional features (database, auth, email, storage):
  * Import types from this file instead of core:
  * ```ts
- * import type { DatabaseConfig, JWTConfig, EmailConfig, StorageConfig } from '@/config'
+ * import type { DatabaseConfig, JWTConfig, EmailConfig, StorageConfig } from '@config'
  * ```
  */
 

@@ -28,7 +28,7 @@ export class Bundler {
     
     try {
       const buildProcess = spawn({
-        cmd: ["bunx", "vite", "build", "--config", "config/vite.config.ts"],
+        cmd: ["bunx", "vite", "build", "--config", "vite.config.ts"],
         cwd: process.cwd(),
         stdout: "pipe",
         stderr: "pipe",

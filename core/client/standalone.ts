@@ -3,7 +3,7 @@
  * Starts Vite dev server directly without Elysia backend
  */
 
-import { clientConfig } from '@/config'
+import { clientConfig } from '@config'
 import type { LogLevel } from 'vite'
 
 type ViteDevServer = Awaited<ReturnType<typeof import('vite')['createServer']>>

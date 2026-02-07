@@ -4,8 +4,8 @@
  */
 
 import type { CLICommand } from '../command-registry'
-import { serverConfig, clientConfig } from '@/config'
-import { startGroup, endGroup, logInGroup } from '@/core/utils/logger/group-logger'
+import { serverConfig, clientConfig } from '@config'
+import { startGroup, endGroup, logInGroup } from '@core/utils/logger/group-logger'
 
 export const devCommand: CLICommand = {
   name: 'dev',

@@ -1,4 +1,4 @@
-import type { CliCommand } from "@/core/plugins/types";
+import type { CliCommand } from "@core/plugins/types";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -10,7 +10,7 @@ const getServerTemplate = (componentName: string, type: string, room?: string) =
   switch (type) {
     case 'counter':
       return `// 🔥 ${componentName} - Counter Live Component
-import { LiveComponent } from "@/core/types/types";
+import { LiveComponent } from "@core/types/types";
 
 interface ${componentName}State {
   count: number;
@@ -114,7 +114,7 @@ export class ${componentName}Component extends LiveComponent<${componentName}Sta
 
     case 'form':
       return `// 🔥 ${componentName} - Form Live Component
-import { LiveComponent } from "@/core/types/types";
+import { LiveComponent } from "@core/types/types";
 
 interface ${componentName}State {
   formData: Record<string, any>;
@@ -242,7 +242,7 @@ export class ${componentName}Component extends LiveComponent<${componentName}Sta
 
     case 'chat':
       return `// 🔥 ${componentName} - Chat Live Component
-import { LiveComponent } from "@/core/types/types";
+import { LiveComponent } from "@core/types/types";
 
 interface Message {
   id: string;
@@ -406,7 +406,7 @@ export class ${componentName}Component extends LiveComponent<${componentName}Sta
 
     default: // basic
       return `// 🔥 ${componentName} - Live Component
-import { LiveComponent } from "@/core/types/types";
+import { LiveComponent } from "@core/types/types";
 
 interface ${componentName}State {
   message: string;
@@ -499,8 +499,8 @@ const getClientTemplate = (componentName: string, type: string, room?: string) =
   switch (type) {
     case 'counter':
       return `// 🔥 ${componentName} - Counter Client Component
-import { useTypedLiveComponent } from '@/core/client';
-import type { InferComponentState } from '@/core/client';
+import { useTypedLiveComponent } from '@core/client';
+import type { InferComponentState } from '@core/client';
 
 // Import component type DIRECTLY from backend - full type inference!
 import type { ${componentName}Component } from '@/server/live/${componentName}Component';
@@ -615,8 +615,8 @@ export function ${componentName}() {
 
     case 'form':
       return `// 🔥 ${componentName} - Form Client Component
-import { useTypedLiveComponent } from '@/core/client';
-import type { InferComponentState } from '@/core/client';
+import { useTypedLiveComponent } from '@core/client';
+import type { InferComponentState } from '@core/client';
 
 // Import component type DIRECTLY from backend - full type inference!
 import type { ${componentName}Component } from '@/server/live/${componentName}Component';
@@ -769,8 +769,8 @@ export function ${componentName}() {
     case 'chat':
       return `// 🔥 ${componentName} - Chat Client Component
 import React, { useState, useEffect, useRef } from 'react';
-import { useTypedLiveComponent } from '@/core/client';
-import type { InferComponentState } from '@/core/client';
+import { useTypedLiveComponent } from '@core/client';
+import type { InferComponentState } from '@core/client';
 
 // Import component type DIRECTLY from backend - full type inference!
 import type { ${componentName}Component } from '@/server/live/${componentName}Component';
@@ -939,8 +939,8 @@ export function ${componentName}() {
 
     default: // basic
       return `// 🔥 ${componentName} - Client Component
-import { useTypedLiveComponent } from '@/core/client';
-import type { InferComponentState } from '@/core/client';
+import { useTypedLiveComponent } from '@core/client';
+import type { InferComponentState } from '@core/client';
 
 // Import component type DIRECTLY from backend - full type inference!
 import type { ${componentName}Component } from '@/server/live/${componentName}Component';
@@ -1176,8 +1176,8 @@ export const createLiveComponentCommand: CliCommand = {
       context.logger.info("");
       context.logger.info("📚 Import guide (Type Inference):");
       context.logger.info("   # Import typed hook and type helpers:");
-      context.logger.info("   import { useTypedLiveComponent } from '@/core/client';");
-      context.logger.info("   import type { InferComponentState } from '@/core/client';");
+      context.logger.info("   import { useTypedLiveComponent } from '@core/client';");
+      context.logger.info("   import type { InferComponentState } from '@core/client';");
       context.logger.info("");
       context.logger.info("   # Import backend component type for full inference:");
       context.logger.info(`   import type { ${componentName}Component } from '@/server/live/${componentName}Component';`);

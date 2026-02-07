@@ -21,16 +21,13 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@/core/*": ["./core/*"],
-      "@/app/*": ["./app/*"],
-      "@/config/*": ["./config/*"],
-      "@/shared/*": ["./app/shared/*"],
-
       "@server/*": ["./app/server/*"],
       "@client/*": ["./app/client/*"],
       "@core/*": ["./core/*"],
+      "@config": ["./config/index.ts"],
       "@config/*": ["./config/*"],
       "@app/*": ["./app/*"],
+      "@shared/*": ["./app/shared/*"]
     },
 
     // Best practices

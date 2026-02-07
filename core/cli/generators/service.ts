@@ -54,8 +54,8 @@ export class ServiceGenerator implements Generator {
           path: 'app/server/services/{{kebabName}}.service.ts',
           content: `import { {{pascalName}}, Create{{pascalName}}, Update{{pascalName}} } from '../schemas/{{kebabName}}.schema'
 import { {{pascalName}}Repository } from '../repositories/{{kebabName}}.repository'
-import { ValidationError, NotFoundError } from '@/core/utils/errors'
-import { logger } from '@/core/utils/logger'
+import { ValidationError, NotFoundError } from '@core/utils/errors'
+import { logger } from '@core/utils/logger'
 
 export class {{pascalName}}Service {
   private repository: {{pascalName}}Repository

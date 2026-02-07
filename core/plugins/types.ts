@@ -1,5 +1,5 @@
-import type { FluxStackConfig } from "@/config"
-import type { Logger } from "@/core/utils/logger/index"
+import type { FluxStackConfig } from "@config"
+import type { Logger } from "@core/utils/logger/index"
 
 export type PluginHook =
   // Lifecycle hooks
@@ -190,7 +190,7 @@ export namespace FluxStack {
    * @example
    * // ✅ New way (recommended):
    * // plugins/my-plugin/config/index.ts
-   * import { defineConfig, config } from '@/core/utils/config-schema'
+   * import { defineConfig, config } from '@core/utils/config-schema'
    * export const myConfig = defineConfig({ ... })
    *
    * // ❌ Old way (deprecated):

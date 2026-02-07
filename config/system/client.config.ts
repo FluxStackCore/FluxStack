@@ -3,8 +3,8 @@
  * Declarative client, proxy and Vite dev server configuration
  */
 
-import { defineConfig, defineNestedConfig, config } from '@/core/utils/config-schema'
-import { env, helpers } from '@/core/utils/env'
+import { defineConfig, defineNestedConfig, config } from '../../core/utils/config-schema'
+import { env, helpers } from '../../core/utils/env'
 
 /**
  * Vite Dev Server Configuration

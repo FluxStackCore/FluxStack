@@ -6,9 +6,9 @@
 import type {
   LoggerConfig,
   PluginsConfig
-} from "@/config"
+} from "@config"
 
-// Re-export all configuration types from @/config
+// Re-export all configuration types from @config
 export type {
   FluxStackConfig,
   AppConfig,
@@ -30,7 +30,7 @@ export type {
   SystemConfig,
   SystemRuntimeInfo,
   AppRuntimeConfig
-} from "@/config"
+} from "@config"
 
 // Legacy type aliases (for backward compatibility)
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'

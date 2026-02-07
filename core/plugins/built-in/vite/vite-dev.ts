@@ -1,5 +1,5 @@
-import type { PluginContext } from "@/core/plugins/types"
-import { clientConfig } from '@/config'
+import type { PluginContext } from "@core/plugins/types"
+import { clientConfig } from '@config'
 import type { LogLevel } from "vite"
 import conf from "@/vite.config"
 // Dynamic import t@ype for vite
@@ -17,7 +17,7 @@ export async function setupViteDev(context: PluginContext): Promise<void> {
   const viteHost = clientConfig.vite.host || "localhost"
   const logLevel = clientConfig.vite.logLevel as LogLevel
   // Import group logger utilities
-  const { endGroup } = await import('@/core/utils/logger/group-logger')
+  const { endGroup } = await import('@core/utils/logger/group-logger')
 
   try {
     // Dynamic import of vite

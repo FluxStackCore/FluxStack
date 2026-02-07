@@ -3,7 +3,7 @@
  * Declarative logger config using FluxStack config system
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, config } from '@core/utils/config-schema'
 
 export const loggerConfig = defineConfig({
   // Log level

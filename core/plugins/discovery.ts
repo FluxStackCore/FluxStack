@@ -4,7 +4,7 @@
  */
 
 import type { FluxStack, PluginManifest, PluginLoadResult, PluginDiscoveryOptions } from "./types"
-import type { Logger } from "@/core/utils/logger/index"
+import type { Logger } from "@core/utils/logger/index"
 import { readdir, readFile } from "fs/promises"
 import { join, resolve } from "path"
 import { existsSync } from "fs"

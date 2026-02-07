@@ -3,7 +3,7 @@
  * System information and environment variables
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, config } from '@core/utils/config-schema'
 
 /**
  * System environment variables config

@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
-import { UsersController } from '@/app/server/controllers/users.controller'
-import type { CreateUserRequest } from '@/app/shared/types'
+import { UsersController } from '@app/server/controllers/users.controller'
+import type { CreateUserRequest } from '@app/shared/types'
 
 // ===== Request/Response Schemas =====
 

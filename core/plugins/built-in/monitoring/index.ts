@@ -3,9 +3,9 @@
  * Provides performance monitoring, metrics collection, and system monitoring
  */
 
-import type { FluxStack, PluginContext, RequestContext, ResponseContext, ErrorContext } from "@/core/plugins/types"
-import { MetricsCollector } from "@/core/utils/monitoring"
-import { appConfig, monitoringConfig } from '@/config'
+import type { FluxStack, PluginContext, RequestContext, ResponseContext, ErrorContext } from "@core/plugins/types"
+import { MetricsCollector } from "@core/utils/monitoring"
+import { appConfig, monitoringConfig } from '@config'
 import * as os from 'os'
 import * as fs from 'fs'
 import * as path from 'path'

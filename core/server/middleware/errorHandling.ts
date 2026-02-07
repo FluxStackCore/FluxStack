@@ -20,7 +20,7 @@ export interface Response {
 export interface NextFunction {
   (error?: any): void
 }
-import type { Logger } from '@/core/utils/logger/index'
+import type { Logger } from '@core/utils/logger/index'
 
 export interface ErrorHandlingOptions {
   logger?: Logger

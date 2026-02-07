@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { Elysia } from 'elysia'
-import { usersRoutes } from '@/app/server/routes/users.routes'
-import { UsersController } from '@/app/server/controllers/users.controller'
+import { usersRoutes } from '@app/server/routes/users.routes'
+import { UsersController } from '@app/server/controllers/users.controller'
 
 describe('Users API Routes', () => {
   let app: Elysia

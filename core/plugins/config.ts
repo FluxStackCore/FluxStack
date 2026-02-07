@@ -4,8 +4,8 @@
  */
 
 import type { FluxStack, PluginConfigSchema, PluginValidationResult } from "./types"
-import type { FluxStackConfig } from "@/config"
-import type { Logger } from "@/core/utils/logger/index"
+import type { FluxStackConfig } from "@config"
+import type { Logger } from "@core/utils/logger/index"
 
 type Plugin = FluxStack.Plugin
 

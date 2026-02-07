@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { UsersController } from '@/app/server/controllers/users.controller'
-import type { CreateUserRequest } from '@/app/shared/types'
+import { UsersController } from '@app/server/controllers/users.controller'
+import type { CreateUserRequest } from '@app/shared/types'
 
 describe('UsersController', () => {
   beforeEach(() => {

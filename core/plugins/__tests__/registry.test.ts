@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { PluginRegistry } from '../registry'
 import type { Plugin, PluginManifest } from '../types'
-import type { Logger } from '@/core/utils/logger/index'
+import type { Logger } from '@core/utils/logger/index'
 
 // Mock fs module with proper default export
 vi.mock('fs', () => ({

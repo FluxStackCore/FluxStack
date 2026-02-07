@@ -4,8 +4,8 @@
  */
 
 import { Elysia } from 'elysia'
-import { createGuard } from '@/core/server/middleware/elysia-helpers'
-import type { Logger } from '@/core/utils/logger'
+import { createGuard } from '@core/server/middleware/elysia-helpers'
+import type { Logger } from '@core/utils/logger'
 import { validateAuthSync } from './helpers'
 
 export interface CryptoAuthMiddlewareOptions {

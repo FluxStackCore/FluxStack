@@ -212,10 +212,10 @@ export class ProjectCreator {
         baseUrl: ".",
         paths: {
           "@/*": ["./*"],
-          "@/core/*": ["./core/*"],
-          "@/app/*": ["./app/*"],
-          "@/config/*": ["./config/*"],
-          "@/shared/*": ["./app/shared/*"]
+          "@core/*": ["./core/*"],
+          "@app/*": ["./app/*"],
+          "@config/*": ["./config/*"],
+          "@shared/*": ["./app/shared/*"]
         },
         strict: true,
         skipLibCheck: true,
@@ -243,10 +243,10 @@ lockfile = true
 # Path mapping (alias support)
 [build.alias]
 "@" = "."
-"@/core" = "./core"
-"@/app" = "./app"
-"@/config" = "./config"
-"@/shared" = "./app/shared"
+"@core" = "./core"
+"@app" = "./app"
+"@config" = "./config"
+"@shared" = "./app/shared"
 `
 
     await Bun.write(join(this.targetDir, "bunfig.toml"), bunConfig)
@@ -261,10 +261,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, '.'),
-      '@/core': resolve(__dirname, './core'),
-      '@/app': resolve(__dirname, './app'),
-      '@/config': resolve(__dirname, './config'),
-      '@/shared': resolve(__dirname, './app/shared')
+      '@core': resolve(__dirname, './core'),
+      '@app': resolve(__dirname, './app'),
+      '@config': resolve(__dirname, './config'),
+      '@shared': resolve(__dirname, './app/shared')
     }
   },
   server: {

@@ -1,6 +1,6 @@
 import { join } from "path"
 import { statSync, existsSync } from "fs"
-import type { Plugin, PluginContext } from "@/core/plugins"
+import type { Plugin, PluginContext } from "@core/plugins"
 
 // Default configuration values
 const DEFAULTS = {

@@ -3,8 +3,8 @@
  * Declarative plugin management configuration
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
-import { FLUXSTACK_VERSION } from '@/core/utils/version'
+import { defineConfig, config } from '@core/utils/config-schema'
+import { FLUXSTACK_VERSION } from '@core/utils/version'
 
 const defaultPluginConfigs = {
   swagger: {

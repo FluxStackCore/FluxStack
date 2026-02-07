@@ -3,7 +3,7 @@
  * Sistema de autenticação baseado em criptografia Ed25519
  */
 
-import type { FluxStack, PluginContext, RequestContext, ResponseContext } from "@/core/plugins/types"
+import type { FluxStack, PluginContext, RequestContext, ResponseContext } from "@core/plugins/types"
 
 type Plugin = FluxStack.Plugin
 import { Elysia, t } from "elysia"

@@ -18,7 +18,7 @@ export class LiveComponentsGenerator {
   private backupFilePath: string
   private entryPointPath: string
   private entryPointBackupPath: string
-  private readonly importLine = 'import "@/core/server/live/auto-generated-components"'
+  private readonly importLine = 'import "@core/server/live/auto-generated-components"'
 
   constructor() {
     // Scan components from app/ directory (user code)
@@ -75,7 +75,7 @@ export class LiveComponentsGenerator {
                 className,
                 componentName,
                 // Path relative to core/server/live/ where the generated file will be
-                filePath: `@/app/server/live/${fileName}`
+                filePath: `@app/server/live/${fileName}`
               })
 
               buildLogger.step(`Discovered component: ${className} → ${componentName}`)
@@ -116,7 +116,7 @@ export class LiveComponentsGenerator {
 // Generated at: ${new Date().toISOString()}
 
 ${imports}
-import { componentRegistry } from "@/core/server/live/ComponentRegistry"
+import { componentRegistry } from "@core/server/live/ComponentRegistry"
 
 // Register all components statically for production bundle
 function registerAllComponents() {

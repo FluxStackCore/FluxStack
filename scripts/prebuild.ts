@@ -5,7 +5,7 @@
  * Ensures version synchronization before building
  */
 
-import { syncVersion } from '@/core/utils/sync-version'
+import { syncVersion } from '@core/utils/sync-version'
 
 console.log('🔄 Running pre-build checks...')
 

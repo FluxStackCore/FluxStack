@@ -1,14 +1,14 @@
 /**
  * FluxStack Core Config
- * Re-exports configuration from @/config for backward compatibility
+ * Re-exports configuration from @config for backward compatibility
  *
  * ✅ All configs now live in /config (modular and type-safe)
  * ✅ No more composer or schema - configs use defineConfig directly
- * ❌ DEPRECATED: Use @/config directly instead of @/core/config
+ * ❌ DEPRECATED: Use @config directly instead of @core/config
  */
 
-import type { FluxStackConfig } from '@/config'
-import { fluxStackConfig } from '@/config'
+import type { FluxStackConfig } from '@config'
+import { fluxStackConfig } from '@config'
 import { helpers } from '../utils/env'
 
 // ============================================================================
@@ -16,7 +16,7 @@ import { helpers } from '../utils/env'
 // ============================================================================
 
 /**
- * @deprecated Import from @/config instead
+ * @deprecated Import from @config instead
  */
 export type {
   FluxStackConfig,
@@ -31,14 +31,14 @@ export type {
   LoggerConfig,
   PluginsConfig,
   MonitoringConfig
-} from '@/config'
+} from '@config'
 
 // Legacy type aliases
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 export type BuildTarget = 'bun' | 'node' | 'docker'
 export type LogFormat = 'json' | 'pretty'
-export type LoggingConfig = import('@/config').LoggerConfig
-export type PluginConfig = import('@/config').PluginsConfig
+export type LoggingConfig = import('@config').LoggerConfig
+export type PluginConfig = import('@config').PluginsConfig
 
 // ============================================================================
 // 🚀 CONFIG LOADING FUNCTIONS (for backward compatibility)
@@ -46,16 +46,16 @@ export type PluginConfig = import('@/config').PluginsConfig
 
 /**
  * Get FluxStack configuration synchronously
- * @deprecated Use `import { fluxStackConfig } from '@/config'` instead
+ * @deprecated Use `import { fluxStackConfig } from '@config'` instead
  *
  * @example
  * ```ts
  * // ❌ Old way:
- * import { getConfigSync } from '@/core/config'
+ * import { getConfigSync } from '@core/config'
  * const config = getConfigSync()
  *
  * // ✅ New way:
- * import { fluxStackConfig } from '@/config'
+ * import { fluxStackConfig } from '@config'
  * console.log(fluxStackConfig.app.name)
  * ```
  */
@@ -65,7 +65,7 @@ export function getConfigSync(): FluxStackConfig {
 
 /**
  * Get FluxStack configuration asynchronously
- * @deprecated Use `import { fluxStackConfig } from '@/config'` instead
+ * @deprecated Use `import { fluxStackConfig } from '@config'` instead
  */
 export async function getConfig(): Promise<FluxStackConfig> {
   return fluxStackConfig

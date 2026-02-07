@@ -4,7 +4,7 @@
  */
 
 import { Elysia } from 'elysia'
-import type { Logger } from '@/core/utils/logger'
+import type { Logger } from '@core/utils/logger'
 import { validateAuthSync } from './helpers'
 
 export interface CryptoAuthMiddlewareOptions {

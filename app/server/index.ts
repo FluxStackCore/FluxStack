@@ -22,14 +22,14 @@
  */
 
 // Core
-import { FluxStackFramework } from "@/core/server"
+import { FluxStackFramework } from "@core/server"
 
 // Built-in plugins (import only the ones you want to use)
-import { vitePlugin } from "@/core/plugins/built-in/vite"
-import { swaggerPlugin } from "@/core/plugins/built-in/swagger"
-import { liveComponentsPlugin } from "@/core/server/live/websocket-plugin"
-// import { monitoringPlugin } from "@/core/plugins/built-in/monitoring"  // Optional
-// import { staticFilesPlugin } from "@/core/server/plugins/static-files-plugin"  // Optional
+import { vitePlugin } from "@core/plugins/built-in/vite"
+import { swaggerPlugin } from "@core/plugins/built-in/swagger"
+import { liveComponentsPlugin } from "@core/server/live/websocket-plugin"
+// import { monitoringPlugin } from "@core/plugins/built-in/monitoring"  // Optional
+// import { staticFilesPlugin } from "@core/server/plugins/static-files-plugin"  // Optional
 
 // Routes
 import { appInstance } from "./app"

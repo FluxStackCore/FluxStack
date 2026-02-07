@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { FluxStackFramework } from '@/core/server/framework'
-import type { Plugin } from '@/core/types'
-import type { FluxStackConfig } from '@/core/config/schema'
+import { FluxStackFramework } from '@core/server/framework'
+import type { Plugin } from '@core/types'
+import type { FluxStackConfig } from '@core/config/schema'
 
 describe('FluxStackFramework', () => {
   let framework: FluxStackFramework

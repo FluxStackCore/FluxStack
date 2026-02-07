@@ -3,7 +3,7 @@
  * Gera rotas protegidas automaticamente
  */
 
-import type { CliCommand, CliContext } from '@/core/plugins/types'
+import type { CliCommand, CliContext } from '@core/plugins/types'
 import { writeFileSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 

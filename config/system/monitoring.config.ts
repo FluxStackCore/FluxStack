@@ -3,8 +3,8 @@
  * Declarative monitoring, metrics and profiling configuration
  */
 
-import { defineConfig, defineNestedConfig, config } from '@/core/utils/config-schema'
-import { helpers } from '@/core/utils/env'
+import { defineConfig, defineNestedConfig, config } from '@core/utils/config-schema'
+import { helpers } from '@core/utils/env'
 
 /**
  * Metrics Configuration Schema

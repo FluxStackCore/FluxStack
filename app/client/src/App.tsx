@@ -8,6 +8,9 @@ import { MinimalLiveClock } from './live/MinimalLiveClock'
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [showDemo, setShowDemo] = useState(false)
+  const [showApiTest, setShowApiTest] = useState(false)
+  const [apiResponse, setApiResponse] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     checkApiStatus()
@@ -20,6 +23,126 @@ function AppContent() {
     } catch {
       setApiStatus('offline')
     }
+  }
+
+  // Test API calls
+  const testHealthCheck = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await api.health.get()
+      setApiResponse(JSON.stringify(error ?? data, null, 2))
+    } catch (e) {
+      setApiResponse(`Error: ${e}`)
+    }
+    setIsLoading(false)
+  }
+
+  const testGetUsers = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await api.users.get()
+      setApiResponse(JSON.stringify(error ?? data, null, 2))
+    } catch (e) {
+      setApiResponse(`Error: ${e}`)
+    }
+    setIsLoading(false)
+  }
+
+  const testCreateUser = async () => {
+    setIsLoading(true)
+    try {
+      const { data, error } = await api.users.post({
+        name: `Test User ${Date.now()}`,
+        email: `test${Date.now()}@example.com`
+      })
+      setApiResponse(JSON.stringify(error ?? data, null, 2))
+    } catch (e) {
+      setApiResponse(`Error: ${e}`)
+    }
+    setIsLoading(false)
+  }
+
+  // API Test Panel
+  if (showApiTest) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => setShowApiTest(false)}
+              className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
+            >
+              ← Back
+            </button>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              Eden Treaty API Test
+            </h1>
+          </div>
+
+          {/* Test Buttons */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <button
+              onClick={testHealthCheck}
+              disabled={isLoading}
+              className="px-6 py-4 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 rounded-xl font-medium hover:bg-emerald-500/30 transition-all disabled:opacity-50"
+            >
+              <div className="text-2xl mb-2">🏥</div>
+              <div>GET /api/health</div>
+              <div className="text-xs text-emerald-400/70 mt-1">Health Check</div>
+            </button>
+
+            <button
+              onClick={testGetUsers}
+              disabled={isLoading}
+              className="px-6 py-4 bg-blue-500/20 border border-blue-500/30 text-blue-300 rounded-xl font-medium hover:bg-blue-500/30 transition-all disabled:opacity-50"
+            >
+              <div className="text-2xl mb-2">👥</div>
+              <div>GET /api/users</div>
+              <div className="text-xs text-blue-400/70 mt-1">List Users</div>
+            </button>
+
+            <button
+              onClick={testCreateUser}
+              disabled={isLoading}
+              className="px-6 py-4 bg-purple-500/20 border border-purple-500/30 text-purple-300 rounded-xl font-medium hover:bg-purple-500/30 transition-all disabled:opacity-50"
+            >
+              <div className="text-2xl mb-2">➕</div>
+              <div>POST /api/users</div>
+              <div className="text-xs text-purple-400/70 mt-1">Create User</div>
+            </button>
+          </div>
+
+          {/* Response Panel */}
+          <div className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-white">Response</h2>
+              {isLoading && (
+                <div className="flex items-center gap-2 text-yellow-400">
+                  <div className="w-4 h-4 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                  Loading...
+                </div>
+              )}
+            </div>
+            <pre className="bg-black/60 rounded-xl p-4 overflow-auto max-h-96 text-sm font-mono">
+              <code className="text-green-400">
+                {apiResponse || '// Click a button above to test the API\n// Type inference works automatically!'}
+              </code>
+            </pre>
+          </div>
+
+          {/* Info */}
+          <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-6">
+            <h3 className="text-lg font-semibold text-white mb-3">How it works</h3>
+            <div className="text-gray-400 text-sm space-y-2">
+              <p>✅ <code className="text-purple-400">api.health.get()</code> → Full type inference from server</p>
+              <p>✅ <code className="text-purple-400">api.users.post({'{ name, email }'})</code> → Request body is typed</p>
+              <p>✅ <code className="text-purple-400">{'{ data, error }'}</code> → Response is typed automatically</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   // If demo mode is active, show demo content
@@ -119,6 +242,12 @@ function AppContent() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 justify-center">
+          <button
+            onClick={() => setShowApiTest(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-orange-500/50 transition-all"
+          >
+            🧪 Test API
+          </button>
           <button
             onClick={() => setShowDemo(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-emerald-500/50 transition-all"

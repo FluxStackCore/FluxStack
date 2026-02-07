@@ -5,7 +5,7 @@
  * Provides service registration, resolution, and lifecycle management
  */
 
-import type { Logger } from '@/core/utils/logger/index'
+import type { Logger } from '@core/utils/logger/index'
 
 export interface ServiceDefinition {
   factory: (container: ServiceContainer) => any

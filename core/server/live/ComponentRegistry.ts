@@ -6,7 +6,7 @@ import type {
   BroadcastMessage, 
   ComponentDefinition,
   WebSocketData 
-} from '@/core/plugins/types'
+} from '@core/plugins/types'
 import { stateSignature, type SignedState } from './StateSignature'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
 
@@ -151,11 +151,11 @@ export class ComponentRegistry {
     try {
       const fs = await import('fs')
       const path = await import('path')
-      const { startGroup, endGroup, logInGroup, groupSummary } = await import('@/core/utils/logger/group-logger')
+      const { startGroup, endGroup, logInGroup, groupSummary } = await import('@core/utils/logger/group-logger')
 
       if (!fs.existsSync(componentsPath)) {
         // In production, components are already bundled - no need to auto-discover
-        const { appConfig } = await import('@/config')
+        const { appConfig } = await import('@config')
         if (appConfig.env !== 'production') {
           console.log(`⚠️ Components path not found: ${componentsPath}`)
         }

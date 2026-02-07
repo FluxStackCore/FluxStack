@@ -165,7 +165,7 @@ Plugins can intercept and modify requests using hooks:
 
 \`\`\`typescript
 // plugins/my-plugin/index.ts
-import type { FluxStack, PluginContext, RequestContext, ResponseContext } from "@/core/plugins/types"
+import type { FluxStack, PluginContext, RequestContext, ResponseContext } from "@core/plugins/types"
 
 export class MyPlugin implements FluxStack.Plugin {
   name = 'my-plugin'
@@ -418,7 +418,7 @@ FluxStack includes several built-in plugins that are ready to use:
 
 \`\`\`typescript
 // app/server/index.ts
-import { loggerPlugin, swaggerPlugin, staticPlugin } from "@/core/server"
+import { loggerPlugin, swaggerPlugin, staticPlugin } from "@core/server"
 
 // Add built-in plugins
 app.use(loggerPlugin)

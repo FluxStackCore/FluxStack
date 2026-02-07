@@ -9,7 +9,7 @@
  *
  * @example
  * ```ts
- * import { env } from '@/core/utils/env'
+ * import { env } from '@core/utils/env'
  *
  * const port = env.PORT                    // number (3000)
  * const debug = env.DEBUG                  // boolean (false)

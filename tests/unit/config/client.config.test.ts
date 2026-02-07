@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { clientConfig } from '@/config'
+import { clientConfig } from '@config'
 
 describe('Client Configuration', () => {
   describe('Nested Structure', () => {

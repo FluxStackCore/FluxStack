@@ -1,5 +1,5 @@
 import { swagger } from '@elysiajs/swagger'
-import type { Plugin, PluginContext } from '@/core/plugins/types'
+import type { Plugin, PluginContext } from '@core/plugins/types'
 
 export const swaggerPlugin: Plugin = {
   name: 'swagger',

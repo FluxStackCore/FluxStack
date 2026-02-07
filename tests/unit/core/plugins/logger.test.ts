@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// TODO: Fix test - loggerPlugin was removed/relocated from @/core/server/plugins/logger
+// TODO: Fix test - loggerPlugin was removed/relocated from @core/server/plugins/logger
 describe.skip('Logger Plugin', () => {
   let mockContext: FluxStackContext
   let mockApp: any

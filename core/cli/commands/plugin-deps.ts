@@ -4,8 +4,8 @@
 
 import { Command } from 'commander'
 import chalk from 'chalk'
-import { PluginDependencyManager } from '@/core/plugins/dependency-manager'
-import { PluginRegistry } from '@/core/plugins/registry'
+import { PluginDependencyManager } from '@core/plugins/dependency-manager'
+import { PluginRegistry } from '@core/plugins/registry'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 

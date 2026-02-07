@@ -3,7 +3,7 @@
  * Re-export from declarative config
  */
 
-import { loggerConfig } from '@/config'
+import { loggerConfig } from '@config'
 
 export interface LoggerConfig {
   level: 'debug' | 'info' | 'warn' | 'error'

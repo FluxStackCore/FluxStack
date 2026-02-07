@@ -11,7 +11,7 @@ import type {
   ActionNames,
   ActionPayload,
   ActionReturn
-} from '@/core/types/types'
+} from '@core/types/types'
 
 /**
  * Type-safe Live Component hook with automatic action inference
@@ -103,8 +103,8 @@ export type ComponentRegistry<T extends Record<string, LiveComponent<any>>> = {
  *
  * @example
  * // In your app/client/src/lib/live.ts
- * import { createTypedLiveComponentHook } from '@/core/client/hooks/useTypedLiveComponent'
- * import type { LiveClockComponent } from '@/app/server/live/LiveClockComponent'
+ * import { createTypedLiveComponentHook } from '@core/client/hooks/useTypedLiveComponent'
+ * import type { LiveClockComponent } from '@app/server/live/LiveClockComponent'
  *
  * export const useLiveClock = createTypedLiveComponentHook<LiveClockComponent>('LiveClock')
  *

@@ -3,7 +3,7 @@
  * Server-specific settings (port, host, CORS, middleware)
  */
 
-import { defineConfig, defineNestedConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, defineNestedConfig, config } from '@core/utils/config-schema'
 
 /**
  * CORS configuration schema

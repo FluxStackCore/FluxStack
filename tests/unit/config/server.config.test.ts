@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { serverConfig } from '@/config'
+import { serverConfig } from '@config'
 
 describe('Server Configuration', () => {
   describe('Nested Structure', () => {

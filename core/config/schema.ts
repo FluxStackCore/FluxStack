@@ -1,4 +1,4 @@
-import { config as modernFluxStackConfig } from '@/config/fluxstack.config'
+import { config as modernFluxStackConfig } from '@config/fluxstack.config'
 
 export const defaultFluxStackConfig = modernFluxStackConfig
 

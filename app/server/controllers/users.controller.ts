@@ -1,4 +1,4 @@
-import type { CreateUserRequest } from '@/app/shared/types'
+import type { CreateUserRequest } from '@app/shared/types'
 
 export interface User {
   id: number

@@ -8,7 +8,7 @@
  * - Service container integration
  */
 
-import type { Logger } from '@/core/utils/logger/index'
+import type { Logger } from '@core/utils/logger/index'
 
 export interface ServiceContext {
   config: any

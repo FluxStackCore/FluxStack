@@ -3,7 +3,7 @@
  * Optional service settings (email, JWT, storage, redis) for compatibility
  */
 
-import { defineNestedConfig, config } from '@/core/utils/config-schema'
+import { defineNestedConfig, config } from '@core/utils/config-schema'
 
 const emailSchema = {
   host: config.string('MAIL_HOST', 'smtp.example.com'),

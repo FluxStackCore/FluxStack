@@ -1,6 +1,6 @@
 // 🔥 LiveClock - Real-time Clock Live Component
 // Automatically updates every second and broadcasts to all connected clients
-import { LiveComponent } from "@/core/types/types";
+import { LiveComponent } from "@core/types/types";
 
 interface LiveClockState {
   currentTime: string; // Formatted time string

@@ -11,7 +11,7 @@ export type {
   LoggerConfig,
   MonitoringConfig,
   PluginsConfig
-} from "@/config"
+} from "@config"
 
 // Re-export plugin types (explicitly handling conflicts)
 export type {

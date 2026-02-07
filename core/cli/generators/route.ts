@@ -54,8 +54,8 @@ export class RouteGenerator implements Generator {
           path: 'app/server/routes/{{kebabName}}.routes.ts',
           content: `import { Elysia, t } from 'elysia'
 import { {{pascalName}}Controller } from '../controllers/{{kebabName}}.controller'
-import { errorHandler } from '@/core/utils/errors/middleware'
-import { logger } from '@/core/utils/logger'
+import { errorHandler } from '@core/utils/errors/middleware'
+import { logger } from '@core/utils/logger'
 
 const controller = new {{pascalName}}Controller()
 
@@ -308,9 +308,9 @@ export const {{camelName}}Routes = new Elysia({ prefix: '/api/{{kebabName}}s' })
           path: 'app/server/routes/auth.routes.ts',
           content: `import { Elysia, t } from 'elysia'
 import { AuthController } from '../controllers/auth.controller'
-import { errorHandler } from '@/core/utils/errors/middleware'
+import { errorHandler } from '@core/utils/errors/middleware'
 import { authMiddleware } from '../middleware/auth.middleware'
-import { logger } from '@/core/utils/logger'
+import { logger } from '@core/utils/logger'
 
 const controller = new AuthController()
 
@@ -472,8 +472,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         {
           path: 'app/server/middleware/auth.middleware.ts',
           content: `import { Context } from 'elysia'
-import { UnauthorizedError } from '@/core/utils/errors'
-import { logger } from '@/core/utils/logger'
+import { UnauthorizedError } from '@core/utils/errors'
+import { logger } from '@core/utils/logger'
 
 // JWT verification function (implement based on your JWT library)
 async function verifyJWT(token: string): Promise<any> {

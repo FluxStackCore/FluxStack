@@ -1,4 +1,4 @@
-import type { FluxStack, PluginContext } from '@/core/plugins/types'
+import type { FluxStack, PluginContext } from '@core/plugins/types'
 import { createLiveComponentCommand } from './commands/create-live-component'
 
 type Plugin = FluxStack.Plugin

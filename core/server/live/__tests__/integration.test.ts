@@ -6,7 +6,7 @@ import { WebSocketConnectionManager } from '../WebSocketConnectionManager'
 import { LiveComponentPerformanceMonitor } from '../LiveComponentPerformanceMonitor'
 import { FileUploadManager } from '../FileUploadManager'
 import { StateSignature } from '../StateSignature'
-import { LiveComponent } from '@/core/plugins/types'
+import { LiveComponent } from '@core/plugins/types'
 import { createMockWebSocket, createTestState, waitFor } from './setup'
 
 // Test component for integration tests

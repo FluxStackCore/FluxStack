@@ -23,11 +23,9 @@ export default defineConfig({
     })
   ],
 
-  // ℹ️ nodePolyfills removed: Not needed - client code doesn't use Node.js APIs
-  // ℹ️ define.global removed: Not needed - modern browsers support globalThis natively
-  // ℹ️ define.process.env.NODE_ENV removed: Vite handles this automatically
-
   root: resolve(rootDir, 'app/client'),
+
+  // Aliases são lidos do tsconfig.json pelo plugin vite-tsconfig-paths
 
   server: {
     port: clientConfig.vite.port,                    // ✅ From config
@@ -41,11 +39,6 @@ export default defineConfig({
       port: clientConfig.vite.port,
       clientPort: clientConfig.vite.port
     }
-
-    // ℹ️ No proxy needed: All requests go through Elysia (localhost:3000)
-    // Elysia's Vite plugin handles routing:
-    //   - /api, /swagger → Elysia handlers (viteExcludePaths)
-    //   - Everything else → Proxy to Vite dev server
   },
 
   build: {

@@ -4,7 +4,7 @@
  */
 
 import type { CLICommand } from '../command-registry'
-import { ProjectCreator } from '@/core/templates/create-project'
+import { ProjectCreator } from '@core/templates/create-project'
 
 export const createCommand: CLICommand = {
   name: 'create',

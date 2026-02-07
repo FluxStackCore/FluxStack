@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join, resolve } from 'path'
 import { execSync } from 'child_process'
-import type { Logger } from '@/core/utils/logger'
+import type { Logger } from '@core/utils/logger'
 
 export interface PluginDependency {
   name: string

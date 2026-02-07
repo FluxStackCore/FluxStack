@@ -55,7 +55,7 @@ export class ControllerGenerator implements Generator {
           content: `import { Elysia, t } from 'elysia'
 import { {{pascalName}}Service } from '../services/{{kebabName}}.service'
 import { {{pascalName}}Schema, Create{{pascalName}}Schema, Update{{pascalName}}Schema } from '../schemas/{{kebabName}}.schema'
-import { NotFoundError, ValidationError } from '@/core/utils/errors'
+import { NotFoundError, ValidationError } from '@core/utils/errors'
 
 export class {{pascalName}}Controller {
   private service: {{pascalName}}Service

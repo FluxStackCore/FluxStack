@@ -2,7 +2,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { ComponentRegistry } from '../ComponentRegistry'
-import { LiveComponent } from '@/core/plugins/types'
+import { LiveComponent } from '@core/plugins/types'
 
 // Mock LiveComponent for testing
 class TestComponent extends LiveComponent {

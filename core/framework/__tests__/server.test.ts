@@ -7,7 +7,7 @@ import { FluxStackFramework } from '../server'
 import type { Plugin } from '../../plugins/types'
 
 // Mock dependencies
-vi.mock('@/config', () => ({
+vi.mock('@config', () => ({
   getConfigSync: vi.fn(() => ({
     server: {
       port: 3000,
@@ -32,7 +32,7 @@ vi.mock('@/config', () => ({
   }))
 }))
 
-vi.mock('@/core/utils/logger', () => ({
+vi.mock('@core/utils/logger', () => ({
   logger: {
     framework: vi.fn(),
     warn: vi.fn(),
@@ -45,7 +45,7 @@ vi.mock('@/core/utils/logger', () => ({
   }
 }))
 
-vi.mock('@/core/utils/errors/handlers', () => ({
+vi.mock('@core/utils/errors/handlers', () => ({
   createErrorHandler: vi.fn(() => vi.fn())
 }))
 
@@ -201,7 +201,7 @@ describe('FluxStackFramework', () => {
       await framework.start() // Should not throw or cause issues
       
       // Should log warning about already started
-      const { logger } = await import('@/core/utils/logger')
+      const { logger } = await import('@core/utils/logger')
       expect(logger.warn).toHaveBeenCalled()
     })
 
@@ -226,7 +226,7 @@ describe('FluxStackFramework', () => {
 
   describe('Error Handling', () => {
     it('should set up error handling', async () => {
-      const { createErrorHandler } = await import('@/core/utils/errors/handlers')
+      const { createErrorHandler } = await import('@core/utils/errors/handlers')
       expect(createErrorHandler).toHaveBeenCalled()
     })
   })

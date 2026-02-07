@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { pluginsConfig } from '@/config'
+import { pluginsConfig } from '@config'
 
 describe('Plugins Configuration', () => {
   describe('Plugin Management', () => {

@@ -1,7 +1,7 @@
 // 🔥 WebSocket Hook for Live Components
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { WebSocketMessage, WebSocketResponse } from '@/core/types/types'
+import type { WebSocketMessage, WebSocketResponse } from '@core/types/types'
 
 // Re-export types for easier importing
 export type { WebSocketMessage, WebSocketResponse }

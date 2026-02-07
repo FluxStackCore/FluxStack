@@ -3,7 +3,7 @@
  * Optional database settings for backward compatibility
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, config } from '@core/utils/config-schema'
 
 export const databaseConfig = defineConfig({
   url: config.string('DATABASE_URL', ''),

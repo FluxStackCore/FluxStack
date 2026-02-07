@@ -3,7 +3,7 @@
  * Core application settings and metadata
  */
 
-import { defineConfig, config } from '@/core/utils/config-schema'
+import { defineConfig, config } from '@core/utils/config-schema'
 
 /**
  * App configuration schema

@@ -3,8 +3,8 @@
  * Server build and optimization settings
  */
 
-import { defineConfig, defineNestedConfig, config } from '@/core/utils/config-schema'
-import { helpers } from '@/core/utils/env'
+import { defineConfig, defineNestedConfig, config } from '@core/utils/config-schema'
+import { helpers } from '@core/utils/env'
 
 /**
  * Build optimization schema

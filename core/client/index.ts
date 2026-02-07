@@ -1,5 +1,14 @@
 // 🔥 FluxStack Client Core - Main Export
 
+// API Client (Eden Treaty)
+export {
+  createEdenClient,
+  getErrorMessage,
+  getDefaultBaseUrl,
+  treaty,
+  type EdenClientOptions
+} from './api'
+
 // Live Components Provider (Singleton WebSocket Connection)
 export {
   LiveComponentsProvider,

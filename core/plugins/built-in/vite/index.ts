@@ -1,8 +1,8 @@
-import type { FluxStack, PluginContext, RequestContext } from "@/core/plugins/types"
-import { FLUXSTACK_VERSION } from "@/core/utils/version"
-import { clientConfig } from '@/config'
-import { pluginsConfig } from '@/config'
-import { isDevelopment } from "@/core/utils/helpers"
+import type { FluxStack, PluginContext, RequestContext } from "@core/plugins/types"
+import { FLUXSTACK_VERSION } from "@core/utils/version"
+import { clientConfig } from '@config'
+import { pluginsConfig } from '@config'
+import { isDevelopment } from "@core/utils/helpers"
 import { join } from "path"
 import { statSync, existsSync } from "fs"
 

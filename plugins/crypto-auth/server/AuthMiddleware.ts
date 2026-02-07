@@ -3,7 +3,7 @@
  * Apenas valida autenticação - routing é feito pelos middlewares Elysia
  */
 
-import type { RequestContext } from '@/core/plugins/types'
+import type { RequestContext } from '@core/plugins/types'
 import type { CryptoAuthService } from './CryptoAuthService'
 
 export interface Logger {

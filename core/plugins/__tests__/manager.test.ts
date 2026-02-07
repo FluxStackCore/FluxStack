@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { PluginManager } from '../manager'
 import type { Plugin, PluginContext } from '../types'
-import type { Logger } from '@/core/utils/logger/index'
-import type { FluxStackConfig } from '@/config'
+import type { Logger } from '@core/utils/logger/index'
+import type { FluxStackConfig } from '@config'
 
 // Mock logger
 const mockLogger: Logger = {

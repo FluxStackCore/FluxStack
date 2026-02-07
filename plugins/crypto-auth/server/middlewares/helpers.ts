@@ -3,7 +3,7 @@
  * Funções compartilhadas para validação de autenticação
  */
 
-import type { Logger } from '@/core/utils/logger'
+import type { Logger } from '@core/utils/logger'
 
 /**
  * Helper to safely parse request.url which might be relative or absolute

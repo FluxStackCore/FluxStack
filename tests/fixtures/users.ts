@@ -1,4 +1,4 @@
-import type { User, CreateUserRequest } from '@/app/shared/types'
+import type { User, CreateUserRequest } from '@app/shared/types'
 
 export const mockUsers: User[] = [
   {

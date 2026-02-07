@@ -1,5 +1,5 @@
 // 📤 Live File Upload Component - Universal file upload with chunking
-import { LiveComponent } from '@/core/types/types'
+import { LiveComponent } from '@core/types/types'
 
 interface FileUploadState {
   uploadedFiles: Array<{
