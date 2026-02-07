@@ -1,14 +1,161 @@
 import { useState, useEffect } from 'react'
 import { api } from './lib/eden-api'
 import { FaFire, FaBook, FaGithub, FaClock, FaImage } from 'react-icons/fa'
-import { LiveComponentsProvider } from '@/core/client'
+import { LiveComponentsProvider, useLiveComponent } from '@/core/client'
 import { FileUploadExample } from './live/FileUploadExample'
 import { MinimalLiveClock } from './live/MinimalLiveClock'
+
+// ===== Live Form Demo =====
+interface FormState {
+  name: string
+  email: string
+  message: string
+  submitted: boolean
+  submittedAt: string | null
+}
+
+type FormActions = {
+  submit: () => Promise<{ success: boolean; data: any }>
+  reset: () => Promise<{ success: boolean }>
+  validate: () => Promise<{ valid: boolean; errors: Record<string, string> }>
+}
+
+function LiveFormDemo() {
+  const form = useLiveComponent<FormState, FormActions>('LiveForm', {
+    name: '',
+    email: '',
+    message: '',
+    submitted: false,
+    submittedAt: null
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      // Sincroniza campos pendentes antes de enviar
+      await form.$sync()
+      const result = await form.submit()
+      console.log('Submitted:', result)
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  if (form.submitted) {
+    return (
+      <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 max-w-md w-full">
+        <div className="text-center">
+          <div className="text-6xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold text-white mb-2">Enviado!</h2>
+          <p className="text-gray-300 mb-4">
+            Obrigado, <span className="text-purple-400">{form.name}</span>!
+          </p>
+          <p className="text-gray-400 text-sm mb-6">
+            Enviado em: {form.submittedAt ? new Date(form.submittedAt).toLocaleString() : '-'}
+          </p>
+          <button
+            onClick={() => form.reset()}
+            className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+          >
+            Enviar outro
+          </button>
+        </div>
+
+        {/* Debug - mostra estado após submit */}
+        <details className="mt-6 text-left" open>
+          <summary className="text-gray-400 text-sm cursor-pointer">Debug State (servidor)</summary>
+          <pre className="mt-2 p-3 bg-black/40 rounded-lg text-xs text-green-400 overflow-auto">
+{JSON.stringify(form.$state, null, 2)}
+          </pre>
+        </details>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 max-w-md w-full">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-white">Live Form</h2>
+        <span className={`px-3 py-1 rounded-full text-xs ${
+          form.$connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+        }`}>
+          {form.$connected ? '🟢 Conectado' : '🔴 Desconectado'}
+        </span>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Nome - syncOn: blur (sincroniza ao sair do campo) */}
+        <div>
+          <label className="block text-gray-300 text-sm mb-2">
+            Nome <span className="text-purple-400 text-xs">(sync: blur)</span>
+          </label>
+          <input
+            type="text"
+            {...form.$field('name', { syncOn: 'blur' })}
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all"
+            placeholder="Seu nome"
+          />
+        </div>
+
+        {/* Email - syncOn: change com debounce maior */}
+        <div>
+          <label className="block text-gray-300 text-sm mb-2">
+            Email <span className="text-blue-400 text-xs">(sync: 500ms)</span>
+          </label>
+          <input
+            type="email"
+            {...form.$field('email', { syncOn: 'change', debounce: 500 })}
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all"
+            placeholder="seu@email.com"
+          />
+        </div>
+
+        {/* Mensagem - syncOn: manual (só sincroniza no submit) */}
+        <div>
+          <label className="block text-gray-300 text-sm mb-2">
+            Mensagem <span className="text-orange-400 text-xs">(sync: manual)</span>
+          </label>
+          <textarea
+            {...form.$field('message', { syncOn: 'manual' })}
+            rows={3}
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition-all resize-none"
+            placeholder="Sua mensagem..."
+          />
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={!form.$connected}
+          className="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {form.$loading ? 'Enviando...' : 'Enviar'}
+        </button>
+      </form>
+
+      {/* Legenda */}
+      <div className="mt-4 p-3 bg-white/5 rounded-lg text-xs text-gray-400 space-y-1">
+        <p><span className="text-purple-400">blur:</span> Sincroniza ao sair do campo</p>
+        <p><span className="text-blue-400">500ms:</span> Sincroniza 500ms após parar de digitar</p>
+        <p><span className="text-orange-400">manual:</span> Sincroniza só no submit</p>
+      </div>
+
+      {/* Debug */}
+      <details className="mt-4">
+        <summary className="text-gray-400 text-sm cursor-pointer">Debug State (servidor)</summary>
+        <pre className="mt-2 p-3 bg-black/40 rounded-lg text-xs text-green-400 overflow-auto">
+{JSON.stringify(form.$state, null, 2)}
+        </pre>
+      </details>
+    </div>
+  )
+}
 
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [showDemo, setShowDemo] = useState(false)
   const [showApiTest, setShowApiTest] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const [apiResponse, setApiResponse] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
@@ -145,6 +292,27 @@ function AppContent() {
     )
   }
 
+  // Live Form Demo
+  if (showForm) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center px-4">
+        <div className="mb-8">
+          <button
+            onClick={() => setShowForm(false)}
+            className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white rounded-lg font-medium hover:bg-white/20 transition-all"
+          >
+            ← Voltar
+          </button>
+        </div>
+        <LiveFormDemo />
+        <p className="mt-6 text-gray-400 text-sm max-w-md text-center">
+          ✨ Este formulário usa <code className="text-purple-400">useLiveComponent</code> -
+          cada campo sincroniza automaticamente com o servidor!
+        </p>
+      </div>
+    )
+  }
+
   // If demo mode is active, show demo content
   if (showDemo) {
     return (
@@ -242,6 +410,12 @@ function AppContent() {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 justify-center">
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all"
+          >
+            📝 Live Form
+          </button>
           <button
             onClick={() => setShowApiTest(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-orange-500/50 transition-all"

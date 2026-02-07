@@ -150,6 +150,83 @@ export abstract class LiveComponent<TState = ComponentState> {
   public getSerializableState(): TState {
     return this.state
   }
+
+  // ===== Livewire-style Actions =====
+  // These are automatically available for all LiveComponents
+  // Used by useLivewire() hook for transparent property access
+
+  /**
+   * Set a single state property value
+   * Used by useLivewire() proxy for transparent property assignment
+   *
+   * @example
+   * // Frontend with useLivewire:
+   * clock.format = '12h'  // Automatically calls setValue({ key: 'format', value: '12h' })
+   */
+  async setValue<K extends keyof TState>(payload: { key: K; value: TState[K] }): Promise<{ success: boolean; key: K; value: TState[K] }> {
+    const { key, value } = payload
+
+    // Validate that the key exists in state
+    const stateObj = this.state as Record<string, unknown>
+    if (!(String(key) in stateObj)) {
+      throw new Error(`Property '${String(key)}' does not exist in component state`)
+    }
+
+    this.setState({ [key]: value } as unknown as Partial<TState>)
+
+    return { success: true, key, value }
+  }
+
+  /**
+   * Set multiple state properties at once
+   * Useful for batch updates
+   *
+   * @example
+   * await clock.$call('setValues', { format: '12h', showSeconds: false })
+   */
+  async setValues(payload: Partial<TState>): Promise<{ success: boolean; updated: (keyof TState)[] }> {
+    const stateObj = this.state as Record<string, unknown>
+    const validKeys = Object.keys(payload).filter(key => key in stateObj) as (keyof TState)[]
+
+    if (validKeys.length === 0) {
+      throw new Error('No valid properties to update')
+    }
+
+    const updates = validKeys.reduce((acc, key) => {
+      acc[key] = payload[key] as TState[keyof TState]
+      return acc
+    }, {} as Partial<TState>)
+
+    this.setState(updates)
+
+    return { success: true, updated: validKeys }
+  }
+
+  /**
+   * Get a single state property value
+   * Useful for getting computed/derived values from server
+   */
+  async getValue<K extends keyof TState>(payload: { key: K }): Promise<{ success: boolean; key: K; value: TState[K] }> {
+    const { key } = payload
+
+    const stateObj = this.state as Record<string, unknown>
+    if (!(String(key) in stateObj)) {
+      throw new Error(`Property '${String(key)}' does not exist in component state`)
+    }
+
+    return { success: true, key, value: this.state[key] }
+  }
+
+  /**
+   * Get all state values (snapshot)
+   */
+  async getSnapshot(): Promise<{ success: boolean; state: TState; timestamp: number }> {
+    return {
+      success: true,
+      state: this.getSerializableState(),
+      timestamp: Date.now()
+    }
+  }
 }
 
 // Utility types for better TypeScript experience

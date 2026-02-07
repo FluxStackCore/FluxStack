@@ -29,6 +29,7 @@ export type {
 export { useWebSocket } from './hooks/useWebSocket'
 export { useHybridLiveComponent } from './hooks/useHybridLiveComponent'
 export { useTypedLiveComponent, createTypedLiveComponentHook } from './hooks/useTypedLiveComponent'
+export { useLiveComponent, createLiveComponent } from './hooks/useLiveComponent'
 export { useChunkedUpload } from './hooks/useChunkedUpload'
 export { AdaptiveChunkSizer } from './hooks/AdaptiveChunkSizer'
 export { StateValidator } from './hooks/state-validator'
@@ -88,3 +89,4 @@ export type {
 // Hook return types
 export type { UseHybridLiveComponentReturn } from './hooks/useHybridLiveComponent'
 export type { ComponentRegistry } from './hooks/useTypedLiveComponent'
+export type { LiveProxy, LiveComponentProxy, UseLiveComponentOptions } from './hooks/useLiveComponent'
