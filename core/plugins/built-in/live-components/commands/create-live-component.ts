@@ -177,7 +177,8 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  const counter = Live.use(${name}, { count: 0, title: '${name}', step: 1 })
+  // ✨ Usa defaultState do backend automaticamente
+  const counter = Live.use(${name})
 
   if (!counter.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
@@ -201,7 +202,8 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  const form = Live.use(${name}, { name: '', email: '', message: '', submitted: false, submittedAt: null })
+  // ✨ Usa defaultState do backend automaticamente
+  const form = Live.use(${name})
 
   if (!form.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
@@ -239,7 +241,8 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  const chat = Live.use(${name}, { messages: [], username: '', currentMessage: '' })
+  // ✨ Usa defaultState do backend automaticamente
+  const chat = Live.use(${name})
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat.messages])
@@ -285,7 +288,8 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  const component = Live.use(${name}, { message: 'Carregando...', count: 0 })
+  // ✨ Usa defaultState do backend automaticamente
+  const component = Live.use(${name})
 
   if (!component.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
@@ -368,7 +372,8 @@ export const createLiveComponentCommand: CliCommand = {
       context.logger.info(`   <${name}Demo />`);
       context.logger.info("");
       context.logger.info("📖 API:");
-      context.logger.info(`   const x = Live.use(${name}, { ... })`);
+      context.logger.info(`   const x = Live.use(${name})           // usa defaultState do backend`);
+      context.logger.info(`   const x = Live.use(${name}, { ... })  // com override parcial`);
       context.logger.info(`   x.property    // estado`);
       context.logger.info(`   x.action()    // ação`);
       context.logger.info(`   x.$connected  // status`);
