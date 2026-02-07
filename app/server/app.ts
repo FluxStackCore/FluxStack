@@ -2,8 +2,7 @@
  * 🎯 Application Instance - Single Source of Truth
  *
  * This instance is used by:
- * - index.ts (full-stack mode)
- * - backend-only.ts (backend standalone mode)
+ * - index.ts (full-stack & backend-only modes via FLUXSTACK_MODE env)
  * - Eden Treaty client (type inference)
  *
  * This ensures that the type exported for Eden Treaty is exactly

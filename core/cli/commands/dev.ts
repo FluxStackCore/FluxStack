@@ -52,25 +52,20 @@ export const devCommand: CLICommand = {
     const frontendOnly = options['frontend-only'] === true
     const backendOnly = options['backend-only'] === true
 
-    // Determine which entry point to use
-    let entryPoint: string
-    let mode: string
-
     if (frontendOnly && backendOnly) {
       console.error('❌ Cannot use --frontend-only and --backend-only together')
       process.exit(1)
     }
 
-    if (frontendOnly) {
-      entryPoint = 'app/client/frontend-only.ts'
-      mode = 'Frontend only'
-    } else if (backendOnly) {
-      entryPoint = 'app/server/backend-only.ts'
-      mode = 'Backend only'
-    } else {
-      entryPoint = 'app/server/index.ts'
-      mode = 'Full-stack'
-    }
+    // Determine mode and entry point
+    const mode = frontendOnly ? 'Frontend only' : backendOnly ? 'Backend only' : 'Full-stack'
+
+    // Frontend-only: roda direto do core (não passa pelo app/server/index.ts)
+    const entryPoint = frontendOnly
+      ? 'core/client/standalone-entry.ts'
+      : 'app/server/index.ts'
+
+    const fluxstackMode = backendOnly ? 'backend-only' : 'full-stack'
 
     console.log(`⚡ Starting ${mode} development server...`)
 
@@ -80,7 +75,8 @@ export const devCommand: CLICommand = {
       env: {
         ...process.env,
         FRONTEND_PORT: options['frontend-port'].toString(),
-        BACKEND_PORT: options.port.toString()
+        BACKEND_PORT: options.port.toString(),
+        FLUXSTACK_MODE: fluxstackMode
       }
     })
 
