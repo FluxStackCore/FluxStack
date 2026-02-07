@@ -5,7 +5,6 @@
 
 import type { CLICommand } from '../command-registry'
 import { serverConfig, clientConfig } from '@config'
-import { startGroup, endGroup, logInGroup } from '@core/utils/logger/group-logger'
 
 export const devCommand: CLICommand = {
   name: 'dev',
@@ -13,8 +12,10 @@ export const devCommand: CLICommand = {
   category: 'Development',
   usage: 'flux dev [options]',
   examples: [
-    'flux dev                    # Start development server',
-    'flux dev --port 4000        # Start on custom port'
+    'flux dev                    # Start full-stack development',
+    'flux dev --port 4000        # Start on custom port',
+    'flux dev --frontend-only    # Start only frontend (Vite)',
+    'flux dev --backend-only     # Start only backend (Elysia)'
   ],
   options: [
     {
@@ -29,11 +30,51 @@ export const devCommand: CLICommand = {
       description: 'Port for frontend server',
       type: 'number',
       default: clientConfig.vite.port
+    },
+    {
+      name: 'frontend-only',
+      short: 'f',
+      description: 'Start only the frontend (Vite dev server)',
+      type: 'boolean',
+      default: false
+    },
+    {
+      name: 'backend-only',
+      short: 'b',
+      description: 'Start only the backend (Elysia server)',
+      type: 'boolean',
+      default: false
     }
   ],
   handler: async (args, options, context) => {
     const { spawn } = await import("child_process")
-    const devProcess = spawn("bun", ["--watch", "app/server/index.ts"], {
+
+    const frontendOnly = options['frontend-only'] === true
+    const backendOnly = options['backend-only'] === true
+
+    // Determine which entry point to use
+    let entryPoint: string
+    let mode: string
+
+    if (frontendOnly && backendOnly) {
+      console.error('❌ Cannot use --frontend-only and --backend-only together')
+      process.exit(1)
+    }
+
+    if (frontendOnly) {
+      entryPoint = 'app/client/frontend-only.ts'
+      mode = 'Frontend only'
+    } else if (backendOnly) {
+      entryPoint = 'app/server/backend-only.ts'
+      mode = 'Backend only'
+    } else {
+      entryPoint = 'app/server/index.ts'
+      mode = 'Full-stack'
+    }
+
+    console.log(`⚡ Starting ${mode} development server...`)
+
+    const devProcess = spawn("bun", ["--watch", entryPoint], {
       stdio: "inherit",
       cwd: process.cwd(),
       env: {
