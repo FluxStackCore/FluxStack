@@ -3,7 +3,7 @@
  * Implementa resolução em cascata: plugin local → projeto principal
  */
 
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { join, resolve } from 'path'
 import type { Logger } from '@/core/utils/logger'
 
@@ -80,7 +80,7 @@ export class PluginModuleResolver {
       const packageJsonPath = join(localNodeModules, 'package.json')
       if (existsSync(packageJsonPath)) {
         try {
-          const pkg = require(packageJsonPath)
+          const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
           const entry = pkg.module || pkg.main || 'index.js'
           const entryPath = join(localNodeModules, entry)
 
@@ -116,7 +116,7 @@ export class PluginModuleResolver {
       const packageJsonPath = join(projectNodeModules, 'package.json')
       if (existsSync(packageJsonPath)) {
         try {
-          const pkg = require(packageJsonPath)
+          const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'))
           const entry = pkg.module || pkg.main || 'index.js'
           const entryPath = join(projectNodeModules, entry)
 
