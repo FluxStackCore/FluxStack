@@ -81,9 +81,12 @@ export class FluxStackBuilder {
       buildLogger.success('Directory already exists')
     }
 
+    // Get current Bun version for Docker image
+    const bunVersion = typeof Bun !== 'undefined' ? Bun.version : '1.3'
+
     // Dockerfile optimizado para produção
     const dockerfile = `# FluxStack Production Docker Image
-FROM oven/bun:1.1-alpine AS production
+FROM oven/bun:${bunVersion}-alpine AS production
 
 WORKDIR /app
 
