@@ -111,6 +111,51 @@ export const usersRoutes = new Elysia({ prefix: "/users" })
   })
 ```
 
+## 🔍 **Type Inference in Elysia**
+
+Elysia.js leverages `TypeBox` for schema validation and generation, which in turn fuels Eden Treaty's type inference. Understanding how Elysia infers types is crucial for maximizing type safety and developer experience.
+
+### **Como Funciona a Inferência**
+1. **Schema Definition**: Ao definir rotas, você usa `t.Object`, `t.Array`, `t.String`, etc., do `TypeBox` para descrever a estrutura dos `body`, `params`, `query` e `response`.
+2. **Elysia's Internal Type Generation**: Elysia usa esses schemas para gerar tipos TypeScript em tempo de compilação/desenvolvimento.
+3. **Eden Treaty Consumption**: Eden Treaty consome esses tipos gerados pela Elysia para fornecer inferência automática no cliente.
+
+### **Exemplo Prático de Inferência**
+
+Considere o schema de resposta para a rota GET `/users`:
+
+```typescript
+// Server: app/server/routes/users.ts
+.get("/", () => UsersController.getUsers(), {
+  response: t.Object({
+    users: t.Array(t.Object({
+      id: t.Number(),
+      name: t.String(),
+      email: t.String(),
+      createdAt: t.Date()
+    }))
+  })
+})
+```
+
+Quando você chama essa rota no cliente via Eden Treaty:
+
+```typescript
+// Client: app/client/src/components/UserList.tsx
+const { data, error } = await api.users.get();
+
+if (data) {
+  // `data` é inferido automaticamente como:
+  // { users: Array<{ id: number; name: string; email: string; createdAt: Date; }> }
+  data.users.forEach(user => {
+    console.log(user.name); // `user.name` é inferido como `string`
+    const userId: number = user.id; // `user.id` é inferido como `number`
+  });
+}
+```
+
+Isso demonstra como a inferência de tipo funciona de ponta a ponta, sem a necessidade de definir interfaces ou tipos duplicados manualmente no cliente.
+
 ## 💡 **Padrões de Uso Correto**
 
 ### **✅ Padrão 1: GET Simples**
