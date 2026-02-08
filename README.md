@@ -86,6 +86,11 @@ Default routes in the demo app:
 - `/upload` Live Upload
 - `/api-test` Eden Treaty API Test
 
+### 🧭 Router Package
+
+This project now uses **React Router v7** via the `react-router` package (recommended by the v7 docs).
+If you are upgrading from an older setup that used `react-router-dom`, update imports to `react-router`.
+
 ### Alternative Installation
 
 ```bash

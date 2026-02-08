@@ -29,6 +29,7 @@
 - [Live Components](resources/live-components.md) - WebSocket components
 - [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
 - [External Plugins](resources/plugins-external.md) - Plugin development
+ - [Routing (React Router v7)](reference/routing.md) - Frontend routing setup
 
 ## Patterns & Rules
 
