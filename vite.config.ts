@@ -34,6 +34,7 @@ export default defineConfig({
     host: clientConfig.vite.host,                    // ✅ From config
     strictPort: clientConfig.vite.strictPort,        // ✅ From config
     open: clientConfig.vite.open,                    // ✅ From config
+    allowedHosts: ['localhost', 'local.marcosbrendon.com'],  // ✅ Allowed hosts
 
     hmr: {
       protocol: 'ws',
