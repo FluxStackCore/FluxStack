@@ -128,6 +128,8 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
   optimistic?: boolean
   /** Modo de sync: 'immediate' | 'debounced' | 'manual'. Default: 'debounced' */
   syncMode?: 'immediate' | 'debounced' | 'manual'
+  /** Persistir estado em localStorage (rehydration). Default: true */
+  persistState?: boolean
 }
 
 // ===== Propriedades Reservadas =====
@@ -152,7 +154,8 @@ interface PersistedState {
   lastUpdate: number
 }
 
-const persistState = (name: string, signedState: any, room?: string, userId?: string) => {
+const persistState = (enabled: boolean, name: string, signedState: any, room?: string, userId?: string) => {
+  if (!enabled) return
   try {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${name}`, JSON.stringify({
       componentName: name, signedState, room, userId, lastUpdate: Date.now()
@@ -160,7 +163,8 @@ const persistState = (name: string, signedState: any, room?: string, userId?: st
   } catch {}
 }
 
-const getPersistedState = (name: string): PersistedState | null => {
+const getPersistedState = (enabled: boolean, name: string): PersistedState | null => {
+  if (!enabled) return null
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${name}`)
     if (!stored) return null
@@ -173,7 +177,8 @@ const getPersistedState = (name: string): PersistedState | null => {
   } catch { return null }
 }
 
-const clearPersistedState = (name: string) => {
+const clearPersistedState = (enabled: boolean, name: string) => {
+  if (!enabled) return
   try { localStorage.removeItem(`${STORAGE_KEY_PREFIX}${name}`) } catch {}
 }
 
@@ -210,6 +215,7 @@ export function useLiveComponent<
     debounce = 150,
     optimistic = true,
     syncMode = 'debounced',
+    persistState: persistEnabled = true,
     fallbackToLocal = true,
     room,
     userId,
@@ -320,7 +326,7 @@ export function useLiveComponent<
         mountedRef.current = true
 
         if (response.result.signedState) {
-          persistState(componentName, response.result.signedState, room, userId)
+          persistState(persistEnabled, componentName, response.result.signedState, room, userId)
         }
         if (response.result.initialState) {
           updateState(response.result.initialState)
@@ -357,12 +363,12 @@ export function useLiveComponent<
     // Usa ref para prevenir chamadas duplicadas (React StrictMode)
     if (!connected || rehydratingRef.current || mountingRef.current || mountedRef.current) return false
 
-    const persisted = getPersistedState(componentName)
+    const persisted = getPersistedState(persistEnabled, componentName)
     if (!persisted) return false
 
     // Skip if too old (> 1 hour)
     if (Date.now() - persisted.lastUpdate > 60 * 60 * 1000) {
-      clearPersistedState(componentName)
+      clearPersistedState(persistEnabled, componentName)
       return false
     }
 
@@ -387,10 +393,10 @@ export function useLiveComponent<
         setTimeout(() => onRehydrate?.(), 0)
         return true
       }
-      clearPersistedState(componentName)
+      clearPersistedState(persistEnabled, componentName)
       return false
     } catch {
-      clearPersistedState(componentName)
+      clearPersistedState(persistEnabled, componentName)
       return false
     } finally {
       rehydratingRef.current = false
@@ -531,7 +537,7 @@ export function useLiveComponent<
             updateState(message.payload.state)
             onStateChange?.(message.payload.state, oldState)
             if (message.payload?.signedState) {
-              persistState(componentName, message.payload.signedState, room, userId)
+              persistState(persistEnabled, componentName, message.payload.signedState, room, userId)
             }
           }
           break
@@ -582,7 +588,7 @@ export function useLiveComponent<
       onConnect?.()
       if (!mountedRef.current && !mountingRef.current) {
         setTimeout(() => {
-          const persisted = getPersistedState(componentName)
+          const persisted = getPersistedState(persistEnabled, componentName)
           if (persisted?.signedState) rehydrate()
           else mount()
         }, 100)

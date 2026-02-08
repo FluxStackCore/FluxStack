@@ -76,6 +76,16 @@ bun run dev
 - 📚 **API Documentation**: http://localhost:3000/swagger
 - ⚡ **Hot Reload**: Automatic on file changes
 
+### 🔀 Frontend Routes (React Router v7)
+
+Default routes in the demo app:
+
+- `/` Home
+- `/counter` Live Counter
+- `/form` Live Form
+- `/upload` Live Upload
+- `/api-test` Eden Treaty API Test
+
 ### Alternative Installation
 
 ```bash
