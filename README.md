@@ -111,7 +111,7 @@ bun run dev
 - ✅ **Coordinated Hot Reload** - Backend and frontend reload independently
 - ✅ **Auto-Generated Swagger** - API documentation updates automatically
 - ✅ **Docker Templates** - Production-ready multi-stage builds included
-- ✅ **AI-Focused Docs** - Special documentation for AI assistants (`ai-context/`)
+- ✅ **AI-Focused Docs** - LLM-optimized documentation (`LLMD/`)
 - ✅ **Declarative Config** - Laravel-inspired configuration system
 - ✅ **WebSocket Support** - Real-time features built-in
 - ✅ **Testing Setup** - Vitest + React Testing Library ready
@@ -200,10 +200,13 @@ FluxStack/
 ├── 🔌 plugins/                 # External Plugins
 │   └── crypto-auth/           # Example: Crypto authentication
 │
-├── 🤖 ai-context/              # AI Assistant Documentation
-│   ├── 00-QUICK-START.md      # Quick start for LLMs
-│   ├── development/           # Development patterns
-│   └── examples/              # Code examples
+├── 🤖 LLMD/                    # LLM-Optimized Documentation
+│   ├── INDEX.md               # Navigation hub
+│   ├── core/                  # Framework internals
+│   ├── config/                # Configuration system
+│   ├── resources/             # Creating routes, controllers
+│   ├── patterns/              # Best practices
+│   └── reference/             # CLI, hooks, troubleshooting
 │
 └── 📦 Package Files
     ├── package.json           # Dependencies
@@ -445,10 +448,12 @@ if (featuresConfig.enableAnalytics) {
 <td width="33%">
 
 ### 📖 **Documentation**
-- [AI Context Docs](./ai-context/)
-- [Quick Start Guide](./ai-context/00-QUICK-START.md)
-- [Development Patterns](./ai-context/development/patterns.md)
+- [LLM Documentation](./LLMD/) ⭐ **NEW**
+- [LLMD Index](./LLMD/INDEX.md) - Navigation hub
+- [Development Patterns](./LLMD/patterns/project-structure.md)
+- [CLI Reference](./LLMD/reference/cli-commands.md)
 - [CLAUDE.md](./CLAUDE.md)
+- [AI Context (deprecated)](./ai-context/)
 
 </td>
 <td width="33%">

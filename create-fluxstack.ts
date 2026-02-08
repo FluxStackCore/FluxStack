@@ -91,8 +91,8 @@ program
         'core',
         'app',
         'config',         // ✅ CRITICAL: Copy config folder with declarative configs
-        'plugins',     // TODO: Copy when crypto-auth plugin is complete
-        'ai-context',     // ✅ CRITICAL: Copy AI documentation for users
+        'plugins',        // TODO: Copy when crypto-auth plugin is complete
+        'LLMD',           // ✅ CRITICAL: LLM-optimized documentation for AI assistants
         'bun.lock',       // ✅ CRITICAL: Copy lockfile to maintain working versions
         'package.json',   // ✅ Copy real package.json from framework
         'tsconfig.json',
@@ -123,8 +123,8 @@ This folder is for your custom FluxStack plugins.
 ## 📖 Documentation
 
 For complete plugin development guide, see:
-- \`ai-context/development/plugins-guide.md\` - Full plugin documentation
-- \`ai-context/examples/\` - Plugin examples
+- \`LLMD/resources/plugins-external.md\` - Full plugin documentation
+- \`LLMD/reference/plugin-hooks.md\` - All available hooks
 
 ## 📦 Available CLI Commands
 
@@ -458,7 +458,8 @@ app.use(authPlugin)
 
 ## 📖 Learn More
 
-- **Plugin Guide**: Check \`ai-context/development/plugins-guide.md\`
+- **LLM Documentation**: Check \`LLMD/INDEX.md\` for AI-optimized docs
+- **Plugin Guide**: Check \`LLMD/resources/plugins-external.md\`
 - **FluxStack Docs**: Visit the [FluxStack Repository](https://github.com/MarcosBrendonDePaula/FluxStack)
 
 ---

@@ -2,23 +2,24 @@
 
 > **IMPORTANTE**: Esta documentação foi **reorganizada e modernizada** para melhor suporte a LLMs.
 
-## 📖 **Nova Documentação AI**
+## 📖 **Nova Documentação AI (LLMD)**
 
-👉 **Acesse a documentação completa em**: [`ai-context/`](./ai-context/)
+👉 **Acesse a documentação completa em**: [`LLMD/`](./LLMD/)
 
 ### ⚡ **Início Rápido para LLMs**
-- **[`ai-context/00-QUICK-START.md`](./ai-context/00-QUICK-START.md)** - Entenda tudo em 2 minutos
-- **[`ai-context/README.md`](./ai-context/README.md)** - Navegação completa
+- **[`LLMD/INDEX.md`](./LLMD/INDEX.md)** - Hub de navegação principal
+- **[`LLMD/core/framework-lifecycle.md`](./LLMD/core/framework-lifecycle.md)** - Ciclo de vida do framework
 
 ### 🎯 **Documentos Principais**
-- **[Development Patterns](./ai-context/development/patterns.md)** - Padrões e boas práticas
-- **[Eden Treaty Guide](./ai-context/development/eden-treaty-guide.md)** - Guia completo Eden Treaty
-- **[CRUD Example](./ai-context/examples/crud-complete.md)** - Exemplo prático completo
-- **[Troubleshooting](./ai-context/reference/troubleshooting.md)** - Solução de problemas
+- **[Project Structure](./LLMD/patterns/project-structure.md)** - Organização de pastas
+- **[Routes & Eden Treaty](./LLMD/resources/routes-eden.md)** - APIs type-safe
+- **[Type Safety](./LLMD/patterns/type-safety.md)** - Fluxo de tipos
+- **[Troubleshooting](./LLMD/reference/troubleshooting.md)** - Solução de problemas
 
-### 🔥 **Mudanças Recentes**
-- **[Eden Treaty Refactor](./ai-context/recent-changes/eden-treaty-refactor.md)** - Refatoração crítica
-- **[Type Inference Fix](./ai-context/recent-changes/type-inference-fix.md)** - Correção de tipos
+### 📚 **Referência**
+- **[CLI Commands](./LLMD/reference/cli-commands.md)** - Comandos disponíveis
+- **[Plugin Hooks](./LLMD/reference/plugin-hooks.md)** - Hooks de plugins
+- **[Anti-Patterns](./LLMD/patterns/anti-patterns.md)** - O que NÃO fazer
 
 ---
 
@@ -81,14 +82,13 @@ FluxStack/
 ├── plugins/                 # 🔌 PLUGINS EXTERNOS
 │   └── crypto-auth/        # Plugin de autenticação criptográfica
 ├── tests/                   # Testes do framework
-└── ai-context/              # 📖 Documentação para LLMs
-    ├── 00-QUICK-START.md   # Início rápido
-    ├── README.md           # Navegação completa
-    ├── development/        # Padrões e guias de desenvolvimento
-    ├── examples/           # Exemplos práticos
-    ├── project/            # Arquitetura e configuração
-    ├── recent-changes/     # Mudanças recentes
-    └── reference/          # Referência técnica
+└── LLMD/                    # 📖 Documentação LLM-optimizada
+    ├── INDEX.md            # Hub de navegação
+    ├── core/               # Framework internals
+    ├── config/             # Sistema de configuração
+    ├── resources/          # Criando routes, controllers, plugins
+    ├── patterns/           # Boas práticas e anti-patterns
+    └── reference/          # CLI, hooks, troubleshooting
 ```
 
 ## 🔄 **Estado Atual da Interface**
@@ -532,10 +532,10 @@ curl http://localhost:3000/api/health  # ✅ Health check
 
 ## 🆘 **Suporte e Troubleshooting**
 
-1. **Erro específico?** → [`ai-context/reference/troubleshooting.md`](./ai-context/reference/troubleshooting.md)
-2. **Como fazer X?** → [`ai-context/development/patterns.md`](./ai-context/development/patterns.md)
-3. **Eden Treaty?** → [`ai-context/development/eden-treaty-guide.md`](./ai-context/development/eden-treaty-guide.md)
-4. **Não entendo nada?** → [`ai-context/00-QUICK-START.md`](./ai-context/00-QUICK-START.md)
+1. **Erro específico?** → [`LLMD/reference/troubleshooting.md`](./LLMD/reference/troubleshooting.md)
+2. **Estrutura de pastas?** → [`LLMD/patterns/project-structure.md`](./LLMD/patterns/project-structure.md)
+3. **Eden Treaty?** → [`LLMD/resources/routes-eden.md`](./LLMD/resources/routes-eden.md)
+4. **Não entendo nada?** → [`LLMD/INDEX.md`](./LLMD/INDEX.md)
 
 ---
 
