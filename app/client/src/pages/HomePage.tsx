@@ -54,37 +54,8 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-4 justify-center">
-        <Link
-          to="/counter"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-emerald-500/50 transition-all"
-        >
-          🔢 Live Counter
-        </Link>
-        <Link
-          to="/form"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all"
-        >
-          📝 Live Form
-        </Link>
-        <Link
-          to="/upload"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-cyan-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-cyan-500/50 transition-all"
-        >
-          Live Upload
-        </Link>
-        <Link
-          to="/chat"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-purple-500/50 transition-all"
-        >
-          💬 Live Chat
-        </Link>
-        <Link
-          to="/api-test"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl font-medium hover:shadow-lg hover:shadow-orange-500/50 transition-all"
-        >
-          🧪 Test API
-        </Link>
+      <div className="mt-4 text-gray-500 text-sm">
+        Use a navegação no topo para acessar as demos.
       </div>
 
       <div className="mt-16 text-gray-500 text-sm">
