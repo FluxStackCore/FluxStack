@@ -60,7 +60,7 @@ export function useChunkedUpload(componentId: string, options: ChunkedUploadOpti
   if (adaptiveChunking && !adaptiveSizerRef.current) {
     adaptiveSizerRef.current = new AdaptiveChunkSizer({
       initialChunkSize: chunkSize,
-      minChunkSize: 16 * 1024,  // 16KB min
+      minChunkSize: chunkSize,  // Do not go below initial chunk size by default
       maxChunkSize: 1024 * 1024, // 1MB max
       ...adaptiveConfig
     })
@@ -141,24 +141,21 @@ export function useChunkedUpload(componentId: string, options: ChunkedUploadOpti
 
       console.log('✅ Upload started successfully')
 
-      // Read file as ArrayBuffer for dynamic chunking
-      const fileArrayBuffer = await file.arrayBuffer()
-      const fileData = new Uint8Array(fileArrayBuffer)
-
       let offset = 0
       let chunkIndex = 0
       const estimatedTotalChunks = Math.ceil(file.size / initialChunkSize)
 
-      // Send chunks dynamically with adaptive sizing
-      while (offset < fileData.length) {
+      // Send chunks dynamically with adaptive sizing (read slice per chunk)
+      while (offset < file.size) {
         if (abortControllerRef.current?.signal.aborted) {
           throw new Error('Upload cancelled')
         }
 
         // Get current chunk size (adaptive or fixed)
         const currentChunkSize = adaptiveSizerRef.current?.getChunkSize() ?? chunkSize
-        const chunkEnd = Math.min(offset + currentChunkSize, fileData.length)
-        const chunkBytes = fileData.slice(offset, chunkEnd)
+        const chunkEnd = Math.min(offset + currentChunkSize, file.size)
+        const sliceBuffer = await file.slice(offset, chunkEnd).arrayBuffer()
+        const chunkBytes = new Uint8Array(sliceBuffer)
 
         // Convert chunk to base64
         let binary = ''

@@ -22,6 +22,9 @@ export type {
 // Chunked Upload Hook
 export { useChunkedUpload } from './hooks/useChunkedUpload'
 export type { ChunkedUploadOptions, ChunkedUploadState } from './hooks/useChunkedUpload'
+export { useLiveChunkedUpload } from './hooks/useLiveChunkedUpload'
+export type { LiveChunkedUploadOptions } from './hooks/useLiveChunkedUpload'
+export { useLiveUpload } from './hooks/useLiveUpload'
 
 // Live Component Hook (API principal)
 export { Live } from './components/Live'

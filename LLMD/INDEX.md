@@ -27,6 +27,7 @@
 - [Routes with Eden Treaty](resources/routes-eden.md) - Type-safe API routes
 - [Controllers & Services](resources/controllers.md) - Business logic patterns
 - [Live Components](resources/live-components.md) - WebSocket components
+- [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
 - [External Plugins](resources/plugins-external.md) - Plugin development
 
 ## Patterns & Rules
