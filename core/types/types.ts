@@ -1,13 +1,16 @@
 // 🔥 FluxStack Live Components - Shared Types
 
 import { roomEvents } from '@core/server/live/RoomEventBus'
+import { liveRoomManager } from '@core/server/live/LiveRoomManager'
 
 export interface LiveMessage {
   type: 'COMPONENT_MOUNT' | 'COMPONENT_UNMOUNT' |
   'COMPONENT_REHYDRATE' | 'COMPONENT_ACTION' | 'CALL_ACTION' |
   'ACTION_RESPONSE' | 'PROPERTY_UPDATE' | 'STATE_UPDATE' | 'STATE_REHYDRATED' |
   'ERROR' | 'BROADCAST' | 'FILE_UPLOAD_START' | 'FILE_UPLOAD_CHUNK' | 'FILE_UPLOAD_COMPLETE' |
-  'COMPONENT_PING' | 'COMPONENT_PONG'
+  'COMPONENT_PING' | 'COMPONENT_PONG' |
+  // Room system messages
+  'ROOM_JOIN' | 'ROOM_LEAVE' | 'ROOM_EMIT' | 'ROOM_STATE_SET' | 'ROOM_STATE_GET'
   componentId: string
   action?: string
   property?: string
@@ -71,7 +74,9 @@ export interface WebSocketMessage {
 }
 
 export interface WebSocketResponse {
-  type: 'MESSAGE_RESPONSE' | 'CONNECTION_ESTABLISHED' | 'ERROR' | 'BROADCAST' | 'ACTION_RESPONSE' | 'COMPONENT_MOUNTED' | 'COMPONENT_REHYDRATED' | 'STATE_UPDATE' | 'STATE_REHYDRATED' | 'FILE_UPLOAD_PROGRESS' | 'FILE_UPLOAD_COMPLETE' | 'FILE_UPLOAD_ERROR' | 'FILE_UPLOAD_START_RESPONSE' | 'COMPONENT_PONG'
+  type: 'MESSAGE_RESPONSE' | 'CONNECTION_ESTABLISHED' | 'ERROR' | 'BROADCAST' | 'ACTION_RESPONSE' | 'COMPONENT_MOUNTED' | 'COMPONENT_REHYDRATED' | 'STATE_UPDATE' | 'STATE_REHYDRATED' | 'FILE_UPLOAD_PROGRESS' | 'FILE_UPLOAD_COMPLETE' | 'FILE_UPLOAD_ERROR' | 'FILE_UPLOAD_START_RESPONSE' | 'COMPONENT_PONG' |
+  // Room system responses
+  'ROOM_EVENT' | 'ROOM_STATE' | 'ROOM_SYSTEM' | 'ROOM_JOINED' | 'ROOM_LEFT'
   originalType?: string
   componentId?: string
   success?: boolean
@@ -137,6 +142,29 @@ export interface HybridComponentOptions {
   onStateChange?: (newState: any, oldState: any) => void
 }
 
+// Interface para handle de sala no servidor
+export interface ServerRoomHandle<TState = any, TEvents extends Record<string, any> = Record<string, any>> {
+  readonly id: string
+  readonly state: TState
+  join: (initialState?: TState) => void
+  leave: () => void
+  emit: <K extends keyof TEvents>(event: K, data: TEvents[K]) => number
+  on: <K extends keyof TEvents>(event: K, handler: (data: TEvents[K]) => void) => () => void
+  setState: (updates: Partial<TState>) => void
+}
+
+// Proxy para $room no servidor
+export interface ServerRoomProxy<TState = any, TEvents extends Record<string, any> = Record<string, any>> {
+  (roomId: string): ServerRoomHandle<TState, TEvents>
+  readonly id: string | undefined
+  readonly state: TState
+  join: (initialState?: TState) => void
+  leave: () => void
+  emit: <K extends keyof TEvents>(event: K, data: TEvents[K]) => number
+  on: <K extends keyof TEvents>(event: K, handler: (data: TEvents[K]) => void) => () => void
+  setState: (updates: Partial<TState>) => void
+}
+
 export abstract class LiveComponent<TState = ComponentState> {
   public readonly id: string
   public state: TState
@@ -147,9 +175,13 @@ export abstract class LiveComponent<TState = ComponentState> {
 
   // Room event subscriptions (cleaned up on destroy)
   private roomEventUnsubscribers: (() => void)[] = []
+  private joinedRooms: Set<string> = new Set()
 
   // Room type for typed events (override in subclass)
   protected roomType: string = 'default'
+
+  // Cached room handles
+  private roomHandles: Map<string, ServerRoomHandle> = new Map()
 
   constructor(initialState: TState, ws: any, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
@@ -157,6 +189,129 @@ export abstract class LiveComponent<TState = ComponentState> {
     this.ws = ws
     this.room = options?.room
     this.userId = options?.userId
+
+    // Auto-join default room if specified
+    if (this.room) {
+      this.joinedRooms.add(this.room)
+      liveRoomManager.joinRoom(this.id, this.room, this.ws)
+    }
+  }
+
+  // ========================================
+  // 🔥 $room - Sistema de Salas Unificado
+  // ========================================
+
+  /**
+   * Acessa uma sala específica ou a sala padrão
+   * @example
+   * // Sala padrão
+   * this.$room.emit('typing', { user: 'João' })
+   * this.$room.on('message:new', handler)
+   *
+   * // Outra sala
+   * this.$room('sala-vip').join()
+   * this.$room('sala-vip').emit('typing', { user: 'João' })
+   */
+  public get $room(): ServerRoomProxy {
+    const self = this
+
+    const createHandle = (roomId: string): ServerRoomHandle => {
+      // Retornar handle cacheado
+      if (this.roomHandles.has(roomId)) {
+        return this.roomHandles.get(roomId)!
+      }
+
+      const handle: ServerRoomHandle = {
+        get id() { return roomId },
+        get state() { return liveRoomManager.getRoomState(roomId) },
+
+        join: (initialState?: any) => {
+          if (self.joinedRooms.has(roomId)) return
+          self.joinedRooms.add(roomId)
+          liveRoomManager.joinRoom(self.id, roomId, self.ws, initialState)
+        },
+
+        leave: () => {
+          if (!self.joinedRooms.has(roomId)) return
+          self.joinedRooms.delete(roomId)
+          liveRoomManager.leaveRoom(self.id, roomId)
+        },
+
+        emit: (event: string, data: any): number => {
+          return liveRoomManager.emitToRoom(roomId, event, data, self.id)
+        },
+
+        on: (event: string, handler: (data: any) => void): (() => void) => {
+          // Usar 'room' como tipo genérico e roomId como identificador
+          // Isso permite que emitToRoom encontre os handlers corretamente
+          const unsubscribe = roomEvents.on(
+            'room', // Tipo genérico para todas as salas
+            roomId,
+            event,
+            self.id,
+            handler
+          )
+          self.roomEventUnsubscribers.push(unsubscribe)
+          return unsubscribe
+        },
+
+        setState: (updates: any) => {
+          liveRoomManager.setRoomState(roomId, updates, self.id)
+        }
+      }
+
+      this.roomHandles.set(roomId, handle)
+      return handle
+    }
+
+    // Criar proxy que funciona como função e objeto
+    const proxyFn = ((roomId: string) => createHandle(roomId)) as ServerRoomProxy
+
+    const defaultHandle = this.room ? createHandle(this.room) : null
+
+    Object.defineProperties(proxyFn, {
+      id: { get: () => self.room },
+      state: { get: () => defaultHandle?.state ?? {} },
+      join: {
+        value: (initialState?: any) => {
+          if (!defaultHandle) throw new Error('No default room set')
+          defaultHandle.join(initialState)
+        }
+      },
+      leave: {
+        value: () => {
+          if (!defaultHandle) throw new Error('No default room set')
+          defaultHandle.leave()
+        }
+      },
+      emit: {
+        value: (event: string, data: any) => {
+          if (!defaultHandle) throw new Error('No default room set')
+          return defaultHandle.emit(event, data)
+        }
+      },
+      on: {
+        value: (event: string, handler: (data: any) => void) => {
+          if (!defaultHandle) throw new Error('No default room set')
+          return defaultHandle.on(event, handler)
+        }
+      },
+      setState: {
+        value: (updates: any) => {
+          if (!defaultHandle) throw new Error('No default room set')
+          defaultHandle.setState(updates)
+        }
+      }
+    })
+
+    return proxyFn
+  }
+
+  /**
+   * Lista de IDs das salas que este componente está participando
+   */
+  public get $rooms(): string[] {
+    return Array.from(this.joinedRooms)
   }
 
   // State management
@@ -328,6 +483,13 @@ export abstract class LiveComponent<TState = ComponentState> {
       unsubscribe()
     }
     this.roomEventUnsubscribers = []
+
+    // Sai de todas as salas
+    for (const roomId of this.joinedRooms) {
+      liveRoomManager.leaveRoom(this.id, roomId)
+    }
+    this.joinedRooms.clear()
+    this.roomHandles.clear()
 
     this.unsubscribeFromRoom()
     // Override in subclasses for custom cleanup

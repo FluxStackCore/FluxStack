@@ -6,6 +6,7 @@ import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
 import { ChatDemo } from './live/ChatDemo'
+import { RoomChatDemo } from './live/RoomChatDemo'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -112,6 +113,16 @@ function AppContent() {
           element={
             <DemoPage>
               <ChatDemo />
+            </DemoPage>
+          }
+        />
+        <Route
+          path="/room-chat"
+          element={
+            <DemoPage
+              note={<>🚀 Chat com múltiplas salas usando o novo sistema <code className="text-purple-400">$room</code>!</>}
+            >
+              <RoomChatDemo />
             </DemoPage>
           }
         />

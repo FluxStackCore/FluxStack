@@ -4,6 +4,7 @@ import { componentRegistry } from './ComponentRegistry'
 import { fileUploadManager } from './FileUploadManager'
 import { connectionManager } from './WebSocketConnectionManager'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
+import { liveRoomManager, type RoomMessage } from './LiveRoomManager'
 import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@core/types/types'
 import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
@@ -226,6 +227,19 @@ export const liveComponentsPlugin: Plugin = {
                 break
               case 'FILE_UPLOAD_COMPLETE':
                 await handleFileUploadComplete(ws, message as unknown as FileUploadCompleteMessage)
+                break
+              // Room system messages
+              case 'ROOM_JOIN':
+                await handleRoomJoin(ws, message as unknown as RoomMessage)
+                break
+              case 'ROOM_LEAVE':
+                await handleRoomLeave(ws, message as unknown as RoomMessage)
+                break
+              case 'ROOM_EMIT':
+                await handleRoomEmit(ws, message as unknown as RoomMessage)
+                break
+              case 'ROOM_STATE_SET':
+                await handleRoomStateSet(ws, message as unknown as RoomMessage)
                 break
               default:
                 console.warn(`❌ Unknown message type: ${message.type}`)
@@ -661,4 +675,109 @@ async function handleFileUploadComplete(ws: any, message: FileUploadCompleteMess
   ws.send(JSON.stringify(responseWithRequestId))
 }
 
+// ===== Room System Handlers =====
 
+async function handleRoomJoin(ws: any, message: RoomMessage) {
+  console.log(`🚪 Component ${message.componentId} joining room ${message.roomId}`)
+
+  try {
+    const result = liveRoomManager.joinRoom(
+      message.componentId,
+      message.roomId,
+      ws,
+      message.data?.initialState
+    )
+
+    const response = {
+      type: 'ROOM_JOINED',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      success: true,
+      state: result.state,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }
+
+    ws.send(JSON.stringify(response))
+  } catch (error: any) {
+    ws.send(JSON.stringify({
+      type: 'ERROR',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      error: error.message,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }))
+  }
+}
+
+async function handleRoomLeave(ws: any, message: RoomMessage) {
+  console.log(`🚶 Component ${message.componentId} leaving room ${message.roomId}`)
+
+  try {
+    liveRoomManager.leaveRoom(message.componentId, message.roomId)
+
+    const response = {
+      type: 'ROOM_LEFT',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      success: true,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }
+
+    ws.send(JSON.stringify(response))
+  } catch (error: any) {
+    ws.send(JSON.stringify({
+      type: 'ERROR',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      error: error.message,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }))
+  }
+}
+
+async function handleRoomEmit(ws: any, message: RoomMessage) {
+  console.log(`📡 Component ${message.componentId} emitting '${message.event}' to room ${message.roomId}`)
+
+  try {
+    const count = liveRoomManager.emitToRoom(
+      message.roomId,
+      message.event!,
+      message.data,
+      message.componentId // Excluir quem enviou
+    )
+
+    console.log(`   → Notified ${count} components`)
+  } catch (error: any) {
+    ws.send(JSON.stringify({
+      type: 'ERROR',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      error: error.message,
+      timestamp: Date.now()
+    }))
+  }
+}
+
+async function handleRoomStateSet(ws: any, message: RoomMessage) {
+  console.log(`📝 Component ${message.componentId} updating state in room ${message.roomId}`)
+
+  try {
+    liveRoomManager.setRoomState(
+      message.roomId,
+      message.data,
+      message.componentId // Excluir quem enviou
+    )
+  } catch (error: any) {
+    ws.send(JSON.stringify({
+      type: 'ERROR',
+      componentId: message.componentId,
+      roomId: message.roomId,
+      error: error.message,
+      timestamp: Date.now()
+    }))
+  }
+}

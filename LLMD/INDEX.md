@@ -1,13 +1,14 @@
 # FluxStack LLM Documentation
 
-**Version:** 1.11.0 | **Framework:** Bun + Elysia + React + Eden Treaty
+**Version:** 1.12.0 | **Framework:** Bun + Elysia + React + Eden Treaty
 
 ## Quick Navigation
 
-**First Time?** → [core/framework-lifecycle.md](core/framework-lifecycle.md)  
-**Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)  
-**Config Issues?** → [config/declarative-system.md](config/declarative-system.md)  
-**Plugin Development?** → [resources/plugins-external.md](resources/plugins-external.md)  
+**First Time?** → [core/framework-lifecycle.md](core/framework-lifecycle.md)
+**Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
+**Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md)
+**Config Issues?** → [config/declarative-system.md](config/declarative-system.md)
+**Plugin Development?** → [resources/plugins-external.md](resources/plugins-external.md)
 **Errors?** → [reference/troubleshooting.md](reference/troubleshooting.md)
 
 ## Core Concepts
@@ -27,9 +28,10 @@
 - [Routes with Eden Treaty](resources/routes-eden.md) - Type-safe API routes
 - [Controllers & Services](resources/controllers.md) - Business logic patterns
 - [Live Components](resources/live-components.md) - WebSocket components
+- [Live Rooms](resources/live-rooms.md) - Multi-room real-time communication
 - [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
 - [External Plugins](resources/plugins-external.md) - Plugin development
- - [Routing (React Router v7)](reference/routing.md) - Frontend routing setup
+- [Routing (React Router v7)](reference/routing.md) - Frontend routing setup
 
 ## Patterns & Rules
 

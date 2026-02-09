@@ -23,6 +23,8 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { useLiveComponents } from '../LiveComponentsProvider'
 import { StateValidator } from './state-validator'
+import { RoomManager } from './useRoomProxy'
+import type { RoomProxy, RoomServerMessage } from './useRoomProxy'
 import type {
   HybridState,
   HybridComponentOptions,
@@ -50,7 +52,11 @@ export interface FieldBinding {
   name: string
 }
 
-export interface LiveComponentProxy<TState extends Record<string, any>> {
+export interface LiveComponentProxy<
+  TState extends Record<string, any>,
+  TRoomState = any,
+  TRoomEvents extends Record<string, any> = Record<string, any>
+> {
   // Propriedades de estado são acessadas diretamente: proxy.propertyName
 
   // Metadata ($ prefix)
@@ -81,6 +87,23 @@ export interface LiveComponentProxy<TState extends Record<string, any>> {
 
   /** Atualiza estado local diretamente (para processar broadcasts) */
   $updateLocal: (updates: Partial<TState>) => void
+
+  /**
+   * Sistema de salas - acessa sala padrão ou específica
+   * @example
+   * // Sala padrão (definida em options.room)
+   * component.$room.emit('typing', { user: 'João' })
+   * component.$room.on('message:new', handler)
+   *
+   * // Sala específica
+   * component.$room('sala-vip').join()
+   * component.$room('sala-vip').emit('typing', { user: 'João' })
+   * component.$room('sala-vip').leave()
+   */
+  readonly $room: RoomProxy<TRoomState, TRoomEvents>
+
+  /** Lista de IDs das salas que está participando */
+  readonly $rooms: string[]
 }
 
 // Helper type para criar union de broadcasts
@@ -91,8 +114,10 @@ type BroadcastEvent<T extends Record<string, any>> = {
 // Proxy com broadcasts tipados
 export interface LiveComponentProxyWithBroadcasts<
   TState extends Record<string, any>,
-  TBroadcasts extends Record<string, any> = Record<string, any>
-> extends Omit<LiveComponentProxy<TState>, '$onBroadcast'> {
+  TBroadcasts extends Record<string, any> = Record<string, any>,
+  TRoomState = any,
+  TRoomEvents extends Record<string, any> = Record<string, any>
+> extends Omit<LiveComponentProxy<TState, TRoomState, TRoomEvents>, '$onBroadcast'> {
   /**
    * Registra handler para broadcasts tipados
    * @example
@@ -111,15 +136,19 @@ export interface LiveComponentProxyWithBroadcasts<
 // Actions são qualquer método que não existe no state
 export type LiveProxy<
   TState extends Record<string, any>,
-  TActions = {}
-> = TState & LiveComponentProxy<TState> & TActions
+  TActions = {},
+  TRoomState = any,
+  TRoomEvents extends Record<string, any> = Record<string, any>
+> = TState & LiveComponentProxy<TState, TRoomState, TRoomEvents> & TActions
 
 // Proxy com broadcasts tipados
 export type LiveProxyWithBroadcasts<
   TState extends Record<string, any>,
   TActions = {},
-  TBroadcasts extends Record<string, any> = Record<string, any>
-> = TState & LiveComponentProxyWithBroadcasts<TState, TBroadcasts> & TActions
+  TBroadcasts extends Record<string, any> = Record<string, any>,
+  TRoomState = any,
+  TRoomEvents extends Record<string, any> = Record<string, any>
+> = TState & LiveComponentProxyWithBroadcasts<TState, TBroadcasts, TRoomState, TRoomEvents> & TActions
 
 export interface UseLiveComponentOptions extends HybridComponentOptions {
   /** Debounce para sets (ms). Default: 150 */
@@ -137,6 +166,7 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
 const RESERVED_PROPS = new Set([
   '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty',
   '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$onBroadcast', '$updateLocal',
+  '$room', '$rooms', '$field', '$sync',
   'then', 'toJSON', 'valueOf', 'toString',
   Symbol.toStringTag, Symbol.iterator,
 ])
@@ -254,6 +284,8 @@ export function useLiveComponent<
   const rehydratingRef = useRef(false) // Previne múltiplas tentativas de rehydrate
   const lastComponentIdRef = useRef<string | null>(null)
   const broadcastHandlerRef = useRef<((event: { type: string; data: any }) => void) | null>(null)
+  const roomMessageHandlers = useRef<Set<(msg: RoomServerMessage) => void>>(new Set())
+  const roomManagerRef = useRef<RoomManager | null>(null)
 
   // State
   const stateData = store((s) => s.state)
@@ -561,6 +593,18 @@ export function useLiveComponent<
           setError(message.payload?.error || 'Unknown error')
           onError?.(message.payload?.error)
           break
+
+        // Room system messages
+        case 'ROOM_EVENT':
+        case 'ROOM_STATE':
+        case 'ROOM_SYSTEM':
+        case 'ROOM_JOINED':
+        case 'ROOM_LEFT':
+          // Forward to room handlers
+          for (const handler of roomMessageHandlers.current) {
+            handler(message as unknown as RoomServerMessage)
+          }
+          break
       }
     })
 
@@ -597,10 +641,40 @@ export function useLiveComponent<
     prevConnected.current = connected
   }, [connected, mount, rehydrate, componentName, onConnect, onDisconnect])
 
+  // ===== Room Manager =====
+  const roomManager = useMemo(() => {
+    if (roomManagerRef.current) {
+      roomManagerRef.current.setComponentId(componentId)
+      return roomManagerRef.current
+    }
+
+    const manager = new RoomManager({
+      componentId,
+      defaultRoom: room,
+      sendMessage,
+      sendMessageAndWait,
+      onMessage: (handler) => {
+        roomMessageHandlers.current.add(handler)
+        return () => {
+          roomMessageHandlers.current.delete(handler)
+        }
+      }
+    })
+
+    roomManagerRef.current = manager
+    return manager
+  }, [componentId, room, sendMessage, sendMessageAndWait])
+
+  // Atualizar componentId no RoomManager quando mudar
+  useEffect(() => {
+    roomManagerRef.current?.setComponentId(componentId)
+  }, [componentId])
+
   // ===== Cleanup =====
   useEffect(() => {
     return () => {
       debounceTimers.current.forEach(t => clearTimeout(t))
+      roomManagerRef.current?.destroy()
       if (mountedRef.current) unmount()
     }
   }, [unmount])
@@ -651,6 +725,8 @@ export function useLiveComponent<
               updateState({ ...currentState, ...updates } as TState)
             }
           }
+          case '$room': return roomManager.createProxy()
+          case '$rooms': return roomManager.getJoinedRooms()
         }
 
         // Se é propriedade do state → retorna valor
@@ -697,10 +773,10 @@ export function useLiveComponent<
       },
 
       ownKeys() {
-        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal']
+        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal', '$room', '$rooms']
       }
     })
-  }, [stateData, connected, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion])
+  }, [stateData, connected, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion, roomManager])
 
   return proxy
 }

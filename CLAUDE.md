@@ -13,6 +13,8 @@
 ### 🎯 **Documentos Principais**
 - **[Project Structure](./LLMD/patterns/project-structure.md)** - Organização de pastas
 - **[Routes & Eden Treaty](./LLMD/resources/routes-eden.md)** - APIs type-safe
+- **[Live Components](./LLMD/resources/live-components.md)** - Componentes WebSocket
+- **[Live Rooms](./LLMD/resources/live-rooms.md)** - Sistema de salas real-time
 - **[Type Safety](./LLMD/patterns/type-safety.md)** - Fluxo de tipos
 - **[Troubleshooting](./LLMD/reference/troubleshooting.md)** - Solução de problemas
 
@@ -45,6 +47,8 @@
 - **✅ APIs Funcionando**: Health check e CRUD operacionais
 - **✅ Frontend Ativo**: React 19 + Vite rodando na porta 5173
 - **✅ Backend Ativo**: Elysia + Bun rodando na porta 3000
+- **✅ Live Components**: WebSocket sync com re-hydration automático
+- **✅ Room System**: Comunicação multi-sala server-side com API HTTP
 
 ## 📁 **Arquitetura Atual Validada**
 
@@ -129,9 +133,63 @@ bun run dev          # ✅ Output automaticamente limpo em desenvolvimento
 ### ✅ **3. APIs Funcionais**
 - **Health Check**: `GET /api/health` ✅
 - **Users CRUD**: `GET|POST|PUT|DELETE /api/users` ✅
+- **Room Messages**: `POST /api/rooms/{roomId}/messages` ✅
+- **Room Events**: `POST /api/rooms/{roomId}/emit` ✅
 - **Swagger Docs**: `GET /swagger` ✅
 
-### ✅ **4. Sistema de Configuração Declarativa (Laravel-inspired)**
+### ✅ **4. Sistema de Salas Real-Time (Room System)**
+
+Sistema de comunicação multi-sala server-side para Live Components.
+
+#### 🎯 **API do Servidor ($room)**
+```typescript
+// app/server/live/MyComponent.ts
+export class MyComponent extends LiveComponent<State> {
+
+  async joinRoom(payload: { roomId: string }) {
+    // Entrar na sala
+    this.$room(payload.roomId).join()
+
+    // Escutar eventos de OUTROS usuários
+    this.$room(payload.roomId).on('message:new', (msg) => {
+      // Atualizar MEU estado (sincroniza com MEU frontend)
+      this.setState({ messages: [...this.state.messages, msg] })
+    })
+
+    return { success: true }
+  }
+
+  async sendMessage(payload: { text: string }) {
+    const message = { id: Date.now(), text: payload.text }
+
+    // 1. Atualizar MEU estado
+    this.setState({ messages: [...this.state.messages, message] })
+
+    // 2. Notificar OUTROS na sala
+    this.$room('sala').emit('message:new', message)
+
+    return { success: true }
+  }
+}
+```
+
+#### 🌐 **API HTTP para Integrações Externas**
+```bash
+# Enviar mensagem via webhook/bot
+curl -X POST http://localhost:3000/api/rooms/geral/messages \
+  -H "Content-Type: application/json" \
+  -d '{"user": "Bot", "text": "Hello from API!"}'
+
+# Emitir evento customizado
+curl -X POST http://localhost:3000/api/rooms/tech/emit \
+  -H "Content-Type: application/json" \
+  -d '{"event": "notification", "data": {"type": "alert"}}'
+```
+
+#### 📚 **Documentação Completa**
+- **[LLMD/resources/live-rooms.md](./LLMD/resources/live-rooms.md)** - Guia completo do sistema de salas
+
+### ✅ **5. Sistema de Configuração Declarativa (Laravel-inspired)**
 
 FluxStack usa um sistema de configuração declarativa com validação automática e inferência de tipos completa.
 
@@ -232,7 +290,7 @@ config.enum(envVar, values, defaultValue, required)
 - ✅ Usar helpers `config.*` para type safety
 - ✅ Adicionar `as const` nos schemas para preservar tipos literais
 
-### ✅ **5. Sistema de Segurança de Plugins (v1.9)**
+### ✅ **6. Sistema de Segurança de Plugins (v1.9)**
 
 FluxStack implementa **segurança em camadas** com **whitelist + opt-in** para proteger contra supply chain attacks.
 
