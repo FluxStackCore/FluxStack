@@ -28,7 +28,7 @@ export function CounterDemo() {
     initialState: LiveLocalCounter.defaultState,
     persistState: false
   })
-
+  
   const renderCounter = (
     title: string,
     description: string,

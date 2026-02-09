@@ -16,8 +16,8 @@ export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
     error: null as string | null
   }
 
-  constructor(initialState: Partial<typeof LiveUpload.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...LiveUpload.defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveUpload.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
   }
 
   async startUpload(payload: { fileName: string; fileSize: number; fileType: string }) {

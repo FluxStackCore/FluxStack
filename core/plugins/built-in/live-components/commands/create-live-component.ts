@@ -20,8 +20,8 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     step: 1
   }
 
-  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)${roomInit}
     console.log(\`🔢 ${name} created: \${this.id}\`)
   }
 
@@ -65,8 +65,8 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     submittedAt: null as string | null
   }
 
-  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)${roomInit}
     console.log(\`📝 ${name} created: \${this.id}\`)
   }
 
@@ -98,8 +98,8 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     currentMessage: ''
   }
 
-  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)${roomInit}
     console.log(\`💬 ${name} created: \${this.id}\`)
   }
 
@@ -137,8 +137,8 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     count: 0
   }
 
-  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)${roomInit}
     console.log(\`🔥 ${name} created: \${this.id}\`)
   }
 

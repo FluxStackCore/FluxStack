@@ -34,11 +34,11 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
   private typingTimers = new Map<string, NodeJS.Timeout>()
 
   constructor(
-    initialState: Partial<typeof LiveRoomChat.defaultState>,
+    initialState: Partial<typeof LiveRoomChat.defaultState> = {},
     ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ) {
-    super({ ...LiveRoomChat.defaultState, ...initialState }, ws, options)
+    super(initialState, ws, options)
   }
 
   // ===== Gerenciamento de Salas =====

@@ -8,8 +8,8 @@ export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defa
     count: 0
   }
 
-  constructor(initialState: Partial<typeof LiveLocalCounter.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...LiveLocalCounter.defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveLocalCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
   }
 
   async increment() {

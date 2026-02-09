@@ -11,8 +11,8 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
   }
   protected roomType = 'counter'
 
-  constructor(initialState: Partial<typeof LiveCounter.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...LiveCounter.defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
 
     this.onRoomEvent<{ count: number; userId: string }>('COUNT_CHANGED', (data) => {
       this.setState({ count: data.count, lastUpdatedBy: data.userId })

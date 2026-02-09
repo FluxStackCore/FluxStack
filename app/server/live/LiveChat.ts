@@ -18,8 +18,8 @@ export class LiveChat extends LiveComponent<typeof LiveChat.defaultState> {
   private maxMessages = 50
   private static roomHistory = new Map<string, ChatMessage[]>()
 
-  constructor(initialState: Partial<typeof LiveChat.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...LiveChat.defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveChat.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
 
     this.onRoomEvent<ChatMessage>('NEW_MESSAGE', (message) => {
       this.addMessage(message)

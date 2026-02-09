@@ -211,6 +211,8 @@ export interface ServerRoomProxy<TState = any, TEvents extends Record<string, an
 export abstract class LiveComponent<TState = ComponentState> {
   /** Component name for registry lookup - must be defined in subclasses */
   static componentName: string
+  /** Default state - must be defined in subclasses */
+  static defaultState: any
 
   public readonly id: string
   public state: TState
@@ -229,9 +231,11 @@ export abstract class LiveComponent<TState = ComponentState> {
   // Cached room handles
   private roomHandles: Map<string, ServerRoomHandle> = new Map()
 
-  constructor(initialState: TState, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+  constructor(initialState: Partial<TState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
-    this.state = initialState
+    // Merge defaultState with initialState - subclass defaultState takes precedence for missing fields
+    const ctor = this.constructor as typeof LiveComponent
+    this.state = { ...ctor.defaultState, ...initialState } as TState
     this.ws = ws
     this.room = options?.room
     this.userId = options?.userId

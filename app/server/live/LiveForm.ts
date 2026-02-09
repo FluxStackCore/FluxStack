@@ -12,8 +12,8 @@ export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
     submittedAt: null as string | null
   }
 
-  constructor(initialState: Partial<typeof LiveForm.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super({ ...LiveForm.defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveForm.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
     console.log(`📝 LiveForm created: ${this.id}`)
   }
 
