@@ -14,6 +14,7 @@ export const defaultState = {
 }
 
 export class LiveChat extends LiveComponent<typeof defaultState> {
+  static componentName = 'LiveChat'
   static defaultState = defaultState
   protected roomType = 'chat'
   private maxMessages = 50

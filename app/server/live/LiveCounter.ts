@@ -9,6 +9,7 @@ export const defaultState = {
 }
 
 export class LiveCounter extends LiveComponent<typeof defaultState> {
+  static componentName = 'LiveCounter'
   static defaultState = defaultState
   protected roomType = 'counter'
 

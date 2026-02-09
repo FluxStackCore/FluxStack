@@ -74,13 +74,14 @@ interface LiveUseOptions<TState> extends UseLiveComponentOptions {
 // ===== Hook Principal =====
 
 function useLive<
-  T extends { new(...args: any[]): any; defaultState?: Record<string, any> },
+  T extends { new(...args: any[]): any; defaultState?: Record<string, any>; componentName: string },
   TBroadcasts extends Record<string, any> = Record<string, any>
 >(
   ComponentClass: T,
   options?: LiveUseOptions<ExtractState<T>>
 ): LiveProxyWithBroadcasts<ExtractState<T>, ExtractActions<T>, TBroadcasts> {
-  const componentName = ComponentClass.name.replace(/Component$/, '')
+  // Use static componentName (required for production builds with minification)
+  const componentName = ComponentClass.componentName
 
   // Usa defaultState da classe se não passar initialState
   const defaultState = (ComponentClass as any).defaultState || {}

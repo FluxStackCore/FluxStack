@@ -32,6 +32,7 @@ export const defaultState = {
 }
 
 export class LiveRoomChat extends LiveComponent<typeof defaultState> {
+  static componentName = 'LiveRoomChat'
   static defaultState = defaultState
   protected roomType = 'room-chat'
 

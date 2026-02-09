@@ -48,15 +48,10 @@ export default defineConfig({
     target: clientConfig.build.target,               // ✅ From config
     outDir: resolve(rootDir, clientConfig.build.outDir ?? 'dist/client'), // ✅ From config
     sourcemap: clientConfig.build.sourceMaps,        // ✅ From config
-    minify: 'esbuild',                               // ✅ Use esbuild for minification
+    minify: clientConfig.build.minify,               // ✅ From config
     assetsDir: clientConfig.build.assetsDir,         // ✅ From config
     cssCodeSplit: clientConfig.build.cssCodeSplit,   // ✅ From config
     chunkSizeWarningLimit: clientConfig.build.chunkSizeWarningLimit, // ✅ From config
     emptyOutDir: clientConfig.build.emptyOutDir      // ✅ From config
-  },
-
-  // Preserve class/function names for Live Components during minification
-  esbuild: {
-    keepNames: true
   }
 })

@@ -12,6 +12,7 @@ export const defaultState = {
 }
 
 export class LiveForm extends LiveComponent<typeof defaultState> {
+  static componentName = 'LiveForm'
   static defaultState = defaultState
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
     super({ ...defaultState, ...initialState }, ws, options)

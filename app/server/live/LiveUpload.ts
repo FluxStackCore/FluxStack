@@ -27,6 +27,7 @@ export const defaultState: LiveUploadState = {
 }
 
 export class LiveUpload extends LiveComponent<LiveUploadState> {
+  static componentName = 'LiveUpload'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {

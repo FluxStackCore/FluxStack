@@ -19,6 +19,7 @@ export const defaultState = {
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static componentName = '${name}'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
@@ -65,6 +66,7 @@ export const defaultState = {
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static componentName = '${name}'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
@@ -99,6 +101,7 @@ export const defaultState = {
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static componentName = '${name}'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
@@ -139,6 +142,7 @@ export const defaultState = {
 }
 
 export class ${name} extends LiveComponent<typeof defaultState> {
+  static componentName = '${name}'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {

@@ -166,6 +166,9 @@ export interface ServerRoomProxy<TState = any, TEvents extends Record<string, an
 }
 
 export abstract class LiveComponent<TState = ComponentState> {
+  /** Component name for registry lookup - must be defined in subclasses */
+  static componentName: string
+
   public readonly id: string
   public state: TState
   protected ws: any

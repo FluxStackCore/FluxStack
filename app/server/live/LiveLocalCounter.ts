@@ -7,6 +7,7 @@ export const defaultState = {
 }
 
 export class LiveLocalCounter extends LiveComponent<typeof defaultState> {
+  static componentName = 'LiveLocalCounter'
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
