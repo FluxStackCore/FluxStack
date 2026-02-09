@@ -14,12 +14,14 @@ import { FluxStackFramework } from "@core/server"
 import { vitePlugin } from "@core/plugins/built-in/vite"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
 import { liveComponentsPlugin } from "@core/server/live/websocket-plugin"
+import fluxstackDesktopPlugin from "@plugins/Fluxstack-Desktop"
 import { appInstance } from "@server/app"
 import { appConfig } from "@config"
 
 const framework = new FluxStackFramework()
   .use(swaggerPlugin)
   .use(liveComponentsPlugin)
+  .use(fluxstackDesktopPlugin)
 
 // Vite apenas em full-stack
 if (appConfig.mode !== 'backend-only') {

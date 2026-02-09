@@ -27,7 +27,8 @@
       "@config": ["./config/index.ts"],
       "@config/*": ["./config/*"],
       "@app/*": ["./app/*"],
-      "@shared/*": ["./app/shared/*"]
+      "@shared/*": ["./app/shared/*"],
+      "@plugins/*": ["./plugins/*"]
     },
 
     // Best practices
