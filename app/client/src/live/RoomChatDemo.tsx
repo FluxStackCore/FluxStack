@@ -8,7 +8,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Live } from '@/core/client'
-import { LiveRoomChat, defaultState } from '@server/live/LiveRoomChat'
+import { LiveRoomChat } from '@server/live/LiveRoomChat'
 
 // Salas disponíveis
 const AVAILABLE_ROOMS = [
@@ -34,7 +34,7 @@ export function RoomChatDemo() {
 
   // Live component - estado sincronizado automaticamente
   const chat = Live.use(LiveRoomChat, {
-    initialState: { ...defaultState, username: defaultUsername }
+    initialState: { ...LiveRoomChat.defaultState, username: defaultUsername }
   })
 
   // Mensagens e typing vêm diretamente do estado sincronizado

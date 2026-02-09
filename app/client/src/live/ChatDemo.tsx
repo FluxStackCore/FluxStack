@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Live } from '@/core/client'
-import { LiveChat, defaultState } from '@server/live/LiveChat'
+import { LiveChat } from '@server/live/LiveChat'
 
 export function ChatDemo() {
   const [text, setText] = useState('')
@@ -16,7 +16,7 @@ export function ChatDemo() {
 
   const chat = Live.use(LiveChat, {
     room: 'global-chat',
-    initialState: defaultState,
+    initialState: LiveChat.defaultState,
     persistState: false
   })
 

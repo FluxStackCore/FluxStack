@@ -3,7 +3,7 @@ import { Live } from '../components/Live'
 import { useLiveChunkedUpload } from './useLiveChunkedUpload'
 import type { LiveChunkedUploadOptions } from './useLiveChunkedUpload'
 import type { FileUploadCompleteResponse } from '@core/types/types'
-import { LiveUpload, defaultState } from '@server/live/LiveUpload'
+import { LiveUpload } from '@server/live/LiveUpload'
 
 export interface UseLiveUploadOptions {
   live?: {
@@ -22,7 +22,7 @@ export function useLiveUpload(options: UseLiveUploadOptions = {}) {
   const { live: liveOptions, upload: uploadOptions, onProgress, onComplete, onError } = options
 
   const live = Live.use(LiveUpload, {
-    initialState: defaultState,
+    initialState: LiveUpload.defaultState,
     ...liveOptions
   })
 

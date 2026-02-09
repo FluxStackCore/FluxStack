@@ -1,37 +1,23 @@
 // LiveUpload - Chunked upload state + UI sync
 
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-type LiveUploadState = {
-  status: 'idle' | 'uploading' | 'complete' | 'error'
-  progress: number
-  fileName: string
-  fileSize: number
-  fileType: string
-  fileUrl: string
-  bytesUploaded: number
-  totalBytes: number
-  error: string | null
-}
-
-export const defaultState: LiveUploadState = {
-  status: 'idle',
-  progress: 0,
-  fileName: '',
-  fileSize: 0,
-  fileType: '',
-  fileUrl: '',
-  bytesUploaded: 0,
-  totalBytes: 0,
-  error: null
-}
-
-export class LiveUpload extends LiveComponent<LiveUploadState> {
+export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   static componentName = 'LiveUpload'
-  static defaultState = defaultState
+  static defaultState = {
+    status: 'idle' as 'idle' | 'uploading' | 'complete' | 'error',
+    progress: 0,
+    fileName: '',
+    fileSize: 0,
+    fileType: '',
+    fileUrl: '',
+    bytesUploaded: 0,
+    totalBytes: 0,
+    error: null as string | null
+  }
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveUpload.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...LiveUpload.defaultState, ...initialState }, ws, options)
   }
 
   async startUpload(payload: { fileName: string; fileSize: number; fileType: string }) {
@@ -90,7 +76,7 @@ export class LiveUpload extends LiveComponent<LiveUploadState> {
   }
 
   async reset() {
-    this.setState({ ...defaultState })
+    this.setState({ ...LiveUpload.defaultState })
     return { success: true }
   }
 }

@@ -99,7 +99,8 @@
       "Bash(LOG_LEVEL=debug timeout 8 bun run dev)",
       "Bash(git rm:*)",
       "Bash(git mv:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(NODE_ENV=production timeout:*)"
     ],
     "deny": []
   }

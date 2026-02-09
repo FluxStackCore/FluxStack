@@ -2,8 +2,8 @@
 
 import { useMemo } from 'react'
 import { Live } from '@/core/client'
-import { LiveCounter, defaultState as sharedDefaultState } from '@server/live/LiveCounter'
-import { LiveLocalCounter, defaultState as localDefaultState } from '@server/live/LiveLocalCounter'
+import { LiveCounter } from '@server/live/LiveCounter'
+import { LiveLocalCounter } from '@server/live/LiveLocalCounter'
 
 export function CounterDemo() {
   const isolatedRoom = useMemo(() => {
@@ -15,17 +15,17 @@ export function CounterDemo() {
 
   const sharedCounter = Live.use(LiveCounter, {
     room: 'global-counter',
-    initialState: sharedDefaultState
+    initialState: LiveCounter.defaultState
   })
 
   const isolatedCounter = Live.use(LiveCounter, {
     room: isolatedRoom,
-    initialState: sharedDefaultState,
+    initialState: LiveCounter.defaultState,
     persistState: false
   })
 
   const localCounter = Live.use(LiveLocalCounter, {
-    initialState: localDefaultState,
+    initialState: LiveLocalCounter.defaultState,
     persistState: false
   })
 

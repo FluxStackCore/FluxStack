@@ -10,20 +10,18 @@ const getServerTemplate = (name: string, type: string, room?: string) => {
   switch (type) {
     case 'counter':
       return `// 🔥 ${name} - Counter
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-export const defaultState = {
-  count: 0,
-  title: '${name}',
-  step: 1
-}
-
-export class ${name} extends LiveComponent<typeof defaultState> {
+export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
-  static defaultState = defaultState
+  static defaultState = {
+    count: 0,
+    title: '${name}',
+    step: 1
+  }
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`🔢 ${name} created: \${this.id}\`)
   }
 
@@ -55,22 +53,20 @@ export class ${name} extends LiveComponent<typeof defaultState> {
 
     case 'form':
       return `// 🔥 ${name} - Form
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-export const defaultState = {
-  name: '',
-  email: '',
-  message: '',
-  submitted: false,
-  submittedAt: null as string | null
-}
-
-export class ${name} extends LiveComponent<typeof defaultState> {
+export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
-  static defaultState = defaultState
+  static defaultState = {
+    name: '',
+    email: '',
+    message: '',
+    submitted: false,
+    submittedAt: null as string | null
+  }
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`📝 ${name} created: \${this.id}\`)
   }
 
@@ -84,7 +80,7 @@ export class ${name} extends LiveComponent<typeof defaultState> {
   }
 
   async reset() {
-    this.setState({ name: '', email: '', message: '', submitted: false, submittedAt: null })
+    this.setState({ ...${name}.defaultState })
     return { success: true }
   }
 }
@@ -92,20 +88,18 @@ export class ${name} extends LiveComponent<typeof defaultState> {
 
     case 'chat':
       return `// 🔥 ${name} - Chat
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-export const defaultState = {
-  messages: [] as Array<{ id: string; text: string; username: string; timestamp: string }>,
-  username: '',
-  currentMessage: ''
-}
-
-export class ${name} extends LiveComponent<typeof defaultState> {
+export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
-  static defaultState = defaultState
+  static defaultState = {
+    messages: [] as Array<{ id: string; text: string; username: string; timestamp: string }>,
+    username: '',
+    currentMessage: ''
+  }
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`💬 ${name} created: \${this.id}\`)
   }
 
@@ -134,19 +128,17 @@ export class ${name} extends LiveComponent<typeof defaultState> {
 
     default: // basic
       return `// 🔥 ${name} - Live Component
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-export const defaultState = {
-  message: 'Hello from ${name}!',
-  count: 0
-}
-
-export class ${name} extends LiveComponent<typeof defaultState> {
+export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
-  static defaultState = defaultState
+  static defaultState = {
+    message: 'Hello from ${name}!',
+    count: 0
+  }
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)${roomInit}
+  constructor(initialState: Partial<typeof ${name}.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...${name}.defaultState, ...initialState }, ws, options)${roomInit}
     console.log(\`🔥 ${name} created: \${this.id}\`)
   }
 
@@ -163,7 +155,7 @@ export class ${name} extends LiveComponent<typeof defaultState> {
   }
 
   async reset() {
-    this.setState({ message: 'Hello from ${name}!', count: 0 })
+    this.setState({ ...${name}.defaultState })
     return { success: true }
   }
 }
@@ -181,8 +173,9 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  // ✨ Usa defaultState do backend automaticamente
-  const counter = Live.use(${name})
+  const counter = Live.use(${name}, {
+    initialState: ${name}.defaultState
+  })
 
   if (!counter.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
@@ -206,8 +199,9 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  // ✨ Usa defaultState do backend automaticamente
-  const form = Live.use(${name})
+  const form = Live.use(${name}, {
+    initialState: ${name}.defaultState
+  })
 
   if (!form.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 
@@ -245,8 +239,9 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  // ✨ Usa defaultState do backend automaticamente
-  const chat = Live.use(${name})
+  const chat = Live.use(${name}, {
+    initialState: ${name}.defaultState
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chat.messages])
@@ -292,8 +287,9 @@ import { Live } from '@/core/client'
 import { ${name} } from '@server/live/${name}'
 
 export function ${name}Demo() {
-  // ✨ Usa defaultState do backend automaticamente
-  const component = Live.use(${name})
+  const component = Live.use(${name}, {
+    initialState: ${name}.defaultState
+  })
 
   if (!component.$connected) return <div className="p-8 text-center text-gray-500">Conectando...</div>
 

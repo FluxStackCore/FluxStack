@@ -1,20 +1,18 @@
 // 🔥 LiveCounter - Shared counter using Room Events
 
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
-export const defaultState = {
-  count: 0,
-  lastUpdatedBy: null as string | null,
-  connectedUsers: 0
-}
-
-export class LiveCounter extends LiveComponent<typeof defaultState> {
+export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
-  static defaultState = defaultState
+  static defaultState = {
+    count: 0,
+    lastUpdatedBy: null as string | null,
+    connectedUsers: 0
+  }
   protected roomType = 'counter'
 
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)
+  constructor(initialState: Partial<typeof LiveCounter.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super({ ...LiveCounter.defaultState, ...initialState }, ws, options)
 
     this.onRoomEvent<{ count: number; userId: string }>('COUNT_CHANGED', (data) => {
       this.setState({ count: data.count, lastUpdatedBy: data.userId })

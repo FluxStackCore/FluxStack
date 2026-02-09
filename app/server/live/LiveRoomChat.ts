@@ -5,7 +5,7 @@
 // - Estado compartilhado por sala
 // - Eventos tipados entre componentes
 
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
 // Tipos
 export interface ChatMessage {
@@ -20,30 +20,25 @@ export interface RoomInfo {
   name: string
 }
 
-// Estado do componente (local ao usuário)
-export const defaultState = {
-  username: '',
-  activeRoom: null as string | null,
-  rooms: [] as RoomInfo[],
-  // Mensagens por sala
-  messages: {} as Record<string, ChatMessage[]>,
-  // Usuários digitando por sala
-  typingUsers: {} as Record<string, string[]>
-}
-
-export class LiveRoomChat extends LiveComponent<typeof defaultState> {
+export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState> {
   static componentName = 'LiveRoomChat'
-  static defaultState = defaultState
+  static defaultState = {
+    username: '',
+    activeRoom: null as string | null,
+    rooms: [] as RoomInfo[],
+    messages: {} as Record<string, ChatMessage[]>,
+    typingUsers: {} as Record<string, string[]>
+  }
   protected roomType = 'room-chat'
 
   private typingTimers = new Map<string, NodeJS.Timeout>()
 
   constructor(
-    initialState: Partial<typeof defaultState>,
-    ws: any,
+    initialState: Partial<typeof LiveRoomChat.defaultState>,
+    ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ) {
-    super({ ...defaultState, ...initialState }, ws, options)
+    super({ ...LiveRoomChat.defaultState, ...initialState }, ws, options)
   }
 
   // ===== Gerenciamento de Salas =====
