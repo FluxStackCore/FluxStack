@@ -1,6 +1,6 @@
 // LiveUpload - Chunked upload state + UI sync
 
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent } from '@core/types/types'
 
 export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   static componentName = 'LiveUpload'
@@ -14,10 +14,6 @@ export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
     bytesUploaded: 0,
     totalBytes: 0,
     error: null as string | null
-  }
-
-  constructor(initialState: Partial<typeof LiveUpload.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)
   }
 
   async startUpload(payload: { fileName: string; fileSize: number; fileType: string }) {

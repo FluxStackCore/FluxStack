@@ -5,12 +5,19 @@ import path from "path";
 // ===== SERVER TEMPLATES =====
 
 const getServerTemplate = (name: string, type: string, room?: string) => {
-  const roomInit = room ? `\n    this.room = '${room}'` : '';
+  // Se room for especificado, precisa de constructor para definir this.room
+  const needsConstructor = !!room;
+  const constructorBlock = needsConstructor ? `
+  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
+    this.room = '${room}'
+  }
+` : '';
 
   switch (type) {
     case 'counter':
       return `// 🔥 ${name} - Counter
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -19,12 +26,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     title: '${name}',
     step: 1
   }
-
-  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)${roomInit}
-    console.log(\`🔢 ${name} created: \${this.id}\`)
-  }
-
+${constructorBlock}
   async increment(payload?: { amount?: number }) {
     const amount = payload?.amount ?? this.state.step
     this.setState({ count: this.state.count + amount })
@@ -53,7 +55,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
 
     case 'form':
       return `// 🔥 ${name} - Form
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -64,12 +66,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     submitted: false,
     submittedAt: null as string | null
   }
-
-  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)${roomInit}
-    console.log(\`📝 ${name} created: \${this.id}\`)
-  }
-
+${constructorBlock}
   async submit() {
     if (!this.state.name?.trim() || !this.state.email?.trim()) {
       throw new Error('Nome e email são obrigatórios')
@@ -88,7 +85,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
 
     case 'chat':
       return `// 🔥 ${name} - Chat
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -97,12 +94,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     username: '',
     currentMessage: ''
   }
-
-  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)${roomInit}
-    console.log(\`💬 ${name} created: \${this.id}\`)
-  }
-
+${constructorBlock}
   async sendMessage(payload: { text: string }) {
     if (!payload.text?.trim()) throw new Error('Message cannot be empty')
     const message = {
@@ -128,7 +120,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
 
     default: // basic
       return `// 🔥 ${name} - Live Component
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -136,12 +128,7 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     message: 'Hello from ${name}!',
     count: 0
   }
-
-  constructor(initialState: Partial<typeof ${name}.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)${roomInit}
-    console.log(\`🔥 ${name} created: \${this.id}\`)
-  }
-
+${constructorBlock}
   async updateMessage(payload: { message: string }) {
     if (!payload.message?.trim()) throw new Error('Message cannot be empty')
     this.setState({ message: payload.message.trim() })

@@ -1,6 +1,6 @@
 // 🔥 LiveForm - Formulário reativo com estado no servidor
 // ZERO interfaces! TypeScript infere tudo automaticamente.
-import { LiveComponent, type FluxStackWebSocket } from "@core/types/types"
+import { LiveComponent } from "@core/types/types"
 
 export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
   static componentName = 'LiveForm'
@@ -12,12 +12,6 @@ export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
     submittedAt: null as string | null
   }
 
-  constructor(initialState: Partial<typeof LiveForm.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)
-    console.log(`📝 LiveForm created: ${this.id}`)
-  }
-
-  // Actions - tipos de retorno inferidos automaticamente
   async submit() {
     const { name, email, message } = this.state
 

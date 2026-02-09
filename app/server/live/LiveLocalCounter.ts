@@ -1,15 +1,11 @@
 // LiveLocalCounter - Counter without room events
 
-import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { LiveComponent } from '@core/types/types'
 
 export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defaultState> {
   static componentName = 'LiveLocalCounter'
   static defaultState = {
     count: 0
-  }
-
-  constructor(initialState: Partial<typeof LiveLocalCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
-    super(initialState, ws, options)
   }
 
   async increment() {
