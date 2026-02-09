@@ -20,7 +20,9 @@ const viteSchema = {
 
   enableLogging: config.boolean('ENABLE_VITE_PROXY_LOGS', false),
 
-  logLevel: config.enum('VITE_LOG_LEVEL', ['error' , 'warn' , 'info', 'silent'], undefined)
+  logLevel: config.enum('VITE_LOG_LEVEL', ['error' , 'warn' , 'info', 'silent'], undefined),
+
+  allowedHosts: config.array('VITE_ALLOWED_HOSTS', ['localhost'])
 } as const
 
 /**

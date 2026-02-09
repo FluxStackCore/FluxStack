@@ -34,7 +34,7 @@ export default defineConfig({
     host: clientConfig.vite.host,                    // ✅ From config
     strictPort: clientConfig.vite.strictPort,        // ✅ From config
     open: clientConfig.vite.open,                    // ✅ From config
-    // allowedHosts: Configure in .env if needed (e.g., VITE_ALLOWED_HOSTS=localhost,yourdomain.com)
+    allowedHosts: clientConfig.vite.allowedHosts,    // ✅ From config (VITE_ALLOWED_HOSTS)
 
     hmr: {
       protocol: 'ws',
