@@ -1,6 +1,7 @@
 // 🔥 FluxStack Live Room Manager - Gerencia salas para LiveComponents
 
 import { roomEvents } from './RoomEventBus'
+import type { FluxStackWebSocket } from '@core/types/types'
 
 export interface RoomMessage {
   type: 'ROOM_JOIN' | 'ROOM_LEAVE' | 'ROOM_EMIT' | 'ROOM_STATE_SET' | 'ROOM_STATE_GET'
@@ -14,13 +15,13 @@ export interface RoomMessage {
 
 interface RoomMember {
   componentId: string
-  ws: any
+  ws: FluxStackWebSocket
   joinedAt: number
 }
 
-interface Room {
+interface Room<TState = any> {
   id: string
-  state: any
+  state: TState
   members: Map<string, RoomMember>
   createdAt: number
   lastActivity: number
@@ -33,7 +34,7 @@ class LiveRoomManager {
   /**
    * Componente entra em uma sala
    */
-  joinRoom(componentId: string, roomId: string, ws: any, initialState?: any): { state: any } {
+  joinRoom<TState = any>(componentId: string, roomId: string, ws: FluxStackWebSocket, initialState?: TState): { state: TState } {
     // Criar sala se não existir
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, {
@@ -187,8 +188,8 @@ class LiveRoomManager {
   /**
    * Obter estado da sala
    */
-  getRoomState(roomId: string): any {
-    return this.rooms.get(roomId)?.state || {}
+  getRoomState<TState = any>(roomId: string): TState {
+    return (this.rooms.get(roomId)?.state || {}) as TState
   }
 
   /**

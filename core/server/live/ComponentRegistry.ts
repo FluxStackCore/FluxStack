@@ -1,11 +1,12 @@
 // 🔥 FluxStack Live Components - Enhanced Component Registry
 
-import type { 
-  LiveComponent, 
-  LiveMessage, 
-  BroadcastMessage, 
+import type {
+  LiveComponent,
+  LiveMessage,
+  BroadcastMessage,
   ComponentDefinition,
-  WebSocketData 
+  FluxStackWebSocket,
+  FluxStackWSData
 } from '@core/plugins/types'
 import { stateSignature, type SignedState } from './StateSignature'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
@@ -65,11 +66,11 @@ export interface ServiceContainer {
 
 export class ComponentRegistry {
   private components = new Map<string, LiveComponent>()
-  private definitions = new Map<string, ComponentDefinition>()
+  private definitions = new Map<string, ComponentDefinition<any>>()
   private metadata = new Map<string, ComponentMetadata>()
   private rooms = new Map<string, Set<string>>() // roomId -> componentIds
-  private wsConnections = new Map<string, any>() // componentId -> websocket
-  private autoDiscoveredComponents = new Map<string, any>() // Auto-discovered component classes
+  private wsConnections = new Map<string, FluxStackWebSocket>() // componentId -> websocket
+  private autoDiscoveredComponents = new Map<string, new (initialState: any, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) => LiveComponent<any>>() // Auto-discovered component classes
   private dependencies = new Map<string, ComponentDependency[]>()
   private services: ServiceContainer
   private healthCheckInterval!: NodeJS.Timeout
@@ -141,7 +142,7 @@ export class ComponentRegistry {
   }
 
   // Register component class dynamically
-  registerComponentClass(name: string, componentClass: any) {
+  registerComponentClass(name: string, componentClass: new (initialState: any, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) => LiveComponent<any>) {
     this.autoDiscoveredComponents.set(name, componentClass)
     // Logging is handled by autoDiscoverComponents
   }
@@ -215,11 +216,11 @@ export class ComponentRegistry {
 
   // Enhanced component mounting with lifecycle management
   async mountComponent(
-    ws: any, 
-    componentName: string, 
-    props: any = {},
+    ws: FluxStackWebSocket,
+    componentName: string,
+    props: Record<string, unknown> = {},
     options?: { room?: string; userId?: string; version?: string }
-  ): Promise<{ componentId: string; initialState: any; signedState: any }> {
+  ): Promise<{ componentId: string; initialState: unknown; signedState: unknown }> {
     const startTime = Date.now()
     
     try {
@@ -227,38 +228,38 @@ export class ComponentRegistry {
       await this.validateDependencies(componentName)
       
       // Try to find component definition first
-      let definition = this.definitions.get(componentName)
-      let ComponentClass: any = null
-      let initialState: any = {}
+      const definition = this.definitions.get(componentName)
+      let ComponentClass: (new (initialState: any, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) => LiveComponent<any>) | null = null
+      let initialState: Record<string, unknown> = {}
 
       if (definition) {
         // Use registered definition
-      ComponentClass = definition.component
-      initialState = definition.initialState
-    } else {
-      // Try auto-discovered components
-      ComponentClass = this.autoDiscoveredComponents.get(componentName)
-      if (!ComponentClass) {
-        // Try variations of the name
-        const variations = [
-          componentName + 'Component',
-          componentName.charAt(0).toUpperCase() + componentName.slice(1) + 'Component',
-          componentName.charAt(0).toUpperCase() + componentName.slice(1)
-        ]
-        
-        for (const variation of variations) {
-          ComponentClass = this.autoDiscoveredComponents.get(variation)
-          if (ComponentClass) break
+        ComponentClass = definition.component
+        initialState = definition.initialState as Record<string, unknown>
+      } else {
+        // Try auto-discovered components
+        ComponentClass = this.autoDiscoveredComponents.get(componentName) ?? null
+        if (!ComponentClass) {
+          // Try variations of the name
+          const variations = [
+            componentName + 'Component',
+            componentName.charAt(0).toUpperCase() + componentName.slice(1) + 'Component',
+            componentName.charAt(0).toUpperCase() + componentName.slice(1)
+          ]
+
+          for (const variation of variations) {
+            ComponentClass = this.autoDiscoveredComponents.get(variation) ?? null
+            if (ComponentClass) break
+          }
         }
-      }
-      
-      if (!ComponentClass) {
-        const availableComponents = [
-          ...Array.from(this.definitions.keys()),
-          ...Array.from(this.autoDiscoveredComponents.keys())
-        ]
-        throw new Error(`Component '${componentName}' not found. Available: ${availableComponents.join(', ')}`)
-      }
+
+        if (!ComponentClass) {
+          const availableComponents = [
+            ...Array.from(this.definitions.keys()),
+            ...Array.from(this.autoDiscoveredComponents.keys())
+          ]
+          throw new Error(`Component '${componentName}' not found. Available: ${availableComponents.join(', ')}`)
+        }
       
       // Create a default initial state for auto-discovered components
       initialState = {}
@@ -306,13 +307,16 @@ export class ComponentRegistry {
     if (!ws || typeof ws !== 'object') {
       throw new Error('Invalid WebSocket object provided')
     }
-    
+
+    // Ensure data object exists with proper structure
     if (!ws.data) {
-      ws.data = {
+      (ws as { data: FluxStackWSData }).data = {
+        connectionId: `ws-${Date.now()}`,
         components: new Map(),
         subscriptions: new Set(),
+        connectedAt: new Date(),
         userId: options?.userId
-      } as WebSocketData
+      }
     }
 
     // Ensure components map exists
@@ -358,9 +362,9 @@ export class ComponentRegistry {
   // Re-hydrate component with signed client state
   async rehydrateComponent(
     componentId: string,
-    componentName: string, 
+    componentName: string,
     signedState: SignedState,
-    ws: any,
+    ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ): Promise<{ success: boolean; newComponentId?: string; error?: string }> {
     console.log('🔄 Attempting component re-hydration:', {
@@ -385,17 +389,17 @@ export class ComponentRegistry {
       }
 
       // Try to find component definition (same logic as mountComponent)
-      let definition = this.definitions.get(componentName)
-      let ComponentClass: any = null
-      let initialState: any = {}
+      const definition = this.definitions.get(componentName)
+      let ComponentClass: (new (initialState: any, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) => LiveComponent<any>) | null = null
+      let initialState: Record<string, unknown> = {}
 
       if (definition) {
         // Use registered definition
         ComponentClass = definition.component
-        initialState = definition.initialState
+        initialState = definition.initialState as Record<string, unknown>
       } else {
         // Try auto-discovered components
-        ComponentClass = this.autoDiscoveredComponents.get(componentName)
+        ComponentClass = this.autoDiscoveredComponents.get(componentName) ?? null
         if (!ComponentClass) {
           // Try variations of the name
           const variations = [
@@ -403,13 +407,13 @@ export class ComponentRegistry {
             componentName.charAt(0).toUpperCase() + componentName.slice(1) + 'Component',
             componentName.charAt(0).toUpperCase() + componentName.slice(1)
           ]
-          
+
           for (const variation of variations) {
-            ComponentClass = this.autoDiscoveredComponents.get(variation)
+            ComponentClass = this.autoDiscoveredComponents.get(variation) ?? null
             if (ComponentClass) break
           }
         }
-        
+
         if (!ComponentClass) {
           const availableComponents = [
             ...Array.from(this.definitions.keys()),
@@ -440,11 +444,13 @@ export class ComponentRegistry {
 
       // Initialize WebSocket data
       if (!ws.data) {
-        ws.data = {
+        (ws as { data: FluxStackWSData }).data = {
+          connectionId: `ws-${Date.now()}`,
           components: new Map(),
           subscriptions: new Set(),
+          connectedAt: new Date(),
           userId: options?.userId
-        } as WebSocketData
+        }
       }
 
       // Ensure components map exists
@@ -467,7 +473,8 @@ export class ComponentRegistry {
         signedState.version + 1
       )
       
-      component.emit('STATE_REHYDRATED', { 
+      // Use type assertion to access protected emit method
+      ;(component as unknown as { emit: (type: string, payload: unknown) => void }).emit('STATE_REHYDRATED', {
         state: component.getSerializableState(),
         signedState: newSignedState,
         oldComponentId: componentId,
@@ -606,7 +613,7 @@ export class ComponentRegistry {
   }
 
   // Handle WebSocket message with enhanced metrics and lifecycle tracking
-  async handleMessage(ws: any, message: LiveMessage): Promise<any> {
+  async handleMessage(ws: FluxStackWebSocket, message: LiveMessage): Promise<{ success: boolean; result?: unknown; error?: string } | null> {
     const startTime = Date.now()
     
     try {
@@ -698,7 +705,7 @@ export class ComponentRegistry {
   }
 
   // Cleanup when WebSocket disconnects
-  cleanupConnection(ws: any) {
+  cleanupConnection(ws: FluxStackWebSocket) {
     if (!ws.data?.components) return
 
     const componentsToCleanup = Array.from(ws.data.components.keys()) as string[]

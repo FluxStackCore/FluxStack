@@ -5,7 +5,7 @@ import { fileUploadManager } from './FileUploadManager'
 import { connectionManager } from './WebSocketConnectionManager'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
 import { liveRoomManager, type RoomMessage } from './LiveRoomManager'
-import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage, BinaryChunkHeader } from '@core/types/types'
+import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage, BinaryChunkHeader, FluxStackWebSocket, FluxStackWSData } from '@core/types/types'
 import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
 import path from 'path'
@@ -139,22 +139,31 @@ export const liveComponentsPlugin: Plugin = {
         body: t.Any(),
         
         open(ws) {
-          const socket = ws as any
+          const socket = ws as unknown as FluxStackWebSocket
           const connectionId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          console.log(`?Y"O Live Components WebSocket connected: ${connectionId}`)
-          
+          console.log(`🔌 Live Components WebSocket connected: ${connectionId}`)
+
           // Register connection with enhanced connection manager
-          connectionManager.registerConnection(ws, connectionId, 'live-components')
-          
+          connectionManager.registerConnection(ws as unknown as FluxStackWebSocket, connectionId, 'live-components')
+
           // Initialize and store connection data in ws.data
-          if (!socket.data) {
-            socket.data = {}
+          const wsData: FluxStackWSData = {
+            connectionId,
+            components: new Map(),
+            subscriptions: new Set(),
+            connectedAt: new Date()
           }
-          socket.data.connectionId = connectionId
-          socket.data.components = new Map()
-          socket.data.subscriptions = new Set()
-          socket.data.connectedAt = new Date()
-          
+
+          // Assign data to websocket (Elysia creates ws.data from context)
+          if (!socket.data) {
+            (socket as { data: FluxStackWSData }).data = wsData
+          } else {
+            socket.data.connectionId = connectionId
+            socket.data.components = new Map()
+            socket.data.subscriptions = new Set()
+            socket.data.connectedAt = new Date()
+          }
+
           // Send connection confirmation
           ws.send(JSON.stringify({
             type: 'CONNECTION_ESTABLISHED',
@@ -169,7 +178,8 @@ export const liveComponentsPlugin: Plugin = {
           }))
         },
         
-        async message(ws, rawMessage: LiveMessage | ArrayBuffer | Uint8Array) {
+        async message(ws: unknown, rawMessage: LiveMessage | ArrayBuffer | Uint8Array) {
+          const socket = ws as FluxStackWebSocket
           try {
             let message: LiveMessage
             let binaryChunkData: Buffer | null = null
@@ -216,48 +226,48 @@ export const liveComponentsPlugin: Plugin = {
             // Handle different message types
             switch (message.type) {
               case 'COMPONENT_MOUNT':
-                await handleComponentMount(ws, message)
+                await handleComponentMount(socket, message)
                 break
               case 'COMPONENT_REHYDRATE':
-                await handleComponentRehydrate(ws, message)
+                await handleComponentRehydrate(socket, message)
                 break
               case 'COMPONENT_UNMOUNT':
-                await handleComponentUnmount(ws, message)
+                await handleComponentUnmount(socket, message)
                 break
               case 'CALL_ACTION':
-                await handleActionCall(ws, message)
+                await handleActionCall(socket, message)
                 break
               case 'PROPERTY_UPDATE':
-                await handlePropertyUpdate(ws, message)
+                await handlePropertyUpdate(socket, message)
                 break
               case 'COMPONENT_PING':
-                await handleComponentPing(ws, message)
+                await handleComponentPing(socket, message)
                 break
               case 'FILE_UPLOAD_START':
-                await handleFileUploadStart(ws, message as FileUploadStartMessage)
+                await handleFileUploadStart(socket, message as FileUploadStartMessage)
                 break
               case 'FILE_UPLOAD_CHUNK':
-                await handleFileUploadChunk(ws, message as FileUploadChunkMessage, binaryChunkData)
+                await handleFileUploadChunk(socket, message as FileUploadChunkMessage, binaryChunkData)
                 break
               case 'FILE_UPLOAD_COMPLETE':
-                await handleFileUploadComplete(ws, message as unknown as FileUploadCompleteMessage)
+                await handleFileUploadComplete(socket, message as unknown as FileUploadCompleteMessage)
                 break
               // Room system messages
               case 'ROOM_JOIN':
-                await handleRoomJoin(ws, message as unknown as RoomMessage)
+                await handleRoomJoin(socket, message as unknown as RoomMessage)
                 break
               case 'ROOM_LEAVE':
-                await handleRoomLeave(ws, message as unknown as RoomMessage)
+                await handleRoomLeave(socket, message as unknown as RoomMessage)
                 break
               case 'ROOM_EMIT':
-                await handleRoomEmit(ws, message as unknown as RoomMessage)
+                await handleRoomEmit(socket, message as unknown as RoomMessage)
                 break
               case 'ROOM_STATE_SET':
-                await handleRoomStateSet(ws, message as unknown as RoomMessage)
+                await handleRoomStateSet(socket, message as unknown as RoomMessage)
                 break
               default:
                 console.warn(`❌ Unknown message type: ${message.type}`)
-                ws.send(JSON.stringify({
+                socket.send(JSON.stringify({
                   type: 'ERROR',
                   error: `Unknown message type: ${message.type}`,
                   timestamp: Date.now()
@@ -265,7 +275,7 @@ export const liveComponentsPlugin: Plugin = {
             }
           } catch (error) {
             console.error('❌ WebSocket message error:', error)
-            ws.send(JSON.stringify({
+            socket.send(JSON.stringify({
               type: 'ERROR',
               error: error instanceof Error ? error.message : 'Unknown error',
               timestamp: Date.now()
@@ -274,17 +284,17 @@ export const liveComponentsPlugin: Plugin = {
         },
         
         close(ws) {
-          const socket = ws as any
+          const socket = ws as unknown as FluxStackWebSocket
           const connectionId = socket.data?.connectionId
           console.log(`🔌 Live Components WebSocket disconnected: ${connectionId}`)
-          
+
           // Cleanup connection in connection manager
           if (connectionId) {
             connectionManager.cleanupConnection(connectionId)
           }
-          
+
           // Cleanup components for this connection
-          componentRegistry.cleanupConnection(ws)
+          componentRegistry.cleanupConnection(socket)
         }
       })
 
@@ -486,9 +496,9 @@ export const liveComponentsPlugin: Plugin = {
 }
 
 // Handler functions for WebSocket messages
-async function handleComponentMount(ws: any, message: LiveMessage) {
+async function handleComponentMount(ws: FluxStackWebSocket, message: LiveMessage) {
   const result = await componentRegistry.handleMessage(ws, message)
-  
+
   if (result !== null) {
     const response = {
       type: 'COMPONENT_MOUNTED',
@@ -503,7 +513,7 @@ async function handleComponentMount(ws: any, message: LiveMessage) {
   }
 }
 
-async function handleComponentRehydrate(ws: any, message: LiveMessage) {
+async function handleComponentRehydrate(ws: FluxStackWebSocket, message: LiveMessage) {
   console.log('🔄 Processing component re-hydration request:', {
     componentId: message.componentId,
     payload: message.payload
@@ -562,7 +572,7 @@ async function handleComponentRehydrate(ws: any, message: LiveMessage) {
   }
 }
 
-async function handleComponentUnmount(ws: any, message: LiveMessage) {
+async function handleComponentUnmount(ws: FluxStackWebSocket, message: LiveMessage) {
   const result = await componentRegistry.handleMessage(ws, message)
   
   if (result !== null) {
@@ -577,7 +587,7 @@ async function handleComponentUnmount(ws: any, message: LiveMessage) {
   }
 }
 
-async function handleActionCall(ws: any, message: LiveMessage) {
+async function handleActionCall(ws: FluxStackWebSocket, message: LiveMessage) {
   const result = await componentRegistry.handleMessage(ws, message)
   
   if (result !== null) {
@@ -595,7 +605,7 @@ async function handleActionCall(ws: any, message: LiveMessage) {
   }
 }
 
-async function handlePropertyUpdate(ws: any, message: LiveMessage) {
+async function handlePropertyUpdate(ws: FluxStackWebSocket, message: LiveMessage) {
   const result = await componentRegistry.handleMessage(ws, message)
 
   if (result !== null) {
@@ -612,7 +622,7 @@ async function handlePropertyUpdate(ws: any, message: LiveMessage) {
   }
 }
 
-async function handleComponentPing(ws: any, message: LiveMessage) {
+async function handleComponentPing(ws: FluxStackWebSocket, message: LiveMessage) {
   // Update component's last activity timestamp
   const updated = componentRegistry.updateComponentActivity(message.componentId)
 
@@ -629,7 +639,7 @@ async function handleComponentPing(ws: any, message: LiveMessage) {
 }
 
 // File Upload Handler Functions
-async function handleFileUploadStart(ws: any, message: FileUploadStartMessage) {
+async function handleFileUploadStart(ws: FluxStackWebSocket, message: FileUploadStartMessage) {
   console.log('📤 Starting file upload:', message.uploadId)
   
   const result = await fileUploadManager.startUpload(message)
@@ -647,7 +657,7 @@ async function handleFileUploadStart(ws: any, message: FileUploadStartMessage) {
   ws.send(JSON.stringify(response))
 }
 
-async function handleFileUploadChunk(ws: any, message: FileUploadChunkMessage, binaryData: Buffer | null = null) {
+async function handleFileUploadChunk(ws: FluxStackWebSocket, message: FileUploadChunkMessage, binaryData: Buffer | null = null) {
   console.log(`📦 Receiving chunk ${message.chunkIndex + 1} for upload ${message.uploadId}${binaryData ? ' (binary)' : ' (base64)'}`)
 
   const progressResponse = await fileUploadManager.receiveChunk(message, ws, binaryData)
@@ -675,7 +685,7 @@ async function handleFileUploadChunk(ws: any, message: FileUploadChunkMessage, b
   }
 }
 
-async function handleFileUploadComplete(ws: any, message: FileUploadCompleteMessage) {
+async function handleFileUploadComplete(ws: FluxStackWebSocket, message: FileUploadCompleteMessage) {
   console.log('✅ Completing file upload:', message.uploadId)
 
   const completeResponse = await fileUploadManager.completeUpload(message)
@@ -691,7 +701,7 @@ async function handleFileUploadComplete(ws: any, message: FileUploadCompleteMess
 
 // ===== Room System Handlers =====
 
-async function handleRoomJoin(ws: any, message: RoomMessage) {
+async function handleRoomJoin(ws: FluxStackWebSocket, message: RoomMessage) {
   console.log(`🚪 Component ${message.componentId} joining room ${message.roomId}`)
 
   try {
@@ -725,7 +735,7 @@ async function handleRoomJoin(ws: any, message: RoomMessage) {
   }
 }
 
-async function handleRoomLeave(ws: any, message: RoomMessage) {
+async function handleRoomLeave(ws: FluxStackWebSocket, message: RoomMessage) {
   console.log(`🚶 Component ${message.componentId} leaving room ${message.roomId}`)
 
   try {
@@ -753,7 +763,7 @@ async function handleRoomLeave(ws: any, message: RoomMessage) {
   }
 }
 
-async function handleRoomEmit(ws: any, message: RoomMessage) {
+async function handleRoomEmit(ws: FluxStackWebSocket, message: RoomMessage) {
   console.log(`📡 Component ${message.componentId} emitting '${message.event}' to room ${message.roomId}`)
 
   try {
@@ -776,13 +786,13 @@ async function handleRoomEmit(ws: any, message: RoomMessage) {
   }
 }
 
-async function handleRoomStateSet(ws: any, message: RoomMessage) {
+async function handleRoomStateSet(ws: FluxStackWebSocket, message: RoomMessage) {
   console.log(`📝 Component ${message.componentId} updating state in room ${message.roomId}`)
 
   try {
     liveRoomManager.setRoomState(
       message.roomId,
-      message.data,
+      message.data ?? {},
       message.componentId // Excluir quem enviou
     )
   } catch (error: any) {

@@ -2,6 +2,46 @@
 
 import { roomEvents } from '@core/server/live/RoomEventBus'
 import { liveRoomManager } from '@core/server/live/LiveRoomManager'
+import type { ServerWebSocket } from 'bun'
+
+// ============================================
+// 🔌 WebSocket Types for Server-Side
+// ============================================
+
+/**
+ * WebSocket data stored on each connection
+ * This is attached to ws.data by the WebSocket plugin
+ */
+export interface FluxStackWSData {
+  connectionId: string
+  components: Map<string, LiveComponent>
+  subscriptions: Set<string>
+  connectedAt: Date
+  userId?: string
+}
+
+/**
+ * Type-safe WebSocket interface for FluxStack Live Components
+ * Compatible with both Elysia's ElysiaWS and Bun's ServerWebSocket
+ */
+export interface FluxStackWebSocket {
+  /** Send data to the client */
+  send(data: string | BufferSource, compress?: boolean): number
+  /** Close the connection */
+  close(code?: number, reason?: string): void
+  /** Connection data storage */
+  data: FluxStackWSData
+  /** Remote address of the client */
+  readonly remoteAddress: string
+  /** Current ready state */
+  readonly readyState: 0 | 1 | 2 | 3
+}
+
+/**
+ * Raw ServerWebSocket from Bun with FluxStack data
+ * Use this when you need access to all Bun WebSocket methods
+ */
+export type FluxStackServerWebSocket = ServerWebSocket<FluxStackWSData>
 
 export interface LiveMessage {
   type: 'COMPONENT_MOUNT' | 'COMPONENT_UNMOUNT' |
@@ -39,6 +79,9 @@ export interface LiveComponentInstance<TState = ComponentState, TActions = Recor
   room?: string
 }
 
+/**
+ * @deprecated Use FluxStackWSData instead
+ */
 export interface WebSocketData {
   components: Map<string, any>
   userId?: string
@@ -48,7 +91,7 @@ export interface WebSocketData {
 export interface ComponentDefinition<TState = ComponentState> {
   name: string
   initialState: TState
-  component: new (initialState: TState, ws: any) => LiveComponent<TState>
+  component: new (initialState: TState, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) => LiveComponent<TState>
 }
 
 export interface BroadcastMessage {
@@ -171,7 +214,7 @@ export abstract class LiveComponent<TState = ComponentState> {
 
   public readonly id: string
   public state: TState
-  protected ws: any
+  protected ws: FluxStackWebSocket
   public room?: string
   public userId?: string
   public broadcastToRoom: (message: BroadcastMessage) => void = () => {} // Will be injected by registry
@@ -186,7 +229,7 @@ export abstract class LiveComponent<TState = ComponentState> {
   // Cached room handles
   private roomHandles: Map<string, ServerRoomHandle> = new Map()
 
-  constructor(initialState: TState, ws: any, options?: { room?: string; userId?: string }) {
+  constructor(initialState: TState, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
     this.state = initialState
     this.ws = ws

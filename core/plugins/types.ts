@@ -357,55 +357,9 @@ export interface CliContext {
   }
 }
 
-// Live Components Types
-export interface LiveComponent<TState = any> {
-  id: string
-  name: string
-  state: TState
-  mounted: boolean
-  socket?: any
-  userId?: string
-  destroy?: () => void
-  executeAction?: (action: string, payload?: any) => Promise<any>
-  setState?: (newState: Partial<TState>) => void
-  getSerializableState?: () => TState
-}
-
-export interface LiveMessage {
-  type: string
-  componentId: string
-  data?: any
-  payload?: any
-  action?: string
-  property?: string
-  userId?: string
-  expectResponse?: boolean
-  timestamp?: number
-  requestId?: string
-  room?: string
-}
-
-export interface BroadcastMessage {
-  type: string
-  data?: any
-  channel?: string
-  room?: string
-  payload?: any
-  excludeUser?: string
-}
-
-export interface ComponentDefinition<TState = any> {
-  name: string
-  initialState: TState
-  handlers?: Record<string, Function>
-  component?: any
-}
-
-export interface WebSocketData {
-  componentId?: string
-  userId?: string
-  sessionId?: string
-}
+// Live Components Types - Re-exported from core/types/types.ts
+// See core/types/types.ts for full implementation
+// Note: These are re-exported at the end of this file
 
 // File Upload Types
 export interface ActiveUpload {
@@ -478,3 +432,16 @@ export interface FileUploadCompleteResponse {
 
 // Plugin Type Export
 export type Plugin = FluxStack.Plugin
+
+// Re-export all WebSocket and LiveComponent types from core/types/types.ts
+export {
+  LiveComponent,
+  type FluxStackWebSocket,
+  type FluxStackWSData,
+  type FluxStackServerWebSocket,
+  type LiveMessage,
+  type BroadcastMessage,
+  type ComponentState,
+  type ComponentDefinition,
+  type WebSocketData
+} from '@core/types/types'

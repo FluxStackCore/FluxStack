@@ -2,6 +2,7 @@
 // Advanced connection management with pooling, load balancing, and health monitoring
 
 import { EventEmitter } from 'events'
+import type { FluxStackWebSocket } from '@core/types/types'
 
 export interface ConnectionConfig {
   maxConnections: number
@@ -56,7 +57,7 @@ export interface LoadBalancerStats {
 }
 
 export class WebSocketConnectionManager extends EventEmitter {
-  private connections = new Map<string, any>() // connectionId -> websocket
+  private connections = new Map<string, FluxStackWebSocket>() // connectionId -> websocket
   private connectionMetrics = new Map<string, ConnectionMetrics>()
   private connectionPools = new Map<string, Set<string>>() // poolId -> connectionIds
   private messageQueues = new Map<string, QueuedMessage[]>() // connectionId -> queued messages
@@ -89,7 +90,7 @@ export class WebSocketConnectionManager extends EventEmitter {
   /**
    * Register a new WebSocket connection
    */
-  registerConnection(ws: any, connectionId: string, poolId?: string): void {
+  registerConnection(ws: FluxStackWebSocket, connectionId: string, poolId?: string): void {
     if (this.connections.size >= this.config.maxConnections) {
       throw new Error('Maximum connections exceeded')
     }
@@ -129,26 +130,33 @@ export class WebSocketConnectionManager extends EventEmitter {
   /**
    * Setup connection event handlers
    */
-  private setupConnectionHandlers(ws: any, connectionId: string): void {
+  private setupConnectionHandlers(ws: FluxStackWebSocket, connectionId: string): void {
     const metrics = this.connectionMetrics.get(connectionId)
     if (!metrics) return
 
     // Handle incoming messages
+    // Note: Bun/Elysia WebSockets use different event handling patterns
+    // This code provides compatibility layer for both Node.js style (on/addListener) and browser style (addEventListener)
+    const wsAny = ws as any
     const addListener = (event: string, handler: (...args: any[]) => void) => {
-      if (typeof ws.on === 'function') {
-        ws.on(event, handler)
-      } else if (typeof ws.addEventListener === 'function') {
-        ws.addEventListener(event as any, handler as any)
-      } else if (typeof ws.addListener === 'function') {
-        ws.addListener(event, handler)
+      if (typeof wsAny.on === 'function') {
+        wsAny.on(event, handler)
+      } else if (typeof wsAny.addEventListener === 'function') {
+        wsAny.addEventListener(event, handler)
+      } else if (typeof wsAny.addListener === 'function') {
+        wsAny.addListener(event, handler)
       }
     }
 
     addListener('message', (data: any) => {
       metrics.messagesReceived++
       metrics.lastActivity = new Date()
-      metrics.bytesTransferred += Buffer.byteLength(data)
-      
+      if (typeof data === 'string') {
+        metrics.bytesTransferred += Buffer.byteLength(data)
+      } else if (data instanceof Buffer) {
+        metrics.bytesTransferred += data.length
+      }
+
       this.emit('messageReceived', { connectionId, data })
     })
 
@@ -168,10 +176,10 @@ export class WebSocketConnectionManager extends EventEmitter {
     // Handle pong responses for latency measurement
     addListener('pong', () => {
       const now = Date.now()
-      const pingTime = (ws as any)._pingTime
+      const pingTime = wsAny._pingTime
       if (pingTime) {
         metrics.latency = now - pingTime
-        delete (ws as any)._pingTime
+        delete wsAny._pingTime
       }
     })
   }
@@ -205,7 +213,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Send message with load balancing and queuing
    */
   async sendMessage(
-    message: any, 
+    message: any,
     target?: { connectionId?: string; poolId?: string },
     options?: { priority?: number; maxRetries?: number; queueIfOffline?: boolean }
   ): Promise<boolean> {
@@ -243,7 +251,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Send message to specific connection
    */
   private async sendToConnection(
-    connectionId: string, 
+    connectionId: string,
     message: any,
     options: { priority: number; maxRetries: number; queueIfOffline: boolean }
   ): Promise<boolean> {
@@ -288,7 +296,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Queue message for offline delivery
    */
   private queueMessage(
-    connectionId: string, 
+    connectionId: string,
     message: any,
     options: { priority: number; maxRetries: number }
   ): boolean {
@@ -494,8 +502,11 @@ export class WebSocketConnectionManager extends EventEmitter {
     for (const [connectionId, ws] of this.connections) {
       if (ws.readyState === 1) { // WebSocket.OPEN
         try {
-          (ws as any)._pingTime = Date.now()
-          ws.ping()
+          const wsAny = ws as any
+          wsAny._pingTime = Date.now()
+          if (typeof wsAny.ping === 'function') {
+            wsAny.ping()
+          }
         } catch (error) {
           console.error(`❌ Heartbeat failed for ${connectionId}:`, error)
         }
