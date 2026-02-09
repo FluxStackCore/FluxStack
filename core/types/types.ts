@@ -662,8 +662,18 @@ export interface FileUploadChunkMessage {
   uploadId: string
   chunkIndex: number
   totalChunks: number
-  data: string // Base64 encoded chunk
+  data: string | Buffer // Base64 string (JSON) or Buffer (binary protocol)
   hash?: string
+  requestId?: string
+}
+
+// Binary protocol header for chunk uploads
+export interface BinaryChunkHeader {
+  type: 'FILE_UPLOAD_CHUNK'
+  componentId: string
+  uploadId: string
+  chunkIndex: number
+  totalChunks: number
   requestId?: string
 }
 
@@ -707,7 +717,7 @@ export interface ActiveUpload {
   fileType: string
   fileSize: number
   totalChunks: number
-  receivedChunks: Map<number, string>
+  receivedChunks: Map<number, string | Buffer> // Base64 string or raw Buffer (binary protocol)
   bytesReceived: number // Track actual bytes received for adaptive chunking
   startTime: number
   lastChunkTime: number

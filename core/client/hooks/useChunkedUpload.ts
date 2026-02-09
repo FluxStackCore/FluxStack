@@ -5,20 +5,50 @@ import type {
   FileUploadChunkMessage,
   FileUploadCompleteMessage,
   FileUploadProgressResponse,
-  FileUploadCompleteResponse
+  FileUploadCompleteResponse,
+  BinaryChunkHeader
 } from '@core/types/types'
 
 export interface ChunkedUploadOptions {
   chunkSize?: number // Default 64KB (used as initial if adaptive is enabled)
   maxFileSize?: number // Default 50MB
   allowedTypes?: string[]
-  sendMessageAndWait?: (message: any, timeout?: number) => Promise<any> // WebSocket send function
+  sendMessageAndWait?: (message: any, timeout?: number) => Promise<any> // WebSocket send function for JSON
+  sendBinaryAndWait?: (data: ArrayBuffer, requestId: string, timeout?: number) => Promise<any> // WebSocket send function for binary
   onProgress?: (progress: number, bytesUploaded: number, totalBytes: number) => void
   onComplete?: (response: FileUploadCompleteResponse) => void
   onError?: (error: string) => void
   // Adaptive chunking options
   adaptiveChunking?: boolean // Enable adaptive chunk sizing (default: false)
   adaptiveConfig?: Partial<AdaptiveChunkConfig> // Adaptive chunking configuration
+  // Binary protocol (more efficient, ~33% less data)
+  useBinaryProtocol?: boolean // Enable binary chunk protocol (default: true)
+}
+
+/**
+ * Creates a binary message with header + data
+ * Format: [4 bytes header length][JSON header][binary data]
+ */
+function createBinaryChunkMessage(header: BinaryChunkHeader, chunkData: Uint8Array): ArrayBuffer {
+  const headerJson = JSON.stringify(header)
+  const headerBytes = new TextEncoder().encode(headerJson)
+
+  // Total size: 4 bytes (header length) + header + data
+  const totalSize = 4 + headerBytes.length + chunkData.length
+  const buffer = new ArrayBuffer(totalSize)
+  const view = new DataView(buffer)
+  const uint8View = new Uint8Array(buffer)
+
+  // Write header length (little-endian)
+  view.setUint32(0, headerBytes.length, true)
+
+  // Write header
+  uint8View.set(headerBytes, 4)
+
+  // Write chunk data
+  uint8View.set(chunkData, 4 + headerBytes.length)
+
+  return buffer
 }
 
 export interface ChunkedUploadState {
@@ -46,12 +76,17 @@ export function useChunkedUpload(componentId: string, options: ChunkedUploadOpti
     maxFileSize = 50 * 1024 * 1024, // 50MB default
     allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
     sendMessageAndWait,
+    sendBinaryAndWait,
     onProgress,
     onComplete,
     onError,
     adaptiveChunking = false,
-    adaptiveConfig
+    adaptiveConfig,
+    useBinaryProtocol = true // Default to binary for efficiency
   } = options
+
+  // Determine if we can use binary protocol
+  const canUseBinary = useBinaryProtocol && sendBinaryAndWait
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const adaptiveSizerRef = useRef<AdaptiveChunkSizer | null>(null)
@@ -109,7 +144,8 @@ export function useChunkedUpload(componentId: string, options: ChunkedUploadOpti
         uploadId,
         filename: file.name,
         size: file.size,
-        adaptiveChunking
+        adaptiveChunking,
+        protocol: canUseBinary ? 'binary' : 'base64'
       })
 
       // Reset adaptive sizer for new upload
@@ -157,31 +193,48 @@ export function useChunkedUpload(componentId: string, options: ChunkedUploadOpti
         const sliceBuffer = await file.slice(offset, chunkEnd).arrayBuffer()
         const chunkBytes = new Uint8Array(sliceBuffer)
 
-        // Convert chunk to base64
-        let binary = ''
-        for (let j = 0; j < chunkBytes.length; j++) {
-          binary += String.fromCharCode(chunkBytes[j])
-        }
-        const base64Chunk = btoa(binary)
-
         // Record chunk start time for adaptive sizing
         const chunkStartTime = adaptiveSizerRef.current?.recordChunkStart(chunkIndex) ?? 0
+        const requestId = `chunk-${uploadId}-${chunkIndex}`
 
-        const chunkMessage: FileUploadChunkMessage = {
-          type: 'FILE_UPLOAD_CHUNK',
-          componentId,
-          uploadId,
-          chunkIndex,
-          totalChunks: estimatedTotalChunks, // Approximate, will be recalculated
-          data: base64Chunk,
-          requestId: `chunk-${uploadId}-${chunkIndex}`
-        }
-
-        console.log(`📤 Sending chunk ${chunkIndex + 1} (size: ${chunkBytes.length} bytes)`)
+        console.log(`📤 Sending chunk ${chunkIndex + 1} (size: ${chunkBytes.length} bytes)${canUseBinary ? ' [binary]' : ' [base64]'}`)
 
         try {
-          // Send chunk and wait for progress response
-          const progressResponse = await sendMessageAndWait(chunkMessage, 10000) as FileUploadProgressResponse
+          let progressResponse: FileUploadProgressResponse | undefined
+
+          if (canUseBinary) {
+            // Binary protocol: Send header + raw bytes (more efficient)
+            const header: BinaryChunkHeader = {
+              type: 'FILE_UPLOAD_CHUNK',
+              componentId,
+              uploadId,
+              chunkIndex,
+              totalChunks: estimatedTotalChunks,
+              requestId
+            }
+
+            const binaryMessage = createBinaryChunkMessage(header, chunkBytes)
+            progressResponse = await sendBinaryAndWait!(binaryMessage, requestId, 10000) as FileUploadProgressResponse
+          } else {
+            // JSON protocol: Convert to base64 (legacy/fallback)
+            let binary = ''
+            for (let j = 0; j < chunkBytes.length; j++) {
+              binary += String.fromCharCode(chunkBytes[j])
+            }
+            const base64Chunk = btoa(binary)
+
+            const chunkMessage: FileUploadChunkMessage = {
+              type: 'FILE_UPLOAD_CHUNK',
+              componentId,
+              uploadId,
+              chunkIndex,
+              totalChunks: estimatedTotalChunks,
+              data: base64Chunk,
+              requestId
+            }
+
+            progressResponse = await sendMessageAndWait!(chunkMessage, 10000) as FileUploadProgressResponse
+          }
 
           if (progressResponse) {
             const { progress, bytesUploaded } = progressResponse

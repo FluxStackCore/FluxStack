@@ -16,6 +16,9 @@ export interface LiveComponentsContextValue {
   // Send message and wait for specific response
   sendMessageAndWait: (message: WebSocketMessage, timeout?: number) => Promise<WebSocketResponse>
 
+  // Send binary data and wait for response (for file uploads)
+  sendBinaryAndWait: (data: ArrayBuffer, requestId: string, timeout?: number) => Promise<WebSocketResponse>
+
   // Register message listener for a component
   registerComponent: (componentId: string, callback: (message: WebSocketResponse) => void) => () => void
 
@@ -342,6 +345,43 @@ export function LiveComponentsProvider({
     })
   }, [log, generateRequestId])
 
+  // Send binary data and wait for response (for file uploads)
+  const sendBinaryAndWait = useCallback(async (
+    data: ArrayBuffer,
+    requestId: string,
+    timeout: number = 10000
+  ): Promise<WebSocketResponse> => {
+    return new Promise((resolve, reject) => {
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        reject(new Error('WebSocket is not connected'))
+        return
+      }
+
+      // Set up timeout
+      const timeoutHandle = setTimeout(() => {
+        pendingRequestsRef.current.delete(requestId)
+        reject(new Error(`Binary request timeout after ${timeout}ms`))
+      }, timeout)
+
+      // Store pending request
+      pendingRequestsRef.current.set(requestId, {
+        resolve,
+        reject,
+        timeout: timeoutHandle
+      })
+
+      try {
+        // Send as binary frame
+        wsRef.current.send(data)
+        log('📤 Sent binary data', { requestId, size: data.byteLength })
+      } catch (error) {
+        clearTimeout(timeoutHandle)
+        pendingRequestsRef.current.delete(requestId)
+        reject(error)
+      }
+    })
+  }, [log])
+
   // Register component callback
   const registerComponent = useCallback((
     componentId: string,
@@ -386,6 +426,7 @@ export function LiveComponentsProvider({
     connectionId,
     sendMessage,
     sendMessageAndWait,
+    sendBinaryAndWait,
     registerComponent,
     unregisterComponent,
     reconnect,

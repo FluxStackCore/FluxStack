@@ -39,11 +39,8 @@ export class LiveUpload extends LiveComponent<LiveUploadState> {
       throw new Error('Invalid file name')
     }
 
-    const ext = normalized.includes('.') ? normalized.split('.').pop() || '' : ''
-    const blocked = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'jar']
-    if (ext && blocked.includes(ext)) {
-      throw new Error(`File extension not allowed: .${ext}`)
-    }
+    // All file types allowed - no extension blocking
+    // Security note: Configure allowed extensions per your application needs
 
     this.setState({
       status: 'uploading',

@@ -21,7 +21,7 @@ export interface LiveChunkedUploadOptions extends Omit<ChunkedUploadOptions, 'se
 }
 
 export function useLiveChunkedUpload(live: LiveUploadActions, options: LiveChunkedUploadOptions = {}) {
-  const { sendMessageAndWait } = useLiveComponents()
+  const { sendMessageAndWait, sendBinaryAndWait } = useLiveComponents()
 
   const {
     onProgress,
@@ -36,6 +36,7 @@ export function useLiveChunkedUpload(live: LiveUploadActions, options: LiveChunk
   const base = useChunkedUpload(componentId, {
     ...chunkedOptions,
     sendMessageAndWait,
+    sendBinaryAndWait, // Enable binary protocol for efficient uploads
     onProgress: (pct, uploaded, total) => {
       void live.updateProgress({ progress: pct, bytesUploaded: uploaded, totalBytes: total }).catch(() => {})
       onProgress?.(pct, uploaded, total)

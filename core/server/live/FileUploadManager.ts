@@ -71,7 +71,7 @@ export class FileUploadManager {
     }
   }
 
-  async receiveChunk(message: FileUploadChunkMessage, ws: any): Promise<FileUploadProgressResponse | null> {
+  async receiveChunk(message: FileUploadChunkMessage, ws: any, binaryData: Buffer | null = null): Promise<FileUploadProgressResponse | null> {
     try {
       const { uploadId, chunkIndex, totalChunks, data } = message
 
@@ -89,15 +89,23 @@ export class FileUploadManager {
       if (upload.receivedChunks.has(chunkIndex)) {
         console.log(`📦 Chunk ${chunkIndex} already received for upload ${uploadId}`)
       } else {
-        // Store chunk data
-        upload.receivedChunks.set(chunkIndex, data)
-        upload.lastChunkTime = Date.now()
+        // Store chunk data - use binary data if available, otherwise use base64 string
+        let chunkBytes: number
 
-        // Track actual bytes received (decode base64 to get real size)
-        const chunkBytes = Buffer.from(data, 'base64').length
+        if (binaryData) {
+          // Binary protocol: store Buffer directly (more efficient)
+          upload.receivedChunks.set(chunkIndex, binaryData)
+          chunkBytes = binaryData.length
+        } else {
+          // JSON protocol: store base64 string (legacy support)
+          upload.receivedChunks.set(chunkIndex, data as string)
+          chunkBytes = Buffer.from(data as string, 'base64').length
+        }
+
+        upload.lastChunkTime = Date.now()
         upload.bytesReceived += chunkBytes
 
-        console.log(`📦 Received chunk ${chunkIndex + 1}/${totalChunks} for upload ${uploadId} (${chunkBytes} bytes, total: ${upload.bytesReceived}/${upload.fileSize})`)
+        console.log(`📦 Received chunk ${chunkIndex + 1}/${totalChunks} for upload ${uploadId} (${chunkBytes} bytes, total: ${upload.bytesReceived}/${upload.fileSize})${binaryData ? ' [binary]' : ' [base64]'}`)
       }
 
       // Calculate progress based on actual bytes received (supports adaptive chunking)
@@ -213,7 +221,12 @@ export class FileUploadManager {
       for (let i = 0; i < upload.totalChunks; i++) {
         const chunkData = upload.receivedChunks.get(i)
         if (chunkData) {
-          chunks.push(Buffer.from(chunkData, 'base64'))
+          // Handle both Buffer (binary protocol) and string (base64 JSON protocol)
+          if (Buffer.isBuffer(chunkData)) {
+            chunks.push(chunkData)
+          } else {
+            chunks.push(Buffer.from(chunkData, 'base64'))
+          }
         }
       }
 

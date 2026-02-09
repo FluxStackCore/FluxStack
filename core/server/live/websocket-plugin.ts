@@ -5,7 +5,7 @@ import { fileUploadManager } from './FileUploadManager'
 import { connectionManager } from './WebSocketConnectionManager'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
 import { liveRoomManager, type RoomMessage } from './LiveRoomManager'
-import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage } from '@core/types/types'
+import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage, BinaryChunkHeader } from '@core/types/types'
 import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
 import path from 'path'
@@ -132,29 +132,11 @@ export const liveComponentsPlugin: Plugin = {
     
     // Create grouped routes for Live Components with documentation
     const liveRoutes = new Elysia({ prefix: '/api/live', tags: ['Live Components'] })
-      // WebSocket route
+      // WebSocket route - supports both JSON and binary messages
       .ws('/ws', {
-        body: t.Object({
-          type: t.String(),
-          componentId: t.String(),
-          action: t.Optional(t.String()),
-          payload: t.Optional(t.Any()),
-          timestamp: t.Optional(t.Number()),
-          userId: t.Optional(t.String()),
-          room: t.Optional(t.String()),
-          requestId: t.Optional(t.String()),
-          expectResponse: t.Optional(t.Boolean()),
-          // File upload specific fields
-          uploadId: t.Optional(t.String()),
-          filename: t.Optional(t.String()),
-          fileType: t.Optional(t.String()),
-          fileSize: t.Optional(t.Number()),
-          chunkSize: t.Optional(t.Number()),
-          chunkIndex: t.Optional(t.Number()),
-          totalChunks: t.Optional(t.Number()),
-          data: t.Optional(t.String()),
-          hash: t.Optional(t.String())
-        }),
+        // Use t.Any() to allow both JSON objects and binary data
+        // Binary messages will be ArrayBuffer/Uint8Array, JSON will be parsed objects
+        body: t.Any(),
         
         open(ws) {
           const socket = ws as any
@@ -187,16 +169,48 @@ export const liveComponentsPlugin: Plugin = {
           }))
         },
         
-        async message(ws, message: LiveMessage) {
+        async message(ws, rawMessage: LiveMessage | ArrayBuffer | Uint8Array) {
           try {
-            // Add connection metadata
-            message.timestamp = Date.now()
-            
+            let message: LiveMessage
+            let binaryChunkData: Buffer | null = null
+
+            // Check if this is a binary message (file upload chunk)
+            if (rawMessage instanceof ArrayBuffer || rawMessage instanceof Uint8Array) {
+              // Binary protocol: [4 bytes header length][JSON header][binary data]
+              const buffer = rawMessage instanceof ArrayBuffer
+                ? Buffer.from(rawMessage)
+                : Buffer.from(rawMessage.buffer, rawMessage.byteOffset, rawMessage.byteLength)
+
+              // Read header length (first 4 bytes, little-endian)
+              const headerLength = buffer.readUInt32LE(0)
+
+              // Extract and parse JSON header
+              const headerJson = buffer.slice(4, 4 + headerLength).toString('utf-8')
+              const header = JSON.parse(headerJson) as BinaryChunkHeader
+
+              // Extract binary chunk data
+              binaryChunkData = buffer.slice(4 + headerLength)
+
+              console.log(`📦 Binary chunk received: ${binaryChunkData.length} bytes for upload ${header.uploadId}`)
+
+              // Create message with binary data attached
+              message = {
+                ...header,
+                data: binaryChunkData, // Buffer instead of base64 string
+                timestamp: Date.now()
+              } as unknown as LiveMessage
+            } else {
+              // Regular JSON message
+              message = rawMessage as LiveMessage
+              message.timestamp = Date.now()
+            }
+
             console.log(`📨 Received message:`, {
               type: message.type,
               componentId: message.componentId,
               action: message.action,
-              requestId: message.requestId
+              requestId: message.requestId,
+              isBinary: binaryChunkData !== null
             })
 
             // Handle different message types
@@ -223,7 +237,7 @@ export const liveComponentsPlugin: Plugin = {
                 await handleFileUploadStart(ws, message as FileUploadStartMessage)
                 break
               case 'FILE_UPLOAD_CHUNK':
-                await handleFileUploadChunk(ws, message as FileUploadChunkMessage)
+                await handleFileUploadChunk(ws, message as FileUploadChunkMessage, binaryChunkData)
                 break
               case 'FILE_UPLOAD_COMPLETE':
                 await handleFileUploadComplete(ws, message as unknown as FileUploadCompleteMessage)
@@ -633,10 +647,10 @@ async function handleFileUploadStart(ws: any, message: FileUploadStartMessage) {
   ws.send(JSON.stringify(response))
 }
 
-async function handleFileUploadChunk(ws: any, message: FileUploadChunkMessage) {
-  console.log(`📦 Receiving chunk ${message.chunkIndex + 1} for upload ${message.uploadId}`)
+async function handleFileUploadChunk(ws: any, message: FileUploadChunkMessage, binaryData: Buffer | null = null) {
+  console.log(`📦 Receiving chunk ${message.chunkIndex + 1} for upload ${message.uploadId}${binaryData ? ' (binary)' : ' (base64)'}`)
 
-  const progressResponse = await fileUploadManager.receiveChunk(message, ws)
+  const progressResponse = await fileUploadManager.receiveChunk(message, ws, binaryData)
 
   if (progressResponse) {
     // Add requestId to response so client can correlate it
