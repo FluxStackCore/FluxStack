@@ -1,11 +1,9 @@
-// 🔥 LiveRoomChat - Chat usando o novo sistema de salas $room
-//
-// Demonstra:
-// - Múltiplas salas simultâneas
-// - Estado compartilhado por sala
-// - Eventos tipados entre componentes
+// LiveRoomChat - Chat usando o sistema de salas $room
 
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+
+// Componente Cliente (Ctrl+Click para navegar)
+import type { RoomChatDemo as _Client } from '@client/src/live/RoomChatDemo'
 
 // Tipos
 export interface ChatMessage {

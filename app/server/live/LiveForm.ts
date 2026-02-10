@@ -1,6 +1,9 @@
-// 🔥 LiveForm - Formulário reativo com estado no servidor
-// ZERO interfaces! TypeScript infere tudo automaticamente.
+// LiveForm - Formulário reativo com estado no servidor
+
 import { LiveComponent } from "@core/types/types"
+
+// Componente Cliente (Ctrl+Click para navegar)
+import type { FormDemo as _Client } from '@client/src/live/FormDemo'
 
 export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
   static componentName = 'LiveForm'

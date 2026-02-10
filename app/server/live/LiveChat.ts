@@ -1,6 +1,9 @@
-// LiveChat - Shared room chat
+// LiveChat - Chat compartilhado por sala
 
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+
+// Componente Cliente (Ctrl+Click para navegar)
+import type { ChatDemo as _Client } from '@client/src/live/ChatDemo'
 
 export type ChatMessage = {
   id: string

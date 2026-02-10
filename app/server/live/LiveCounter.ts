@@ -1,6 +1,9 @@
-// 🔥 LiveCounter - Shared counter using Room Events
+// LiveCounter - Contador compartilhado usando Room Events
 
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+
+// Componente Cliente (Ctrl+Click para navegar)
+import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'

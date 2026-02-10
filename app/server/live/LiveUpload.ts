@@ -1,6 +1,9 @@
-// LiveUpload - Chunked upload state + UI sync
+// LiveUpload - Estado de upload chunked + sincronização UI
 
 import { LiveComponent } from '@core/types/types'
+
+// Componente Cliente (Ctrl+Click para navegar)
+import type { UploadDemo as _Client } from '@client/src/live/UploadDemo'
 
 export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   static componentName = 'LiveUpload'
