@@ -4,7 +4,7 @@ import path from "path";
 
 // ===== SERVER TEMPLATES =====
 
-const getServerTemplate = (name: string, type: string, room?: string) => {
+const getServerTemplate = (name: string, type: string, room?: string, hasClient = true) => {
   // Se room for especificado, precisa de constructor para definir this.room
   const needsConstructor = !!room;
   const constructorBlock = needsConstructor ? `
@@ -14,10 +14,16 @@ const getServerTemplate = (name: string, type: string, room?: string) => {
   }
 ` : '';
 
+  const clientLink = hasClient ? `
+// Componente Cliente (Ctrl+Click para navegar)
+import type { ${name}Demo as _Client } from '@client/src/live/${name}'
+` : '';
+
   switch (type) {
     case 'counter':
-      return `// 🔥 ${name} - Counter
+      return `// ${name} - Contador
 import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
+${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -43,8 +49,9 @@ ${constructorBlock}
 `;
 
     case 'form':
-      return `// 🔥 ${name} - Form
+      return `// ${name} - Formulário
 import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
+${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -73,8 +80,9 @@ ${constructorBlock}
 `;
 
     case 'chat':
-      return `// 🔥 ${name} - Chat
+      return `// ${name} - Chat
 import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
+${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -108,8 +116,9 @@ ${constructorBlock}
 `;
 
     default: // basic
-      return `// 🔥 ${name} - Live Component
+      return `// ${name} - Live Component
 import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } from '@core/types/types'
+${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
@@ -333,7 +342,7 @@ export const createLiveComponentCommand: CliCommand = {
 
       context.logger.info(`🔥 Criando ${name}...`);
 
-      await fs.writeFile(serverPath, getServerTemplate(name, type, room));
+      await fs.writeFile(serverPath, getServerTemplate(name, type, room, !noClient));
       context.logger.info(`   ✅ Server: app/server/live/${name}.ts`);
 
       if (!noClient) {
