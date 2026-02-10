@@ -22,32 +22,21 @@ import { LiveComponent${needsConstructor ? ', type FluxStackWebSocket' : ''} } f
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
   static defaultState = {
-    count: 0,
-    title: '${name}',
-    step: 1
+    count: 0
   }
 ${constructorBlock}
-  async increment(payload?: { amount?: number }) {
-    const amount = payload?.amount ?? this.state.step
-    this.setState({ count: this.state.count + amount })
-    if (this.room) this.broadcast('COUNTER_UPDATED', { count: this.state.count })
+  async increment() {
+    this.state.count++
     return { success: true, count: this.state.count }
   }
 
-  async decrement(payload?: { amount?: number }) {
-    const amount = payload?.amount ?? this.state.step
-    this.setState({ count: Math.max(0, this.state.count - amount) })
-    if (this.room) this.broadcast('COUNTER_UPDATED', { count: this.state.count })
+  async decrement() {
+    this.state.count--
     return { success: true, count: this.state.count }
   }
 
   async reset() {
-    this.setState({ count: 0 })
-    return { success: true }
-  }
-
-  async setStep(payload: { step: number }) {
-    this.setState({ step: Math.max(1, payload.step) })
+    this.state.count = 0
     return { success: true }
   }
 }
@@ -131,13 +120,12 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
 ${constructorBlock}
   async updateMessage(payload: { message: string }) {
     if (!payload.message?.trim()) throw new Error('Message cannot be empty')
-    this.setState({ message: payload.message.trim() })
-    if (this.room) this.broadcast('MESSAGE_UPDATED', { message: this.state.message })
+    this.state.message = payload.message.trim()
     return { success: true }
   }
 
   async increment() {
-    this.setState({ count: this.state.count + 1 })
+    this.state.count++
     return { success: true, count: this.state.count }
   }
 
@@ -168,7 +156,7 @@ export function ${name}Demo() {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-sm border">
-      <h2 className="text-xl font-bold mb-4">{counter.title}</h2>
+      <h2 className="text-xl font-bold mb-4">${name}</h2>
       <div className="text-5xl font-bold text-blue-600 text-center mb-6">{counter.count}</div>
       <div className="flex gap-2 justify-center">
         <button onClick={() => counter.decrement()} disabled={counter.count <= 0} className="px-4 py-2 bg-red-500 text-white rounded-lg disabled:opacity-50">-</button>

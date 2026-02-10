@@ -9,19 +9,17 @@ export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defa
   }
 
   async increment() {
-    const newCount = this.state.count + 1
-    this.setState({ count: newCount })
-    return { success: true, count: newCount }
+    this.state.count++
+    return { success: true, count: this.state.count }
   }
 
   async decrement() {
-    const newCount = this.state.count - 1
-    this.setState({ count: newCount })
-    return { success: true, count: newCount }
+    this.state.count--
+    return { success: true, count: this.state.count }
   }
 
   async reset() {
-    this.setState({ count: 0 })
+    this.state.count = 0
     return { success: true, count: 0 }
   }
 }

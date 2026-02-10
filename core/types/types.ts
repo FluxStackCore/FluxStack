@@ -215,7 +215,8 @@ export abstract class LiveComponent<TState = ComponentState> {
   static defaultState: any
 
   public readonly id: string
-  public state: TState
+  private _state: TState
+  public state: TState // Proxy wrapper
   protected ws: FluxStackWebSocket
   public room?: string
   public userId?: string
@@ -235,7 +236,11 @@ export abstract class LiveComponent<TState = ComponentState> {
     this.id = this.generateId()
     // Merge defaultState with initialState - subclass defaultState takes precedence for missing fields
     const ctor = this.constructor as typeof LiveComponent
-    this.state = { ...ctor.defaultState, ...initialState } as TState
+    this._state = { ...ctor.defaultState, ...initialState } as TState
+
+    // Create reactive proxy that auto-syncs on mutation
+    this.state = this.createStateProxy(this._state)
+
     this.ws = ws
     this.room = options?.room
     this.userId = options?.userId
@@ -245,6 +250,25 @@ export abstract class LiveComponent<TState = ComponentState> {
       this.joinedRooms.add(this.room)
       liveRoomManager.joinRoom(this.id, this.room, this.ws)
     }
+  }
+
+  // Create a Proxy that auto-emits STATE_UPDATE on any mutation
+  private createStateProxy(state: TState): TState {
+    const self = this
+    return new Proxy(state as object, {
+      set(target, prop, value) {
+        const oldValue = (target as any)[prop]
+        if (oldValue !== value) {
+          (target as any)[prop] = value
+          // Auto-sync to frontend
+          self.emit('STATE_UPDATE', { state: self._state })
+        }
+        return true
+      },
+      get(target, prop) {
+        return (target as any)[prop]
+      }
+    }) as TState
   }
 
   // ========================================
@@ -364,11 +388,11 @@ export abstract class LiveComponent<TState = ComponentState> {
     return Array.from(this.joinedRooms)
   }
 
-  // State management
+  // State management (batch update - single emit)
   public setState(updates: Partial<TState> | ((prev: TState) => Partial<TState>)) {
-    const newUpdates = typeof updates === 'function' ? updates(this.state) : updates
-    this.state = { ...this.state, ...newUpdates }
-    this.emit('STATE_UPDATE', { state: this.state })
+    const newUpdates = typeof updates === 'function' ? updates(this._state) : updates
+    Object.assign(this._state as object, newUpdates)
+    this.emit('STATE_UPDATE', { state: this._state })
   }
 
   // Generic setValue action - set any state key with type safety
