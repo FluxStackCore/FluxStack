@@ -30,19 +30,22 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static defaultState = {
     count: 0
   }
+
+  // Declarar propriedades do estado (criadas dinamicamente)
+  declare count: number
 ${constructorBlock}
   async increment() {
-    this.state.count++
-    return { success: true, count: this.state.count }
+    this.count++
+    return { success: true, count: this.count }
   }
 
   async decrement() {
-    this.state.count--
-    return { success: true, count: this.state.count }
+    this.count--
+    return { success: true, count: this.count }
   }
 
   async reset() {
-    this.state.count = 0
+    this.count = 0
     return { success: true }
   }
 }
@@ -126,16 +129,20 @@ export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
     message: 'Hello from ${name}!',
     count: 0
   }
+
+  // Declarar propriedades do estado (criadas dinamicamente)
+  declare message: string
+  declare count: number
 ${constructorBlock}
   async updateMessage(payload: { message: string }) {
     if (!payload.message?.trim()) throw new Error('Message cannot be empty')
-    this.state.message = payload.message.trim()
+    this.message = payload.message.trim()
     return { success: true }
   }
 
   async increment() {
-    this.state.count++
-    return { success: true, count: this.state.count }
+    this.count++
+    return { success: true, count: this.count }
   }
 
   async reset() {

@@ -250,6 +250,35 @@ export abstract class LiveComponent<TState = ComponentState> {
       this.joinedRooms.add(this.room)
       liveRoomManager.joinRoom(this.id, this.room, this.ws)
     }
+
+    // 🔥 Create direct property accessors (this.count instead of this.state.count)
+    this.createDirectStateAccessors()
+  }
+
+  // Create getters/setters for each state property directly on `this`
+  private createDirectStateAccessors() {
+    // Properties that should NOT become state accessors
+    const forbidden = new Set([
+      // Instance properties
+      ...Object.keys(this),
+      // Prototype methods
+      ...Object.getOwnPropertyNames(Object.getPrototypeOf(this)),
+      // Known internal properties
+      'state', '_state', 'ws', 'id', 'room', 'userId', 'broadcastToRoom',
+      '$room', '$rooms', 'roomType', 'roomHandles', 'joinedRooms', 'roomEventUnsubscribers'
+    ])
+
+    // Create accessor for each state key
+    for (const key of Object.keys(this._state as object)) {
+      if (!forbidden.has(key)) {
+        Object.defineProperty(this, key, {
+          get: () => (this._state as any)[key],
+          set: (value) => { (this.state as any)[key] = value }, // Uses proxy for auto-sync
+          enumerable: true,
+          configurable: true
+        })
+      }
+    }
   }
 
   // Create a Proxy that auto-emits STATE_UPDATE on any mutation

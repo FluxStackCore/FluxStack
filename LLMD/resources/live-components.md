@@ -1,18 +1,18 @@
 # Live Components
 
-**Version:** 1.12.0 | **Updated:** 2025-02-09
+**Version:** 1.13.0 | **Updated:** 2025-02-09
 
 ## Quick Facts
 
 - Server-side state management with WebSocket sync
-- **Reactive state Proxy** - `this.state.count++` auto-syncs
+- **Direct state access** - `this.count++` auto-syncs (v1.13.0)
 - Automatic state persistence and re-hydration
 - Room-based event system for multi-user sync
 - Type-safe client-server communication (FluxStackWebSocket)
 - Built-in connection management and recovery
 - **Client component links** - Ctrl+Click navigation
 
-## LiveComponent Class Structure (v1.12.0)
+## LiveComponent Class Structure (v1.13.0)
 
 Server-side component extends `LiveComponent` with **static defaultState**:
 
@@ -29,23 +29,32 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
     count: 0
   }
 
-  // ✅ Reactive state - auto-syncs with frontend
+  // Declarar propriedades do estado (TypeScript)
+  declare count: number
+
+  // ✅ Direct state access - auto-syncs with frontend
   async increment() {
-    this.state.count++
-    return { success: true, count: this.state.count }
+    this.count++
+    return { success: true, count: this.count }
   }
 
   async decrement() {
-    this.state.count--
-    return { success: true, count: this.state.count }
+    this.count--
+    return { success: true, count: this.count }
   }
 
   async reset() {
-    this.state.count = 0
+    this.count = 0
     return { success: true }
   }
 }
 ```
+
+### Key Changes in v1.13.0
+
+1. **Direct state access** - `this.count++` instead of `this.state.count++`
+2. **declare keyword** - TypeScript hint for dynamic properties
+3. **Cleaner code** - No need to prefix with `this.state.`
 
 ### Key Changes in v1.12.0
 
@@ -120,16 +129,21 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 
 ## State Management
 
-### Reactive State (v1.12.0) ✨
+### Direct State Access (v1.13.0) ✨
 
-State mutations auto-sync with frontend via Proxy:
+State properties are accessible directly on `this`:
 
 ```typescript
-// ✅ Direct mutation - auto-syncs!
-this.state.count++
-this.state.message = 'Hello'
+// Declare properties for TypeScript
+declare count: number
+declare message: string
 
-// No need for setState() on single property updates
+// ✅ Direct access - auto-syncs!
+this.count++
+this.message = 'Hello'
+
+// Also works (v1.12.0 style)
+this.state.count++
 ```
 
 ### setState (Batch Updates)
@@ -536,6 +550,7 @@ export class MyComponent extends LiveComponent<State> {
 - Define `static componentName` matching class name
 - Define `static defaultState` inside the class
 - Use `typeof ClassName.defaultState` for type parameter
+- Use `declare` for each state property (TypeScript type hint)
 - Call `super.destroy()` in destroy method if overriding
 - Use `emitRoomEventWithState` for state changes in rooms
 - Handle errors in actions (throw Error)
@@ -547,17 +562,22 @@ export class MyComponent extends LiveComponent<State> {
 - Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
+- Use reserved names for state properties (id, ws, room, userId, $room, $rooms)
 
-**STATE UPDATES (v1.12.0):**
+**STATE UPDATES (v1.13.0):**
 ```typescript
-// ✅ Single property - use direct mutation
+// ✅ Direct access (preferred)
+declare count: number
+this.count++
+
+// ✅ Also works (v1.12.0 style)
 this.state.count++
 
 // ✅ Multiple properties - use setState (one sync)
 this.setState({ a: 1, b: 2, c: 3 })
 
 // ❌ Don't use setState for single property (unnecessary)
-this.setState({ count: this.state.count + 1 })
+this.setState({ count: this.count + 1 })
 ```
 
 ---

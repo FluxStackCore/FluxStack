@@ -12,21 +12,26 @@ export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defa
     clicks: 0
   }
 
+  // Declarar propriedades (criadas dinamicamente pelo LiveComponent)
+  declare count: number
+  declare clicks: number
+
+  // 🔥 Agora usa this.count diretamente!
   async increment() {
-    this.state.count++
-    this.state.clicks++
-    return { success: true, count: this.state.count }
+    this.count++
+    this.clicks++
+    return { success: true, count: this.count }
   }
 
   async decrement() {
-    this.state.count--
-    this.state.clicks++
-    return { success: true, count: this.state.count }
+    this.count--
+    this.clicks++
+    return { success: true, count: this.count }
   }
 
   async reset() {
-    this.state.count = 0
-    this.state.clicks++
+    this.count = 0
+    this.clicks++
     return { success: true, count: 0 }
   }
 }
