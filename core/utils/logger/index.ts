@@ -127,7 +127,7 @@ export function SECTION(sectionName: string, callback: () => void): void {
 /**
  * HTTP request logging with colors and formatting
  */
-export function request(method: string, path: string, status?: number, duration?: number): void {
+export function request(method: string, path: string, status?: number, duration?: number, ip?: string): void {
   const { file: callerFile } = getCallerInfo()
   const logger = getLoggerForModule(callerFile)
 
@@ -159,12 +159,15 @@ export function request(method: string, path: string, status?: number, duration?
     durationStr = ` ${durationColor(`(${duration}ms)`)}`
   }
 
+  // Format IP address
+  const ipStr = ip ? chalk.dim(`[${ip}]`) + ' ' : ''
+
   // Build log message
   const methodStr = methodColor(method.padEnd(7))
   const pathStr = chalk.white(path.padEnd(30))
   const statusStr = status ? `→ ${statusColor(status.toString())}` : ''
 
-  const message = `${methodStr} ${pathStr} ${statusStr}${durationStr}`
+  const message = `${ipStr}${methodStr} ${pathStr} ${statusStr}${durationStr}`
 
   // Use appropriate log level based on status
   const level = status && status >= 500 ? 'error' : status && status >= 400 ? 'warn' : 'info'

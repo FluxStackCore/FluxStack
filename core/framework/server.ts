@@ -36,6 +36,37 @@ export class FluxStackFramework {
     }
   }
 
+  /**
+   * Extract client IP from request headers (supports proxies)
+   */
+  private getClientIP(request: Request): string {
+    // Check common proxy headers in order of priority
+    const xForwardedFor = request.headers.get('x-forwarded-for')
+    if (xForwardedFor) {
+      // x-forwarded-for can contain multiple IPs, take the first (original client)
+      return xForwardedFor.split(',')[0].trim()
+    }
+
+    const xRealIP = request.headers.get('x-real-ip')
+    if (xRealIP) {
+      return xRealIP.trim()
+    }
+
+    const cfConnectingIP = request.headers.get('cf-connecting-ip')
+    if (cfConnectingIP) {
+      return cfConnectingIP.trim()
+    }
+
+    // Fallback: try to get from Bun's server socket (if available)
+    // This is set by Bun when running in server mode
+    const socketIP = (request as any).ip || (request as any).remoteAddress
+    if (socketIP) {
+      return socketIP
+    }
+
+    return '127.0.0.1'
+  }
+
   constructor(config?: Partial<FluxStackConfig>) {
     // Load the full configuration
     const fullConfig = config ? { ...fluxStackConfig, ...config } : fluxStackConfig
@@ -99,7 +130,7 @@ export class FluxStackFramework {
       child: (context: Record<string, unknown>) => PluginLogger
       time: (label: string) => void
       timeEnd: (label: string) => void
-      request: (method: string, path: string, status?: number, duration?: number) => void
+      request: (method: string, path: string, status?: number, duration?: number, ip?: string) => void
     }
 
     const pluginLogger: PluginLogger = {
@@ -110,8 +141,8 @@ export class FluxStackFramework {
       child: (context: Record<string, unknown>) => pluginLogger,
       time: (label: string) => logger.time(label),
       timeEnd: (label: string) => logger.timeEnd(label),
-      request: (method: string, path: string, status?: number, duration?: number) =>
-        logger.request(method, path, status, duration)
+      request: (method: string, path: string, status?: number, duration?: number, ip?: string) =>
+        logger.request(method, path, status, duration, ip)
     }
 
     this.pluginContext = {
@@ -439,7 +470,8 @@ export class FluxStackFramework {
           ? responseContext.statusCode
           : Number(set.status) || 200
 
-        logger.request(request.method, url.pathname, status, duration)
+        const clientIP = this.getClientIP(request)
+        logger.request(request.method, url.pathname, status, duration, clientIP)
       }
 
       // Execute onResponse hooks for all plugins (final logging, metrics)
