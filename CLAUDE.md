@@ -481,6 +481,41 @@ curl http://localhost:3000/api/health  # ✅ Health check
 - **🩺 Health Check**: http://localhost:3000/api/health
 - **👥 Users API**: http://localhost:3000/api/users
 
+## 🔥 **Mudanças Importantes v1.11→v1.12**
+
+### **✅ Reactive State Proxy (Fevereiro 2025)**
+- **Novidade**: State mutations auto-sincronizam com frontend via Proxy
+- **Antes**: `this.setState({ count: this.state.count + 1 })`
+- **Depois**: `this.state.count++` (auto-sync!)
+- **Benefício**: Código mais limpo e intuitivo
+- **Nota**: `setState()` ainda disponível para batch updates (múltiplas props = um emit)
+
+### **✅ Static defaultState Pattern (Fevereiro 2025)**
+- **Novidade**: `defaultState` definido dentro da classe como propriedade estática
+- **Antes**: `export const defaultState = {...}` + `static defaultState = defaultState`
+- **Depois**: Apenas `static defaultState = {...}` dentro da classe
+- **Benefício**: Menos boilerplate, melhor encapsulamento
+
+### **✅ Client Component Links (Fevereiro 2025)**
+- **Novidade**: Links clicáveis do componente server para o client
+- **Sintaxe**: `import type { Demo as _Client } from '@client/src/live/Demo'`
+- **Uso**: Ctrl+Click no VSCode navega direto para o componente client
+- **Benefício**: Navegação rápida entre server e client
+
+### **✅ Constructors Simplificados (Fevereiro 2025)**
+- **Novidade**: Constructors não são mais necessários para componentes simples
+- **Base class** faz merge automático de `defaultState` com `initialState`
+- **Constructor só necessário** para: room event subscriptions, lógica customizada
+- **Benefício**: Menos código boilerplate
+
+### **✅ Type-safe WebSocket (Fevereiro 2025)**
+- **Novidade**: Interface `FluxStackWebSocket` tipada
+- **Antes**: `ws: any`
+- **Depois**: `ws: FluxStackWebSocket`
+- **Benefício**: Type safety no WebSocket server-side
+
+---
+
 ## 🔥 **Mudanças Importantes v1.8→v1.9**
 
 ### **✅ Sistema de Segurança de Plugins (Janeiro 2025)**
@@ -599,4 +634,4 @@ curl http://localhost:3000/api/health  # ✅ Health check
 
 **🎯 Objetivo**: Capacitar LLMs a trabalhar eficientemente com FluxStack, seguindo padrões estabelecidos e garantindo código de alta qualidade com type safety automática.
 
-**📅 Última atualização**: Novembro 2024 - v1.9.1 - Correção de vazamento de dados do navegador no pacote npm.
+**📅 Última atualização**: Fevereiro 2025 - v1.12.0 - Reactive State Proxy, Static defaultState, Client Links.

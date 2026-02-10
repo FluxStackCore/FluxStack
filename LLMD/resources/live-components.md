@@ -1,67 +1,97 @@
 # Live Components
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.12.0 | **Updated:** 2025-02-09
 
 ## Quick Facts
 
 - Server-side state management with WebSocket sync
+- **Reactive state Proxy** - `this.state.count++` auto-syncs
 - Automatic state persistence and re-hydration
 - Room-based event system for multi-user sync
-- Type-safe client-server communication
+- Type-safe client-server communication (FluxStackWebSocket)
 - Built-in connection management and recovery
+- **Client component links** - Ctrl+Click navigation
 
-## LiveComponent Class Structure
+## LiveComponent Class Structure (v1.12.0)
 
-Server-side component extends `LiveComponent`:
+Server-side component extends `LiveComponent` with **static defaultState**:
 
 ```typescript
 // app/server/live/LiveCounter.ts
 import { LiveComponent } from '@core/types/types'
 
-export const defaultState = {
-  count: 0,
-  lastUpdatedBy: null as string | null,
-  connectedUsers: 0
-}
+// Componente Cliente (Ctrl+Click para navegar)
+import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
-export class LiveCounter extends LiveComponent<typeof defaultState> {
-  static defaultState = defaultState
+export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
+  static componentName = 'LiveCounter'
+  static defaultState = {
+    count: 0
+  }
+
+  // ✅ Reactive state - auto-syncs with frontend
+  async increment() {
+    this.state.count++
+    return { success: true, count: this.state.count }
+  }
+
+  async decrement() {
+    this.state.count--
+    return { success: true, count: this.state.count }
+  }
+
+  async reset() {
+    this.state.count = 0
+    return { success: true }
+  }
+}
+```
+
+### Key Changes in v1.12.0
+
+1. **Static defaultState inside class** - No external export needed
+2. **Reactive Proxy** - `this.state.count++` triggers sync automatically
+3. **No constructor needed** - Base class handles defaultState merge
+4. **Client link** - `import type { Demo as _Client }` enables Ctrl+Click
+5. **Type-safe WebSocket** - `FluxStackWebSocket` interface
+
+### With Room Events (Advanced)
+
+```typescript
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+
+export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
+  static componentName = 'LiveCounter'
+  static defaultState = {
+    count: 0,
+    lastUpdatedBy: null as string | null,
+    connectedUsers: 0
+  }
   protected roomType = 'counter'
 
+  // Constructor only needed for room event subscriptions
   constructor(
-    initialState: Partial<typeof defaultState>, 
-    ws: any, 
+    initialState: Partial<typeof LiveCounter.defaultState>,
+    ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ) {
-    super({ ...defaultState, ...initialState }, ws, options)
-    
-    // Subscribe to room events
+    super(initialState, ws, options)
+
     this.onRoomEvent<{ count: number }>('COUNT_CHANGED', (data) => {
       this.setState({ count: data.count })
     })
   }
 
-  // Actions - called from client
   async increment() {
-    const newCount = this.state.count + 1
-    this.emitRoomEventWithState('COUNT_CHANGED', 
-      { count: newCount }, 
-      { count: newCount }
-    )
-    return { success: true, count: newCount }
-  }
-
-  async decrement() {
-    const newCount = this.state.count - 1
+    this.state.count++
     this.emitRoomEventWithState('COUNT_CHANGED',
-      { count: newCount },
-      { count: newCount }
+      { count: this.state.count },
+      { count: this.state.count }
     )
-    return { success: true, count: newCount }
+    return { success: true, count: this.state.count }
   }
 
   destroy() {
-    // Cleanup logic
     super.destroy()
   }
 }
@@ -70,14 +100,17 @@ export class LiveCounter extends LiveComponent<typeof defaultState> {
 ## Lifecycle Methods
 
 ```typescript
-export class MyComponent extends LiveComponent<StateType> {
-  constructor(initialState, ws, options) {
-    super(initialState, ws, options)
-    // Component initialization
-    // Subscribe to room events here
+export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> {
+  static componentName = 'MyComponent'
+  static defaultState = {
+    // Define state here
   }
 
-  // Called when component is destroyed
+  // Constructor ONLY needed if:
+  // - Subscribing to room events
+  // - Custom initialization logic
+  // Otherwise, omit it entirely!
+
   destroy() {
     // Cleanup subscriptions, timers, etc.
     super.destroy()
@@ -87,12 +120,29 @@ export class MyComponent extends LiveComponent<StateType> {
 
 ## State Management
 
-### setState
+### Reactive State (v1.12.0) ✨
 
-Update component state and sync to client:
+State mutations auto-sync with frontend via Proxy:
 
 ```typescript
-this.setState({ count: newCount })
+// ✅ Direct mutation - auto-syncs!
+this.state.count++
+this.state.message = 'Hello'
+
+// No need for setState() on single property updates
+```
+
+### setState (Batch Updates)
+
+Use `setState` for multiple properties at once (single emit):
+
+```typescript
+// ✅ Batch update - one sync event
+this.setState({
+  count: newCount,
+  lastUpdatedBy: userId,
+  updatedAt: new Date().toISOString()
+})
 ```
 
 ### getSerializableState
@@ -219,13 +269,13 @@ function App() {
 
 ```typescript
 import { Live } from '@/core/client'
-import { LiveCounter, defaultState } from '@server/live/LiveCounter'
+import { LiveCounter } from '@server/live/LiveCounter'
 
 export function CounterDemo() {
   // Mount component with options
   const counter = Live.use(LiveCounter, {
     room: 'global-counter',
-    initialState: defaultState
+    initialState: LiveCounter.defaultState  // ✅ Use static defaultState
   })
 
   // Access state
@@ -420,12 +470,21 @@ app/server/live/
 ├── LiveCounter.ts          # Counter component
 ├── LiveForm.ts             # Form component
 ├── LiveChat.ts             # Chat component
+├── LiveLocalCounter.ts     # Local counter (no room)
 └── register-components.ts  # Registration
+
+app/client/src/live/
+├── CounterDemo.tsx         # Counter UI
+├── FormDemo.tsx            # Form UI
+├── ChatDemo.tsx            # Chat UI
+└── ...
 ```
 
-Each file exports:
-- `defaultState` - Initial state object
+Each server file contains:
+- `static componentName` - Component identifier
+- `static defaultState` - Initial state object
 - Component class extending `LiveComponent`
+- Client link via `import type { Demo as _Client }`
 
 ## Testing Components
 
@@ -474,18 +533,32 @@ export class MyComponent extends LiveComponent<State> {
 ## Critical Rules
 
 **ALWAYS:**
-- Export `defaultState` from component file
-- Call `super.destroy()` in destroy method
+- Define `static componentName` matching class name
+- Define `static defaultState` inside the class
+- Use `typeof ClassName.defaultState` for type parameter
+- Call `super.destroy()` in destroy method if overriding
 - Use `emitRoomEventWithState` for state changes in rooms
 - Handle errors in actions (throw Error)
-- Define state type with `typeof defaultState`
+- Add client link: `import type { Demo as _Client } from '@client/...'`
 
 **NEVER:**
-- Modify state directly (use `setState`)
-- Forget to call `super()` in constructor
+- Export separate `defaultState` constant (use static)
+- Create constructor just to call super() (not needed)
+- Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
-- Forget to cleanup in destroy method
+
+**STATE UPDATES (v1.12.0):**
+```typescript
+// ✅ Single property - use direct mutation
+this.state.count++
+
+// ✅ Multiple properties - use setState (one sync)
+this.setState({ a: 1, b: 2, c: 3 })
+
+// ❌ Don't use setState for single property (unnecessary)
+this.setState({ count: this.state.count + 1 })
+```
 
 ---
 
