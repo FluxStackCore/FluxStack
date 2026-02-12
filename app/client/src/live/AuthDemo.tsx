@@ -207,7 +207,7 @@ function AdminSection() {
 //    Simula login/logout via authenticate()
 // ───────────────────────────────────────
 
-function AuthControls({ onAuthChange }: { onAuthChange: () => void }) {
+function AuthControls() {
   const { authenticated, authenticate, reconnect } = useLiveComponents()
   const [token, setToken] = useState('')
   const [isLoggingIn, setIsLoggingIn] = useState(false)
@@ -215,19 +215,15 @@ function AuthControls({ onAuthChange }: { onAuthChange: () => void }) {
   const handleLogin = async () => {
     if (!token.trim()) return
     setIsLoggingIn(true)
-    const success = await authenticate({ token: token.trim() })
+    await authenticate({ token: token.trim() })
     setIsLoggingIn(false)
-    if (success) {
-      // Notificar mudança de auth para forçar re-render dos componentes
-      onAuthChange()
-    }
+    // Componentes detectam automaticamente a mudança de auth e remontam
   }
 
   const handleLogout = () => {
     setToken('')
     // Reconectar sem token = nova conexão anônima
     reconnect()
-    onAuthChange()
   }
 
   return (
@@ -306,14 +302,6 @@ function AuthControls({ onAuthChange }: { onAuthChange: () => void }) {
 // ───────────────────────────────────────
 
 export function AuthDemo() {
-  // Key para forçar re-mount dos componentes após auth mudar
-  const [authKey, setAuthKey] = useState(0)
-
-  const handleAuthChange = () => {
-    // Incrementar key força React a re-montar os componentes
-    setAuthKey(k => k + 1)
-  }
-
   return (
     <div className="space-y-6 w-full max-w-2xl mx-auto">
       <div className="text-center mb-8">
@@ -323,9 +311,9 @@ export function AuthDemo() {
         </p>
       </div>
 
-      <AuthControls onAuthChange={handleAuthChange} />
+      <AuthControls />
 
-      <div className="grid gap-6" key={authKey}>
+      <div className="grid gap-6">
         <PublicSection />
         <AdminSection />
       </div>

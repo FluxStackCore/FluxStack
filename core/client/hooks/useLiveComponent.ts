@@ -289,6 +289,7 @@ export function useLiveComponent<
   const broadcastHandlerRef = useRef<((event: { type: string; data: any }) => void) | null>(null)
   const roomMessageHandlers = useRef<Set<(msg: RoomServerMessage) => void>>(new Set())
   const roomManagerRef = useRef<RoomManager | null>(null)
+  const mountFnRef = useRef<(() => Promise<void>) | null>(null)
 
   // State
   const stateData = store((s) => s.state)
@@ -298,6 +299,7 @@ export function useLiveComponent<
   const [error, setError] = useState<string | null>(null)
   const [rehydrating, setRehydrating] = useState(false)
   const [mountFailed, setMountFailed] = useState(false) // Previne loop infinito de mount
+  const [authDenied, setAuthDenied] = useState(false) // Track if mount failed due to AUTH_DENIED
 
   const log = useCallback((msg: string, data?: any) => {
     if (debug) console.log(`[${componentName}] ${msg}`, data || '')
@@ -374,7 +376,11 @@ export function useLiveComponent<
       }
     } catch (err: any) {
       setError(err.message)
-      setMountFailed(true) // Previne loop infinito
+      // Track if auth was the reason for failure
+      if (err.message?.includes('AUTH_DENIED')) {
+        setAuthDenied(true)
+      }
+      setMountFailed(true) // Previne loop infinito para TODOS os erros
       onError?.(err.message)
       if (!fallbackToLocal) throw err
     } finally {
@@ -382,6 +388,9 @@ export function useLiveComponent<
       mountingRef.current = false
     }
   }, [connected, componentName, initialState, room, userId, sendMessageAndWait, updateState, log, onMount, onError, fallbackToLocal, mountFailed])
+
+  // Keep mount function ref updated
+  mountFnRef.current = mount
 
   // ===== Unmount =====
   const unmount = useCallback(async () => {
@@ -630,6 +639,28 @@ export function useLiveComponent<
       })
     }
   }, [connected, autoMount, mount, componentId, rehydrating, rehydrate, mountFailed])
+
+  // ===== Auto Re-mount on Auth Change =====
+  // When auth changes from false to true and component failed due to AUTH_DENIED, retry mount
+  const prevAuthRef = useRef(wsAuthenticated)
+  useEffect(() => {
+    const wasNotAuthenticated = !prevAuthRef.current
+    const isNowAuthenticated = wsAuthenticated
+    prevAuthRef.current = wsAuthenticated
+
+    // Only retry if: auth changed from false→true AND we had an auth denial
+    if (wasNotAuthenticated && isNowAuthenticated && authDenied) {
+      log('Auth changed to authenticated, retrying mount...')
+      // Reset flags to allow retry
+      setAuthDenied(false)
+      setMountFailed(false)
+      setError(null)
+      mountedRef.current = false
+      mountingRef.current = false
+      // Small delay to ensure state is updated, use ref to avoid stale closure
+      setTimeout(() => mountFnRef.current?.(), 50)
+    }
+  }, [wsAuthenticated, authDenied, log])
 
   // ===== Connection Changes =====
   const prevConnected = useRef(connected)
