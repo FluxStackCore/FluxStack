@@ -2,6 +2,7 @@
 
 import { roomEvents } from './RoomEventBus'
 import type { FluxStackWebSocket } from '@core/types/types'
+import { liveLog } from './LiveLogger'
 
 export interface RoomMessage {
   type: 'ROOM_JOIN' | 'ROOM_LEAVE' | 'ROOM_EMIT' | 'ROOM_STATE_SET' | 'ROOM_STATE_GET'
@@ -44,7 +45,7 @@ class LiveRoomManager {
         createdAt: Date.now(),
         lastActivity: Date.now()
       })
-      console.log(`🏠 Room '${roomId}' created`)
+      liveLog('rooms', componentId, `🏠 Room '${roomId}' created`)
     }
 
     const room = this.rooms.get(roomId)!
@@ -63,7 +64,7 @@ class LiveRoomManager {
     }
     this.componentRooms.get(componentId)!.add(roomId)
 
-    console.log(`👋 Component '${componentId}' joined room '${roomId}' (${room.members.size} members)`)
+    liveLog('rooms', componentId, `👋 Component '${componentId}' joined room '${roomId}' (${room.members.size} members)`)
 
     // Notificar outros membros
     this.broadcastToRoom(roomId, {
@@ -95,7 +96,7 @@ class LiveRoomManager {
     // Remover do rastreamento
     this.componentRooms.get(componentId)?.delete(roomId)
 
-    console.log(`🚶 Component '${componentId}' left room '${roomId}' (${room.members.size} members)`)
+    liveLog('rooms', componentId, `🚶 Component '${componentId}' left room '${roomId}' (${room.members.size} members)`)
 
     // Notificar outros membros
     this.broadcastToRoom(roomId, {
@@ -116,7 +117,7 @@ class LiveRoomManager {
         const currentRoom = this.rooms.get(roomId)
         if (currentRoom && currentRoom.members.size === 0) {
           this.rooms.delete(roomId)
-          console.log(`🗑️ Room '${roomId}' destroyed (empty)`)
+          liveLog('rooms', null, `🗑️ Room '${roomId}' destroyed (empty)`)
         }
       }, 5 * 60 * 1000) // 5 minutos
     }

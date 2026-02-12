@@ -12,6 +12,8 @@ export { connectionManager } from './WebSocketConnectionManager'
 export { fileUploadManager } from './FileUploadManager'
 export { stateSignature } from './StateSignature'
 export { performanceMonitor } from './LiveComponentPerformanceMonitor'
+export { liveLog, liveWarn, registerComponentLogging, unregisterComponentLogging } from './LiveLogger'
+export type { LiveLogCategory, LiveLogConfig } from './LiveLogger'
 
 // 🔒 Auth system
 export { liveAuthManager, LiveAuthManager } from './auth/LiveAuthManager'

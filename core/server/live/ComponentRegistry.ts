@@ -13,6 +13,7 @@ import { performanceMonitor } from './LiveComponentPerformanceMonitor'
 import { liveAuthManager } from './auth/LiveAuthManager'
 import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
 import type { LiveComponentAuth, LiveActionAuthMap } from './auth/types'
+import { liveLog, registerComponentLogging, unregisterComponentLogging } from './LiveLogger'
 
 // Enhanced interfaces for registry improvements
 export interface ComponentMetadata {
@@ -115,7 +116,7 @@ export class ComponentRegistry {
   private setupRecoveryStrategies(): void {
     // Default recovery strategy for unhealthy components
     this.recoveryStrategies.set('default', async () => {
-      console.log('🔄 Executing default recovery strategy')
+      liveLog('lifecycle', null, '🔄 Executing default recovery strategy')
       // Restart unhealthy components
       for (const [componentId, metadata] of this.metadata) {
         if (metadata.healthStatus === 'unhealthy') {
@@ -129,19 +130,19 @@ export class ComponentRegistry {
   registerComponent<TState>(definition: ComponentDefinition<TState>, version: string = '1.0.0') {
     // Store version separately in metadata when component is mounted
     this.definitions.set(definition.name, definition)
-    console.log(`📝 Registered component: ${definition.name} v${version}`)
+    liveLog('lifecycle', null, `📝 Registered component: ${definition.name} v${version}`)
   }
 
   // Register component dependencies
   registerDependencies(componentName: string, dependencies: ComponentDependency[]): void {
     this.dependencies.set(componentName, dependencies)
-    console.log(`🔗 Registered dependencies for ${componentName}:`, dependencies.map(d => d.name))
+    liveLog('lifecycle', null, `🔗 Registered dependencies for ${componentName}:`, dependencies.map(d => d.name))
   }
 
   // Register service in DI container
   registerService<T>(name: string, factory: () => T): void {
     this.services.register(name, factory)
-    console.log(`🔧 Registered service: ${name}`)
+    liveLog('lifecycle', null, `🔧 Registered service: ${name}`)
   }
 
   // Register component class dynamically
@@ -161,7 +162,7 @@ export class ComponentRegistry {
         // In production, components are already bundled - no need to auto-discover
         const { appConfig } = await import('@config')
         if (appConfig.env !== 'production') {
-          console.log(`⚠️ Components path not found: ${componentsPath}`)
+          liveLog('lifecycle', null, `⚠️ Components path not found: ${componentsPath}`)
         }
         return
       }
@@ -345,11 +346,15 @@ export class ComponentRegistry {
     const renderTime = Date.now() - startTime
     this.recordComponentMetrics(component.id, renderTime)
 
+    // Register per-component logging config
+    const loggingConfig = (ComponentClass as any).logging
+    registerComponentLogging(component.id, loggingConfig)
+
     // Initialize performance monitoring
     performanceMonitor.initializeComponent(component.id, componentName)
     performanceMonitor.recordRenderTime(component.id, renderTime)
 
-    console.log(`🚀 Mounted component: ${componentName} (${component.id}) in ${renderTime}ms`)
+    liveLog('lifecycle', component.id, `🚀 Mounted component: ${componentName} (${component.id}) in ${renderTime}ms`)
     
     // Send initial state to client with signature
     const signedState = await stateSignature.signState(component.id, component.getSerializableState(), 1, {
@@ -381,7 +386,7 @@ export class ComponentRegistry {
     ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ): Promise<{ success: boolean; newComponentId?: string; error?: string }> {
-    console.log('🔄 Attempting component re-hydration:', {
+    liveLog('lifecycle', componentId, '🔄 Attempting component re-hydration:', {
       oldComponentId: componentId,
       componentName,
       signedState: {
@@ -395,7 +400,7 @@ export class ComponentRegistry {
       // Validate signed state integrity
       const validation = await stateSignature.validateState(signedState)
       if (!validation.valid) {
-        console.warn('❌ State signature validation failed:', validation.error)
+        liveLog('lifecycle', componentId, '❌ State signature validation failed:', validation.error)
         return {
           success: false,
           error: validation.error || 'Invalid state signature'
@@ -484,7 +489,11 @@ export class ComponentRegistry {
       }
       ws.data.components.set(component.id, component)
 
-      console.log('✅ Component re-hydrated successfully:', {
+      // Register logging config for rehydrated component
+      const rehydrateLoggingConfig = (ComponentClass as any).logging
+      registerComponentLogging(component.id, rehydrateLoggingConfig)
+
+      liveLog('lifecycle', component.id, '✅ Component re-hydrated successfully:', {
         oldComponentId: componentId,
         newComponentId: component.id,
         componentName,
@@ -535,14 +544,15 @@ export class ComponentRegistry {
     this.components.delete(componentId)
     this.wsConnections.delete(componentId)
 
-    console.log(`🗑️ Unmounted component: ${componentId}`)
+    liveLog('lifecycle', componentId, `🗑️ Unmounted component: ${componentId}`)
+    unregisterComponentLogging(componentId)
   }
 
   // Execute action on component
   async executeAction(componentId: string, action: string, payload: any): Promise<any> {
     const component = this.components.get(componentId)
     if (!component) {
-      console.log(`🔄 Component '${componentId}' not found - triggering re-hydration request`)
+      liveLog('lifecycle', componentId, `🔄 Component '${componentId}' not found - triggering re-hydration request`)
       // Return special error that triggers re-hydration on client
       throw new Error(`COMPONENT_REHYDRATION_REQUIRED:${componentId}`)
     }
@@ -585,7 +595,7 @@ export class ComponentRegistry {
     const updates = { [property]: value }
     component.setState?.(updates)
 
-    console.log(`📝 Updated property '${property}' on component '${componentId}'`)
+    liveLog('state', componentId, `📝 Updated property '${property}' on component '${componentId}'`)
   }
 
   // Subscribe component to room
@@ -595,7 +605,7 @@ export class ComponentRegistry {
     }
     
     this.rooms.get(roomId)!.add(componentId)
-    console.log(`📡 Component '${componentId}' subscribed to room '${roomId}'`)
+    liveLog('rooms', componentId, `📡 Component '${componentId}' subscribed to room '${roomId}'`)
   }
 
   // Unsubscribe component from room
@@ -607,7 +617,7 @@ export class ComponentRegistry {
         this.rooms.delete(roomId)
       }
     }
-    console.log(`📡 Component '${componentId}' unsubscribed from room '${roomId}'`)
+    liveLog('rooms', componentId, `📡 Component '${componentId}' unsubscribed from room '${roomId}'`)
   }
 
   // Unsubscribe from all rooms
@@ -653,7 +663,7 @@ export class ComponentRegistry {
       }
     }
 
-    console.log(`📡 Broadcast '${message.type}' to room '${message.room}': ${broadcastCount} recipients`)
+    liveLog('rooms', senderComponentId ?? null, `📡 Broadcast '${message.type}' to room '${message.room}': ${broadcastCount} recipients`)
   }
 
   // Handle WebSocket message with enhanced metrics and lifecycle tracking
@@ -754,7 +764,7 @@ export class ComponentRegistry {
 
     const componentsToCleanup = Array.from(ws.data.components.keys()) as string[]
     
-    console.log(`🧹 Cleaning up ${componentsToCleanup.length} components for disconnected WebSocket`)
+    liveLog('lifecycle', null, `🧹 Cleaning up ${componentsToCleanup.length} components for disconnected WebSocket`)
     
     for (const componentId of componentsToCleanup) {
       this.cleanupComponent(componentId)
@@ -763,7 +773,7 @@ export class ComponentRegistry {
     // Clear the WebSocket's component map
     ws.data.components.clear()
 
-    console.log(`🧹 Cleaned up ${componentsToCleanup.length} components from disconnected WebSocket`)
+    liveLog('lifecycle', null, `🧹 Cleaned up ${componentsToCleanup.length} components from disconnected WebSocket`)
   }
 
   // Get statistics
@@ -948,7 +958,7 @@ export class ComponentRegistry {
     if (!metadata || !component) return
 
     try {
-      console.log(`🔄 Recovering component ${componentId}`)
+      liveLog('lifecycle', componentId, `🔄 Recovering component ${componentId}`)
       
       // Reset error count
       metadata.metrics.errorCount = 0
@@ -975,7 +985,7 @@ export class ComponentRegistry {
     if (!component || !metadata) return false
 
     try {
-      console.log(`🔄 Migrating component ${componentId} from v${fromVersion} to v${toVersion}`)
+      liveLog('lifecycle', componentId, `🔄 Migrating component ${componentId} from v${fromVersion} to v${toVersion}`)
       
       const oldState = component.getSerializableState?.()
       const newState = migrationFn(oldState)
@@ -994,7 +1004,7 @@ export class ComponentRegistry {
       metadata.migrationHistory.push(migration)
       metadata.version = toVersion
       
-      console.log(`✅ Successfully migrated component ${componentId}`)
+      liveLog('lifecycle', componentId, `✅ Successfully migrated component ${componentId}`)
       return true
       
     } catch (error: any) {
@@ -1067,9 +1077,10 @@ export class ComponentRegistry {
       metadata.state = 'destroying'
     }
     
-    // Remove from performance monitoring
+    // Remove from performance monitoring and logging
     performanceMonitor.removeComponent(componentId)
-    
+    unregisterComponentLogging(componentId)
+
     this.components.delete(componentId)
     this.metadata.delete(componentId)
     this.wsConnections.delete(componentId)

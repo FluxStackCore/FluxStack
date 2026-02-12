@@ -2,6 +2,7 @@
 // Advanced performance monitoring, metrics collection, and optimization suggestions
 
 import { EventEmitter } from 'events'
+import { liveLog, liveWarn } from './LiveLogger'
 
 export interface PerformanceMetrics {
   componentId: string
@@ -279,7 +280,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
     this.alerts.set(componentId, [])
     this.suggestions.set(componentId, [])
 
-    console.log(`📊 Performance monitoring initialized for component: ${componentId}`)
+    liveLog('performance', componentId, `📊 Performance monitoring initialized for component: ${componentId}`)
   }
 
   /**
@@ -562,7 +563,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
 
     this.alertCooldowns.set(alertKey, now)
 
-    console.warn(`⚠️ Performance alert [${type}]: ${message}`)
+    liveWarn('performance', componentId, `⚠️ Performance alert [${type}]: ${message}`)
     this.emit('performanceAlert', alert)
   }
 
@@ -695,7 +696,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
     suggestions.push(suggestion)
     this.suggestions.set(componentId, suggestions)
 
-    console.log(`💡 Optimization suggestion for ${componentId}: ${title}`)
+    liveLog('performance', componentId, `💡 Optimization suggestion for ${componentId}: ${title}`)
     this.emit('optimizationSuggestion', suggestion)
   }
 
@@ -863,7 +864,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
       const alert = alerts.find(a => a.id === alertId)
       if (alert) {
         alert.resolved = true
-        console.log(`✅ Alert resolved: ${alertId}`)
+        liveLog('performance', null, `✅ Alert resolved: ${alertId}`)
         return true
       }
     }
@@ -889,7 +890,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
       this.suggestions.set(componentId, validSuggestions)
     }
 
-    console.log('🧹 Performance monitoring data cleanup completed')
+    liveLog('performance', null, '🧹 Performance monitoring data cleanup completed')
   }
 
   /**
@@ -900,14 +901,14 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
     this.alerts.delete(componentId)
     this.suggestions.delete(componentId)
     
-    console.log(`📊 Performance monitoring removed for component: ${componentId}`)
+    liveLog('performance', componentId, `📊 Performance monitoring removed for component: ${componentId}`)
   }
 
   /**
    * Shutdown performance monitor
    */
   shutdown(): void {
-    console.log('📊 Shutting down Performance Monitor...')
+    liveLog('performance', null, '📊 Shutting down Performance Monitor...')
     
     if (this.dashboardUpdateInterval) {
       clearInterval(this.dashboardUpdateInterval)
@@ -922,7 +923,7 @@ export class LiveComponentPerformanceMonitor extends EventEmitter {
     this.suggestions.clear()
     this.alertCooldowns.clear()
 
-    console.log('✅ Performance Monitor shutdown complete')
+    liveLog('performance', null, '✅ Performance Monitor shutdown complete')
   }
 }
 
