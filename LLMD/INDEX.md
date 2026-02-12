@@ -1,6 +1,6 @@
 # FluxStack LLM Documentation
 
-**Version:** 1.12.0 | **Framework:** Bun + Elysia + React + Eden Treaty
+**Version:** 1.12.1 | **Framework:** Bun + Elysia + React + Eden Treaty
 
 ## Quick Navigation
 
@@ -8,6 +8,7 @@
 **Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
 **Live Components Auth?** → [resources/live-auth.md](resources/live-auth.md)
 **Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md)
+**Debugging Logs?** → [resources/live-logging.md](resources/live-logging.md)
 **Config Issues?** → [config/declarative-system.md](config/declarative-system.md)
 **Plugin Development?** → [resources/plugins-external.md](resources/plugins-external.md)
 **Errors?** → [reference/troubleshooting.md](reference/troubleshooting.md)
@@ -31,6 +32,7 @@
 - [Live Components](resources/live-components.md) - WebSocket components
 - [Live Auth](resources/live-auth.md) - Authentication for Live Components
 - [Live Rooms](resources/live-rooms.md) - Multi-room real-time communication
+- [Live Logging](resources/live-logging.md) - Per-component logging control
 - [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
 - [External Plugins](resources/plugins-external.md) - Plugin development
 - [Routing (React Router v7)](reference/routing.md) - Frontend routing setup

@@ -3,6 +3,7 @@
 import { createHmac, randomBytes, createCipheriv, createDecipheriv, scrypt } from 'crypto'
 import { promisify } from 'util'
 import { gzip, gunzip } from 'zlib'
+import { liveLog, liveWarn } from './LiveLogger'
 
 const scryptAsync = promisify(scrypt)
 const gzipAsync = promisify(gzip)
@@ -124,7 +125,7 @@ export class StateSignature {
       createdAt: Date.now()
     })
     
-    console.log(`🔄 Key rotated from ${oldKeyId} to ${newKeyId}`)
+    liveLog('state', null, `🔄 Key rotated from ${oldKeyId} to ${newKeyId}`)
   }
 
   private cleanupOldKeys(): void {
@@ -154,7 +155,7 @@ export class StateSignature {
     }
     
     if (keysToDelete.length > 0) {
-      console.log(`🧹 Cleaned up ${keysToDelete.length} old keys`)
+      liveLog('state', null, `🧹 Cleaned up ${keysToDelete.length} old keys`)
     }
   }
 
@@ -196,7 +197,7 @@ export class StateSignature {
         processedData = compressedBuffer.toString('base64') as any
         compressed = true
         
-        console.log(`🗜️ State compressed: ${Buffer.byteLength(serializedData, 'utf8')} -> ${compressedBuffer.length} bytes`)
+        liveLog('state', componentId, `🗜️ State compressed: ${Buffer.byteLength(serializedData, 'utf8')} -> ${compressedBuffer.length} bytes`)
       }
       
       // Encrypt sensitive data if requested
@@ -205,7 +206,7 @@ export class StateSignature {
         processedData = encryptedData as any
         encrypted = true
         
-        console.log('🔒 State encrypted for component:', componentId)
+        liveLog('state', componentId, `🔒 State encrypted for component: ${componentId}`)
       }
       
       // Create payload for signing
@@ -227,7 +228,7 @@ export class StateSignature {
         await this.createStateBackup(componentId, data, version)
       }
       
-      console.log('🔐 State signed:', {
+      liveLog('state', componentId, '🔐 State signed:', {
         componentId,
         timestamp,
         version,
@@ -306,7 +307,7 @@ export class StateSignature {
       const expectedSignature = this.createSignature(payload, validationKey)
       
       if (!this.constantTimeEquals(signature, expectedSignature)) {
-        console.warn('⚠️ State signature mismatch:', {
+        liveWarn('state', componentId, '⚠️ State signature mismatch:', {
           componentId,
           expected: expectedSignature.substring(0, 16) + '...',
           received: signature.substring(0, 16) + '...'
@@ -319,7 +320,7 @@ export class StateSignature {
         }
       }
 
-      console.log('✅ State signature valid:', {
+      liveLog('state', componentId, '✅ State signature valid:', {
         componentId,
         age: `${Math.round(age / 1000)}s`,
         version
@@ -421,7 +422,7 @@ export class StateSignature {
       
       this.backups.set(componentId, backups)
       
-      console.log(`💾 State backup created for component ${componentId} v${version}`)
+      liveLog('state', componentId, `💾 State backup created for component ${componentId} v${version}`)
     } catch (error) {
       console.error(`❌ Failed to create backup for component ${componentId}:`, error)
     }
@@ -497,7 +498,7 @@ export class StateSignature {
   public registerMigration(fromVersion: string, toVersion: string, migrationFn: (state: any) => any): void {
     const key = `${fromVersion}->${toVersion}`
     this.migrationFunctions.set(key, migrationFn)
-    console.log(`📋 Registered migration: ${key}`)
+    liveLog('state', null, `📋 Registered migration: ${key}`)
   }
 
   /**
@@ -509,7 +510,7 @@ export class StateSignature {
     
     const migrationFn = this.migrationFunctions.get(migrationKey)
     if (!migrationFn) {
-      console.warn(`⚠️ No migration function found for ${migrationKey}`)
+      liveWarn('state', null, `⚠️ No migration function found for ${migrationKey}`)
       return null
     }
     
@@ -532,7 +533,7 @@ export class StateSignature {
         }
       )
       
-      console.log(`✅ State migrated from v${currentVersion} to v${targetVersion} for component ${signedState.componentId}`)
+      liveLog('state', signedState.componentId, `✅ State migrated from v${currentVersion} to v${targetVersion} for component ${signedState.componentId}`)
       return newSignedState
       
     } catch (error) {
@@ -605,7 +606,7 @@ export class StateSignature {
     }
     
     if (totalCleaned > 0) {
-      console.log(`🧹 Cleaned up ${totalCleaned} old state backups`)
+      liveLog('state', null, `🧹 Cleaned up ${totalCleaned} old state backups`)
     }
   }
 

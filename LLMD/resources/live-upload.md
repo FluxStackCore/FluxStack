@@ -1,6 +1,6 @@
 # Live Upload (Chunked Upload via WebSocket)
 
-**Version:** 1.11.0 | **Updated:** 2026-02-08
+**Version:** 1.11.0 | **Updated:** 2025-02-08
 
 ## Overview
 

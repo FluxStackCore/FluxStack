@@ -3,6 +3,7 @@
 import { roomEvents } from '@core/server/live/RoomEventBus'
 import { liveRoomManager } from '@core/server/live/LiveRoomManager'
 import { ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
+import { liveLog, liveWarn } from '@core/server/live/LiveLogger'
 import type { LiveAuthContext, LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
 import type { ServerWebSocket } from 'bun'
 
@@ -221,6 +222,23 @@ export abstract class LiveComponent<TState = ComponentState> {
   static componentName: string
   /** Default state - must be defined in subclasses */
   static defaultState: any
+
+  /**
+   * Per-component logging control. Silent by default.
+   *
+   * @example
+   * // Enable all log categories
+   * static logging = true
+   *
+   * // Enable specific categories only
+   * static logging = ['lifecycle', 'messages'] as const
+   *
+   * // Disabled (default — omit or set false)
+   * static logging = false
+   *
+   * Categories: 'lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket'
+   */
+  static logging?: boolean | readonly ('lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket')[]
 
   /**
    * Configuração de autenticação do componente.
@@ -546,7 +564,7 @@ export abstract class LiveComponent<TState = ComponentState> {
   // Broadcast to all clients in room (via WebSocket)
   protected broadcast(type: string, payload: any, excludeCurrentUser = false) {
     if (!this.room) {
-      console.warn(`⚠️ [${this.id}] Cannot broadcast '${type}' - no room set`)
+      liveWarn('rooms', this.id, `⚠️ [${this.id}] Cannot broadcast '${type}' - no room set`)
       return
     }
 
@@ -557,7 +575,7 @@ export abstract class LiveComponent<TState = ComponentState> {
       excludeUser: excludeCurrentUser ? this.userId : undefined
     }
 
-    console.log(`📤 [${this.id}] Broadcasting '${type}' to room '${this.room}'`)
+    liveLog('rooms', this.id, `📤 [${this.id}] Broadcasting '${type}' to room '${this.room}'`)
 
     // This will be handled by the registry
     this.broadcastToRoom(message)
@@ -577,14 +595,14 @@ export abstract class LiveComponent<TState = ComponentState> {
    */
   protected emitRoomEvent(event: string, data: any, notifySelf = false): number {
     if (!this.room) {
-      console.warn(`⚠️ [${this.id}] Cannot emit room event '${event}' - no room set`)
+      liveWarn('rooms', this.id, `⚠️ [${this.id}] Cannot emit room event '${event}' - no room set`)
       return 0
     }
 
     const excludeId = notifySelf ? undefined : this.id
     const notified = roomEvents.emit(this.roomType, this.room, event, data, excludeId)
 
-    console.log(`📡 [${this.id}] Room event '${event}' → ${notified} components`)
+    liveLog('rooms', this.id, `📡 [${this.id}] Room event '${event}' → ${notified} components`)
     return notified
   }
 
@@ -597,7 +615,7 @@ export abstract class LiveComponent<TState = ComponentState> {
    */
   protected onRoomEvent<T = any>(event: string, handler: (data: T) => void): void {
     if (!this.room) {
-      console.warn(`⚠️ [${this.id}] Cannot subscribe to room event '${event}' - no room set`)
+      liveWarn('rooms', this.id, `⚠️ [${this.id}] Cannot subscribe to room event '${event}' - no room set`)
       return
     }
 
@@ -612,7 +630,7 @@ export abstract class LiveComponent<TState = ComponentState> {
     // Guardar para cleanup no destroy
     this.roomEventUnsubscribers.push(unsubscribe)
 
-    console.log(`👂 [${this.id}] Subscribed to room event '${event}'`)
+    liveLog('rooms', this.id, `👂 [${this.id}] Subscribed to room event '${event}'`)
   }
 
   /**

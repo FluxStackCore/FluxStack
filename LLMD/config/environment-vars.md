@@ -90,6 +90,14 @@
 | `BUILD_REMOVE_UNUSED_CSS` | boolean | `false` | Remove unused CSS | build.config.ts |
 | `BUILD_OPTIMIZE_IMAGES` | boolean | `false` | Optimize images | build.config.ts |
 
+## Live Component Logging
+
+| Variable | Type | Default | Description | Config File |
+|----------|------|---------|-------------|-------------|
+| `LIVE_LOGGING` | string | `undefined` | Global live component logs: `true`, `false`, or comma-separated categories (`lifecycle,rooms,messages`) | env only |
+
+> Per-component logging is controlled via `static logging` on the class. See [Live Logging](../resources/live-logging.md).
+
 ## Logging
 
 | Variable | Type | Default | Description | Config File |

@@ -25,6 +25,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
+  static logging = ['lifecycle', 'messages'] as const  // Per-component logging (optional)
   static defaultState = {
     count: 0
   }
@@ -129,6 +130,20 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 
 ## State Management
 
+### Reactive State Proxy (How It Works)
+
+State mutations auto-sync with the frontend via two layers:
+
+**Layer 1 — Proxy** (`this.state`): A `Proxy` wraps the internal state object. Any `set` on `this.state` compares old vs new value and, if changed, emits `STATE_DELTA` to the client automatically.
+
+**Layer 2 — Direct Accessors** (`this.count`): On construction, `createDirectStateAccessors()` defines a getter/setter via `Object.defineProperty` for each key in `defaultState`. The setter delegates to the proxy, so it also triggers `STATE_DELTA`.
+
+```
+this.count++              → accessor setter → proxy set → STATE_DELTA
+this.state.count++        → proxy set → STATE_DELTA
+this.setState({count: 1}) → Object.assign + single STATE_DELTA (batch)
+```
+
 ### Direct State Access (v1.13.0) ✨
 
 State properties are accessible directly on `this`:
@@ -138,25 +153,44 @@ State properties are accessible directly on `this`:
 declare count: number
 declare message: string
 
-// ✅ Direct access - auto-syncs!
+// ✅ Direct access - auto-syncs via proxy!
 this.count++
 this.message = 'Hello'
 
-// Also works (v1.12.0 style)
+// ✅ Also works (v1.12.0 style) - same proxy underneath
 this.state.count++
 ```
+
+> **Performance note:** Each direct assignment emits one `STATE_DELTA`. For multiple properties at once, use `setState` (single emit).
 
 ### setState (Batch Updates)
 
 Use `setState` for multiple properties at once (single emit):
 
 ```typescript
-// ✅ Batch update - one sync event
+// ✅ Batch update - one STATE_DELTA event
 this.setState({
   count: newCount,
   lastUpdatedBy: userId,
   updatedAt: new Date().toISOString()
 })
+
+// ✅ Function updater (access previous state)
+this.setState(prev => ({
+  count: prev.count + 1,
+  lastUpdatedBy: userId
+}))
+```
+
+> `setState` writes directly to `_state` (bypasses proxy) and emits a single `STATE_DELTA` with all changed keys. More efficient than N individual assignments.
+
+### setValue (Generic Action)
+
+Built-in action to set any state key from the client:
+
+```typescript
+// Client can call this without defining a custom action
+await component.setValue({ key: 'count', value: 42 })
 ```
 
 ### getSerializableState
@@ -497,6 +531,7 @@ app/client/src/live/
 Each server file contains:
 - `static componentName` - Component identifier
 - `static defaultState` - Initial state object
+- `static logging` - Per-component log control (optional, see [Live Logging](./live-logging.md))
 - Component class extending `LiveComponent`
 - Client link via `import type { Demo as _Client }`
 
@@ -562,18 +597,18 @@ export class MyComponent extends LiveComponent<State> {
 - Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
-- Use reserved names for state properties (id, ws, room, userId, $room, $rooms)
+- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, broadcastToRoom, roomType)
 
-**STATE UPDATES (v1.13.0):**
+**STATE UPDATES (v1.13.0) — all auto-sync via Proxy:**
 ```typescript
-// ✅ Direct access (preferred)
+// ✅ Direct access (1 prop → 1 STATE_DELTA)
 declare count: number
 this.count++
 
-// ✅ Also works (v1.12.0 style)
+// ✅ Also works (same proxy underneath)
 this.state.count++
 
-// ✅ Multiple properties - use setState (one sync)
+// ✅ Multiple properties → use setState (1 STATE_DELTA for all)
 this.setState({ a: 1, b: 2, c: 3 })
 
 // ❌ Don't use setState for single property (unnecessary)
@@ -718,6 +753,7 @@ export function UploadDemo() {
 ## Related
 
 - [Live Auth](./live-auth.md) - Authentication for Live Components
+- [Live Logging](./live-logging.md) - Per-component logging control
 - [Live Rooms](./live-rooms.md) - Multi-room real-time communication
 - [Live Upload](./live-upload.md) - Chunked file upload
 - [Project Structure](../patterns/project-structure.md)

@@ -11,6 +11,7 @@ import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileU
 import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
 import path from 'path'
+import { liveLog } from './LiveLogger'
 
 // ===== Response Schemas for Live Components Routes =====
 
@@ -143,7 +144,7 @@ export const liveComponentsPlugin: Plugin = {
         async open(ws) {
           const socket = ws as unknown as FluxStackWebSocket
           const connectionId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          console.log(`🔌 Live Components WebSocket connected: ${connectionId}`)
+          liveLog('websocket', null, `🔌 Live Components WebSocket connected: ${connectionId}`)
 
           // Register connection with enhanced connection manager
           connectionManager.registerConnection(ws as unknown as FluxStackWebSocket, connectionId, 'live-components')
@@ -175,7 +176,7 @@ export const liveComponentsPlugin: Plugin = {
               socket.data.authContext = authContext
               if (authContext.authenticated) {
                 socket.data.userId = authContext.user?.id
-                console.log(`🔒 WebSocket authenticated via query: user=${authContext.user?.id}`)
+                liveLog('websocket', null, `🔒 WebSocket authenticated via query: user=${authContext.user?.id}`)
               }
             }
           } catch {
@@ -222,7 +223,7 @@ export const liveComponentsPlugin: Plugin = {
               // Extract binary chunk data
               binaryChunkData = buffer.slice(4 + headerLength)
 
-              console.log(`📦 Binary chunk received: ${binaryChunkData.length} bytes for upload ${header.uploadId}`)
+              liveLog('messages', null, `📦 Binary chunk received: ${binaryChunkData.length} bytes for upload ${header.uploadId}`)
 
               // Create message with binary data attached
               message = {
@@ -236,7 +237,7 @@ export const liveComponentsPlugin: Plugin = {
               message.timestamp = Date.now()
             }
 
-            console.log(`📨 Received message:`, {
+            liveLog('messages', message.componentId || null, `📨 Received message:`, {
               type: message.type,
               componentId: message.componentId,
               action: message.action,
@@ -310,7 +311,7 @@ export const liveComponentsPlugin: Plugin = {
         close(ws) {
           const socket = ws as unknown as FluxStackWebSocket
           const connectionId = socket.data?.connectionId
-          console.log(`🔌 Live Components WebSocket disconnected: ${connectionId}`)
+          liveLog('websocket', null, `🔌 Live Components WebSocket disconnected: ${connectionId}`)
 
           // Cleanup connection in connection manager
           if (connectionId) {
@@ -538,7 +539,7 @@ async function handleComponentMount(ws: FluxStackWebSocket, message: LiveMessage
 }
 
 async function handleComponentRehydrate(ws: FluxStackWebSocket, message: LiveMessage) {
-  console.log('🔄 Processing component re-hydration request:', {
+  liveLog('lifecycle', message.componentId, '🔄 Processing component re-hydration request:', {
     componentId: message.componentId,
     payload: message.payload
   })
@@ -571,7 +572,7 @@ async function handleComponentRehydrate(ws: FluxStackWebSocket, message: LiveMes
       timestamp: Date.now()
     }
 
-    console.log('📤 Sending COMPONENT_REHYDRATED response:', {
+    liveLog('lifecycle', message.componentId, '📤 Sending COMPONENT_REHYDRATED response:', {
       type: response.type,
       success: response.success,
       newComponentId: response.result?.newComponentId,
@@ -665,7 +666,7 @@ async function handleComponentPing(ws: FluxStackWebSocket, message: LiveMessage)
 // ===== Auth Handler =====
 
 async function handleAuth(ws: FluxStackWebSocket, message: LiveMessage) {
-  console.log('🔒 Processing WebSocket authentication request')
+  liveLog('websocket', null, '🔒 Processing WebSocket authentication request')
 
   try {
     const credentials = message.payload || {}
@@ -689,7 +690,7 @@ async function handleAuth(ws: FluxStackWebSocket, message: LiveMessage) {
 
     if (authContext.authenticated) {
       ws.data.userId = authContext.user?.id
-      console.log(`🔒 WebSocket authenticated: user=${authContext.user?.id}`)
+      liveLog('websocket', null, `🔒 WebSocket authenticated: user=${authContext.user?.id}`)
     }
 
     ws.send(JSON.stringify({
@@ -715,7 +716,7 @@ async function handleAuth(ws: FluxStackWebSocket, message: LiveMessage) {
 
 // File Upload Handler Functions
 async function handleFileUploadStart(ws: FluxStackWebSocket, message: FileUploadStartMessage) {
-  console.log('📤 Starting file upload:', message.uploadId)
+  liveLog('messages', message.componentId || null, '📤 Starting file upload:', message.uploadId)
   
   const result = await fileUploadManager.startUpload(message)
   
@@ -733,7 +734,7 @@ async function handleFileUploadStart(ws: FluxStackWebSocket, message: FileUpload
 }
 
 async function handleFileUploadChunk(ws: FluxStackWebSocket, message: FileUploadChunkMessage, binaryData: Buffer | null = null) {
-  console.log(`📦 Receiving chunk ${message.chunkIndex + 1} for upload ${message.uploadId}${binaryData ? ' (binary)' : ' (base64)'}`)
+  liveLog('messages', message.componentId || null, `📦 Receiving chunk ${message.chunkIndex + 1} for upload ${message.uploadId}${binaryData ? ' (binary)' : ' (base64)'}`)
 
   const progressResponse = await fileUploadManager.receiveChunk(message, ws, binaryData)
 
@@ -761,7 +762,7 @@ async function handleFileUploadChunk(ws: FluxStackWebSocket, message: FileUpload
 }
 
 async function handleFileUploadComplete(ws: FluxStackWebSocket, message: FileUploadCompleteMessage) {
-  console.log('✅ Completing file upload:', message.uploadId)
+  liveLog('messages', null, '✅ Completing file upload:', message.uploadId)
 
   const completeResponse = await fileUploadManager.completeUpload(message)
 
@@ -777,7 +778,7 @@ async function handleFileUploadComplete(ws: FluxStackWebSocket, message: FileUpl
 // ===== Room System Handlers =====
 
 async function handleRoomJoin(ws: FluxStackWebSocket, message: RoomMessage) {
-  console.log(`🚪 Component ${message.componentId} joining room ${message.roomId}`)
+  liveLog('rooms', message.componentId, `🚪 Component ${message.componentId} joining room ${message.roomId}`)
 
   try {
     const result = liveRoomManager.joinRoom(
@@ -811,7 +812,7 @@ async function handleRoomJoin(ws: FluxStackWebSocket, message: RoomMessage) {
 }
 
 async function handleRoomLeave(ws: FluxStackWebSocket, message: RoomMessage) {
-  console.log(`🚶 Component ${message.componentId} leaving room ${message.roomId}`)
+  liveLog('rooms', message.componentId, `🚶 Component ${message.componentId} leaving room ${message.roomId}`)
 
   try {
     liveRoomManager.leaveRoom(message.componentId, message.roomId)
@@ -839,7 +840,7 @@ async function handleRoomLeave(ws: FluxStackWebSocket, message: RoomMessage) {
 }
 
 async function handleRoomEmit(ws: FluxStackWebSocket, message: RoomMessage) {
-  console.log(`📡 Component ${message.componentId} emitting '${message.event}' to room ${message.roomId}`)
+  liveLog('rooms', message.componentId, `📡 Component ${message.componentId} emitting '${message.event}' to room ${message.roomId}`)
 
   try {
     const count = liveRoomManager.emitToRoom(
@@ -849,7 +850,7 @@ async function handleRoomEmit(ws: FluxStackWebSocket, message: RoomMessage) {
       message.componentId // Excluir quem enviou
     )
 
-    console.log(`   → Notified ${count} components`)
+    liveLog('rooms', message.componentId, `   → Notified ${count} components`)
   } catch (error: any) {
     ws.send(JSON.stringify({
       type: 'ERROR',
@@ -862,7 +863,7 @@ async function handleRoomEmit(ws: FluxStackWebSocket, message: RoomMessage) {
 }
 
 async function handleRoomStateSet(ws: FluxStackWebSocket, message: RoomMessage) {
-  console.log(`📝 Component ${message.componentId} updating state in room ${message.roomId}`)
+  liveLog('rooms', message.componentId, `📝 Component ${message.componentId} updating state in room ${message.roomId}`)
 
   try {
     liveRoomManager.setRoomState(
