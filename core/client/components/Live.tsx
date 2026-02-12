@@ -53,10 +53,11 @@ type ExtractState<T> = T extends { new(...args: any[]): { state: infer S } }
   : ExtractDefaultState<T>
 
 // Extrai as Actions (métodos públicos async) da classe do servidor
+// Filtra métodos internos do framework que não devem ser expostos como actions
 type ExtractActions<T> = T extends { new(...args: any[]): infer Instance }
   ? {
       [K in keyof Instance as Instance[K] extends (...args: any[]) => Promise<any>
-        ? K extends 'setState' | 'getState' | 'getValue' | 'setValue' | 'setValues' | 'getSnapshot'
+        ? K extends 'setState' | 'getState' | 'getValue' | 'setValue' | 'setValues' | 'getSnapshot' | 'setAuthContext'
           ? never
           : K
         : never

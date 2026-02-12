@@ -67,6 +67,8 @@ export interface LiveComponentProxy<
   readonly $status: 'synced' | 'disconnected' | 'connecting' | 'reconnecting' | 'loading' | 'mounting' | 'error'
   readonly $componentId: string | null
   readonly $dirty: boolean
+  /** Whether the WebSocket connection is authenticated on the server */
+  readonly $authenticated: boolean
 
   // Methods
   $call: (action: string, payload?: any) => Promise<void>
@@ -164,7 +166,7 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
 // ===== Propriedades Reservadas =====
 
 const RESERVED_PROPS = new Set([
-  '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty',
+  '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$authenticated',
   '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$onBroadcast', '$updateLocal',
   '$room', '$rooms', '$field', '$sync',
   'then', 'toJSON', 'valueOf', 'toString',
@@ -262,6 +264,7 @@ export function useLiveComponent<
   // WebSocket context
   const {
     connected,
+    authenticated: wsAuthenticated,
     sendMessage,
     sendMessageAndWait,
     registerComponent,
@@ -716,6 +719,7 @@ export function useLiveComponent<
           case '$status': return getStatus()
           case '$componentId': return componentId
           case '$dirty': return pendingChanges.current.size > 0
+          case '$authenticated': return wsAuthenticated
           case '$call': return call
           case '$callAndWait': return callAndWait
           case '$mount': return mount
@@ -781,10 +785,10 @@ export function useLiveComponent<
       },
 
       ownKeys() {
-        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal', '$room', '$rooms']
+        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$authenticated', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal', '$room', '$rooms']
       }
     })
-  }, [stateData, connected, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion, roomManager])
+  }, [stateData, connected, wsAuthenticated, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion, roomManager])
 
   return proxy
 }
