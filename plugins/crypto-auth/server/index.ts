@@ -8,6 +8,9 @@ export type { AuthResult, CryptoAuthConfig } from './CryptoAuthService'
 export { AuthMiddleware } from './AuthMiddleware'
 export type { AuthMiddlewareConfig, AuthMiddlewareResult } from './AuthMiddleware'
 
+// LiveAuthProvider adapter for Live Components
+export { CryptoAuthLiveProvider } from './CryptoAuthLiveProvider'
+
 // Middlewares Elysia
 export {
   cryptoAuthRequired,

@@ -4,11 +4,23 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import type { WebSocketMessage, WebSocketResponse } from '../types/types'
 
+/** Auth credentials to send during WebSocket connection */
+export interface LiveAuthOptions {
+  /** JWT or opaque token */
+  token?: string
+  /** Provider name (if multiple auth providers configured) */
+  provider?: string
+  /** Additional credentials (publicKey, signature, etc.) */
+  [key: string]: unknown
+}
+
 export interface LiveComponentsContextValue {
   connected: boolean
   connecting: boolean
   error: string | null
   connectionId: string | null
+  /** Whether the WebSocket connection is authenticated */
+  authenticated: boolean
 
   // Send message without waiting for response
   sendMessage: (message: WebSocketMessage) => Promise<void>
@@ -28,6 +40,9 @@ export interface LiveComponentsContextValue {
   // Manual reconnect
   reconnect: () => void
 
+  // Authenticate (or re-authenticate) the WebSocket connection
+  authenticate: (credentials: LiveAuthOptions) => Promise<boolean>
+
   // Get current WebSocket instance (for advanced use)
   getWebSocket: () => WebSocket | null
 }
@@ -37,6 +52,8 @@ const LiveComponentsContext = createContext<LiveComponentsContextValue | null>(n
 export interface LiveComponentsProviderProps {
   children: React.ReactNode
   url?: string
+  /** Auth credentials to send on connection */
+  auth?: LiveAuthOptions
   autoConnect?: boolean
   reconnectInterval?: number
   maxReconnectAttempts?: number
@@ -47,6 +64,7 @@ export interface LiveComponentsProviderProps {
 export function LiveComponentsProvider({
   children,
   url,
+  auth,
   autoConnect = true,
   reconnectInterval = 1000,
   maxReconnectAttempts = 5,
@@ -56,12 +74,23 @@ export function LiveComponentsProvider({
 
   // Get WebSocket URL dynamically
   const getWebSocketUrl = () => {
-    if (url) return url
-    if (typeof window === 'undefined') return 'ws://localhost:3000/api/live/ws'
+    let baseUrl: string
+    if (url) {
+      baseUrl = url
+    } else if (typeof window === 'undefined') {
+      baseUrl = 'ws://localhost:3000/api/live/ws'
+    } else {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      baseUrl = `${protocol}//${window.location.host}/api/live/ws`
+    }
 
-    // Always use current host - works for both dev and production
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${protocol}//${window.location.host}/api/live/ws`
+    // Append auth token as query param if provided
+    if (auth?.token) {
+      const separator = baseUrl.includes('?') ? '&' : '?'
+      return `${baseUrl}${separator}token=${encodeURIComponent(auth.token)}`
+    }
+
+    return baseUrl
   }
 
   const wsUrl = getWebSocketUrl()
@@ -71,6 +100,7 @@ export function LiveComponentsProvider({
   const [connecting, setConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [connectionId, setConnectionId] = useState<string | null>(null)
+  const [authenticated, setAuthenticated] = useState(false)
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null)
@@ -136,7 +166,30 @@ export function LiveComponentsProvider({
           // Handle connection established
           if (response.type === 'CONNECTION_ESTABLISHED') {
             setConnectionId(response.connectionId || null)
+            setAuthenticated((response as any).authenticated || false)
             log('🔗 Connection ID:', response.connectionId)
+            if ((response as any).authenticated) {
+              log('🔒 Authenticated as:', (response as any).userId)
+            }
+
+            // If auth credentials provided but not yet authenticated via query,
+            // send AUTH message with full credentials
+            if (auth && !auth.token && Object.keys(auth).some(k => auth[k])) {
+              sendMessageAndWait({
+                type: 'AUTH',
+                payload: auth
+              } as any).then(authResp => {
+                if ((authResp as any).authenticated) {
+                  setAuthenticated(true)
+                  log('🔒 Authenticated via message')
+                }
+              }).catch(() => {})
+            }
+          }
+
+          // Handle auth response
+          if (response.type === 'AUTH_RESPONSE') {
+            setAuthenticated((response as any).authenticated || false)
           }
 
           // Handle pending requests (request-response pattern)
@@ -403,6 +456,22 @@ export function LiveComponentsProvider({
     log('🗑️ Component unregistered', componentId)
   }, [log])
 
+  // Authenticate (or re-authenticate) the WebSocket connection
+  const authenticate = useCallback(async (credentials: LiveAuthOptions): Promise<boolean> => {
+    try {
+      const response = await sendMessageAndWait({
+        type: 'AUTH',
+        payload: credentials
+      } as any, 5000)
+
+      const success = (response as any).authenticated || false
+      setAuthenticated(success)
+      return success
+    } catch {
+      return false
+    }
+  }, [sendMessageAndWait])
+
   // Get WebSocket instance
   const getWebSocket = useCallback(() => {
     return wsRef.current
@@ -424,12 +493,14 @@ export function LiveComponentsProvider({
     connecting,
     error,
     connectionId,
+    authenticated,
     sendMessage,
     sendMessageAndWait,
     sendBinaryAndWait,
     registerComponent,
     unregisterComponent,
     reconnect,
+    authenticate,
     getWebSocket
   }
 

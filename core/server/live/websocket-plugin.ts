@@ -5,6 +5,8 @@ import { fileUploadManager } from './FileUploadManager'
 import { connectionManager } from './WebSocketConnectionManager'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
 import { liveRoomManager, type RoomMessage } from './LiveRoomManager'
+import { liveAuthManager } from './auth/LiveAuthManager'
+import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
 import type { LiveMessage, FileUploadStartMessage, FileUploadChunkMessage, FileUploadCompleteMessage, BinaryChunkHeader, FluxStackWebSocket, FluxStackWSData } from '@core/types/types'
 import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
@@ -138,7 +140,7 @@ export const liveComponentsPlugin: Plugin = {
         // Binary messages will be ArrayBuffer/Uint8Array, JSON will be parsed objects
         body: t.Any(),
         
-        open(ws) {
+        async open(ws) {
           const socket = ws as unknown as FluxStackWebSocket
           const connectionId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
           console.log(`🔌 Live Components WebSocket connected: ${connectionId}`)
@@ -164,16 +166,35 @@ export const liveComponentsPlugin: Plugin = {
             socket.data.connectedAt = new Date()
           }
 
+          // 🔒 Try to authenticate from query params (token=xxx)
+          try {
+            const query = (ws as any).data?.query as Record<string, string> | undefined
+            const token = query?.token
+            if (token && liveAuthManager.hasProviders()) {
+              const authContext = await liveAuthManager.authenticate({ token })
+              socket.data.authContext = authContext
+              if (authContext.authenticated) {
+                socket.data.userId = authContext.user?.id
+                console.log(`🔒 WebSocket authenticated via query: user=${authContext.user?.id}`)
+              }
+            }
+          } catch {
+            // Query param auth is optional - continue without auth
+          }
+
           // Send connection confirmation
           ws.send(JSON.stringify({
             type: 'CONNECTION_ESTABLISHED',
             connectionId,
             timestamp: Date.now(),
+            authenticated: socket.data.authContext?.authenticated ?? false,
+            userId: socket.data.authContext?.user?.id,
             features: {
               compression: true,
               encryption: true,
               offlineQueue: true,
-              loadBalancing: true
+              loadBalancing: true,
+              auth: liveAuthManager.hasProviders()
             }
           }))
         },
@@ -242,6 +263,9 @@ export const liveComponentsPlugin: Plugin = {
                 break
               case 'COMPONENT_PING':
                 await handleComponentPing(socket, message)
+                break
+              case 'AUTH':
+                await handleAuth(socket, message)
                 break
               case 'FILE_UPLOAD_START':
                 await handleFileUploadStart(socket, message as FileUploadStartMessage)
@@ -636,6 +660,57 @@ async function handleComponentPing(ws: FluxStackWebSocket, message: LiveMessage)
   }
 
   ws.send(JSON.stringify(response))
+}
+
+// ===== Auth Handler =====
+
+async function handleAuth(ws: FluxStackWebSocket, message: LiveMessage) {
+  console.log('🔒 Processing WebSocket authentication request')
+
+  try {
+    const credentials = message.payload || {}
+    const providerName = credentials.provider as string | undefined
+
+    if (!liveAuthManager.hasProviders()) {
+      ws.send(JSON.stringify({
+        type: 'AUTH_RESPONSE',
+        success: false,
+        error: 'No auth providers configured',
+        requestId: message.requestId,
+        timestamp: Date.now()
+      }))
+      return
+    }
+
+    const authContext = await liveAuthManager.authenticate(credentials, providerName)
+
+    // Store auth context on the WebSocket connection
+    ws.data.authContext = authContext
+
+    if (authContext.authenticated) {
+      ws.data.userId = authContext.user?.id
+      console.log(`🔒 WebSocket authenticated: user=${authContext.user?.id}`)
+    }
+
+    ws.send(JSON.stringify({
+      type: 'AUTH_RESPONSE',
+      success: authContext.authenticated,
+      authenticated: authContext.authenticated,
+      userId: authContext.user?.id,
+      roles: authContext.user?.roles,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }))
+  } catch (error: any) {
+    console.error('🔒 WebSocket auth error:', error.message)
+    ws.send(JSON.stringify({
+      type: 'AUTH_RESPONSE',
+      success: false,
+      error: error.message,
+      requestId: message.requestId,
+      timestamp: Date.now()
+    }))
+  }
 }
 
 // File Upload Handler Functions

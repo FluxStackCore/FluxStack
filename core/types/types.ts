@@ -2,6 +2,8 @@
 
 import { roomEvents } from '@core/server/live/RoomEventBus'
 import { liveRoomManager } from '@core/server/live/LiveRoomManager'
+import { ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
+import type { LiveAuthContext, LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
 import type { ServerWebSocket } from 'bun'
 
 // ============================================
@@ -18,6 +20,8 @@ export interface FluxStackWSData {
   subscriptions: Set<string>
   connectedAt: Date
   userId?: string
+  /** Contexto de autenticação da conexão WebSocket */
+  authContext?: LiveAuthContext
 }
 
 /**
@@ -49,6 +53,8 @@ export interface LiveMessage {
   'ACTION_RESPONSE' | 'PROPERTY_UPDATE' | 'STATE_UPDATE' | 'STATE_DELTA' | 'STATE_REHYDRATED' |
   'ERROR' | 'BROADCAST' | 'FILE_UPLOAD_START' | 'FILE_UPLOAD_CHUNK' | 'FILE_UPLOAD_COMPLETE' |
   'COMPONENT_PING' | 'COMPONENT_PONG' |
+  // Auth system message
+  'AUTH' |
   // Room system messages
   'ROOM_JOIN' | 'ROOM_LEAVE' | 'ROOM_EMIT' | 'ROOM_STATE_SET' | 'ROOM_STATE_GET'
   componentId: string
@@ -118,6 +124,8 @@ export interface WebSocketMessage {
 
 export interface WebSocketResponse {
   type: 'MESSAGE_RESPONSE' | 'CONNECTION_ESTABLISHED' | 'ERROR' | 'BROADCAST' | 'ACTION_RESPONSE' | 'COMPONENT_MOUNTED' | 'COMPONENT_REHYDRATED' | 'STATE_UPDATE' | 'STATE_DELTA' | 'STATE_REHYDRATED' | 'FILE_UPLOAD_PROGRESS' | 'FILE_UPLOAD_COMPLETE' | 'FILE_UPLOAD_ERROR' | 'FILE_UPLOAD_START_RESPONSE' | 'COMPONENT_PONG' |
+  // Auth system response
+  'AUTH_RESPONSE' |
   // Room system responses
   'ROOM_EVENT' | 'ROOM_STATE' | 'ROOM_SYSTEM' | 'ROOM_JOINED' | 'ROOM_LEFT'
   originalType?: string
@@ -214,6 +222,31 @@ export abstract class LiveComponent<TState = ComponentState> {
   /** Default state - must be defined in subclasses */
   static defaultState: any
 
+  /**
+   * Configuração de autenticação do componente.
+   * Define se auth é obrigatória e quais roles/permissions são necessárias.
+   *
+   * @example
+   * static auth: LiveComponentAuth = {
+   *   required: true,
+   *   roles: ['admin', 'moderator'],
+   *   permissions: ['chat.read'],
+   * }
+   */
+  static auth?: LiveComponentAuth
+
+  /**
+   * Configuração de autenticação por action.
+   * Permite controle granular de permissões por método.
+   *
+   * @example
+   * static actionAuth: LiveActionAuthMap = {
+   *   deleteMessage: { permissions: ['chat.admin'] },
+   *   sendMessage: { permissions: ['chat.write'] },
+   * }
+   */
+  static actionAuth?: LiveActionAuthMap
+
   public readonly id: string
   private _state: TState
   public state: TState // Proxy wrapper
@@ -221,6 +254,9 @@ export abstract class LiveComponent<TState = ComponentState> {
   public room?: string
   public userId?: string
   public broadcastToRoom: (message: BroadcastMessage) => void = () => {} // Will be injected by registry
+
+  // Auth context (injected by registry during mount)
+  private _authContext: LiveAuthContext = ANONYMOUS_CONTEXT
 
   // Room event subscriptions (cleaned up on destroy)
   private roomEventUnsubscribers: (() => void)[] = []
@@ -415,6 +451,42 @@ export abstract class LiveComponent<TState = ComponentState> {
    */
   public get $rooms(): string[] {
     return Array.from(this.joinedRooms)
+  }
+
+  // ========================================
+  // 🔒 $auth - Contexto de Autenticação
+  // ========================================
+
+  /**
+   * Acessa o contexto de autenticação do usuário atual.
+   * Disponível após o mount do componente.
+   *
+   * @example
+   * async sendMessage(payload: { text: string }) {
+   *   if (!this.$auth.authenticated) {
+   *     throw new Error('Login required')
+   *   }
+   *
+   *   const userId = this.$auth.user!.id
+   *   const isAdmin = this.$auth.hasRole('admin')
+   *   const canDelete = this.$auth.hasPermission('chat.admin')
+   * }
+   */
+  public get $auth(): LiveAuthContext {
+    return this._authContext
+  }
+
+  /**
+   * Injeta o contexto de autenticação no componente.
+   * Chamado internamente pelo ComponentRegistry durante o mount.
+   * @internal
+   */
+  public setAuthContext(context: LiveAuthContext): void {
+    this._authContext = context
+    // Atualiza userId se disponível no auth context
+    if (context.authenticated && context.user?.id && !this.userId) {
+      this.userId = context.user.id
+    }
   }
 
   // State management (batch update - single emit with delta)
