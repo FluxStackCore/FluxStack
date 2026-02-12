@@ -71,7 +71,7 @@ export class LiveAuthManager {
   }
 
   /**
-   * Autentica credenciais usando o provider especificado ou o default.
+   * Autentica credenciais usando o provider especificado, ou tenta todos os providers.
    * Retorna ANONYMOUS_CONTEXT se nenhuma credencial é fornecida ou nenhum provider existe.
    */
   async authenticate(
@@ -88,26 +88,52 @@ export class LiveAuthManager {
       return ANONYMOUS_CONTEXT
     }
 
-    // Selecionar provider
-    const name = providerName || this.defaultProviderName
-    if (!name) return ANONYMOUS_CONTEXT
-
-    const provider = this.providers.get(name)
-    if (!provider) {
-      console.warn(`🔒 Auth provider '${name}' not found`)
-      return ANONYMOUS_CONTEXT
-    }
-
-    try {
-      const context = await provider.authenticate(credentials)
-      if (!context) {
+    // Se provider específico solicitado, usar apenas ele
+    if (providerName) {
+      const provider = this.providers.get(providerName)
+      if (!provider) {
+        console.warn(`🔒 Auth provider '${providerName}' not found`)
         return ANONYMOUS_CONTEXT
       }
-      return context
-    } catch (error: any) {
-      console.error(`🔒 Auth failed via '${name}':`, error.message)
-      return ANONYMOUS_CONTEXT
+      try {
+        const context = await provider.authenticate(credentials)
+        return context || ANONYMOUS_CONTEXT
+      } catch (error: any) {
+        console.error(`🔒 Auth failed via '${providerName}':`, error.message)
+        return ANONYMOUS_CONTEXT
+      }
     }
+
+    // Tentar todos os providers (default primeiro, depois os outros)
+    const providersToTry: LiveAuthProvider[] = []
+
+    // Default provider primeiro
+    if (this.defaultProviderName) {
+      const defaultProvider = this.providers.get(this.defaultProviderName)
+      if (defaultProvider) providersToTry.push(defaultProvider)
+    }
+
+    // Adicionar outros providers
+    for (const [name, provider] of this.providers) {
+      if (name !== this.defaultProviderName) {
+        providersToTry.push(provider)
+      }
+    }
+
+    // Tentar cada provider
+    for (const provider of providersToTry) {
+      try {
+        const context = await provider.authenticate(credentials)
+        if (context && context.authenticated) {
+          console.log(`🔒 Authenticated via provider: ${provider.name}`)
+          return context
+        }
+      } catch (error: any) {
+        // Silently continue to next provider
+      }
+    }
+
+    return ANONYMOUS_CONTEXT
   }
 
   /**

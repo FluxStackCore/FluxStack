@@ -17,6 +17,14 @@ import { liveComponentsPlugin } from "@core/server/live/websocket-plugin"
 import { appInstance } from "@server/app"
 import { appConfig } from "@config"
 
+// 🔒 Auth provider para Live Components
+import { liveAuthManager } from "@core/server/live/auth"
+import { DevAuthProvider } from "./auth/DevAuthProvider"
+
+// Registrar provider de desenvolvimento (tokens simples para testes)
+liveAuthManager.register(new DevAuthProvider())
+console.log('🔓 DevAuthProvider registered')
+
 const framework = new FluxStackFramework()
   .use(swaggerPlugin)
   .use(liveComponentsPlugin)

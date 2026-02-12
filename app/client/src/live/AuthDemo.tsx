@@ -207,22 +207,27 @@ function AdminSection() {
 //    Simula login/logout via authenticate()
 // ───────────────────────────────────────
 
-function AuthControls() {
+function AuthControls({ onAuthChange }: { onAuthChange: () => void }) {
   const { authenticated, authenticate, reconnect } = useLiveComponents()
   const [token, setToken] = useState('')
+  const [isLoggingIn, setIsLoggingIn] = useState(false)
 
   const handleLogin = async () => {
     if (!token.trim()) return
+    setIsLoggingIn(true)
     const success = await authenticate({ token: token.trim() })
+    setIsLoggingIn(false)
     if (success) {
-      // Reconectar para que os componentes remontem com o novo auth
-      reconnect()
+      // Notificar mudança de auth para forçar re-render dos componentes
+      onAuthChange()
     }
   }
 
   const handleLogout = () => {
     setToken('')
-    reconnect() // Reconecta sem token = anonymous
+    // Reconectar sem token = nova conexão anônima
+    reconnect()
+    onAuthChange()
   }
 
   return (
@@ -246,9 +251,10 @@ function AuthControls() {
         />
         <button
           onClick={handleLogin}
-          className="px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-sm hover:bg-emerald-500/30"
+          disabled={isLoggingIn}
+          className="px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-sm hover:bg-emerald-500/30 disabled:opacity-50"
         >
-          Login
+          {isLoggingIn ? 'Autenticando...' : 'Login'}
         </button>
         {authenticated && (
           <button
@@ -258,6 +264,33 @@ function AuthControls() {
             Logout
           </button>
         )}
+      </div>
+
+      <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+        <p className="text-emerald-300 text-xs font-semibold mb-2">Tokens de teste (dev only):</p>
+        <div className="grid grid-cols-3 gap-2 text-xs">
+          <button
+            onClick={() => { setToken('admin-token'); }}
+            className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+          >
+            admin-token
+          </button>
+          <button
+            onClick={() => { setToken('user-token'); }}
+            className="px-2 py-1 rounded bg-blue-500/20 text-blue-300 hover:bg-blue-500/30"
+          >
+            user-token
+          </button>
+          <button
+            onClick={() => { setToken('mod-token'); }}
+            className="px-2 py-1 rounded bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30"
+          >
+            mod-token
+          </button>
+        </div>
+        <p className="text-gray-500 text-xs mt-2">
+          Clique para preencher o campo, depois clique em Login.
+        </p>
       </div>
 
       <p className="text-gray-500 text-xs mt-3">
@@ -273,6 +306,14 @@ function AuthControls() {
 // ───────────────────────────────────────
 
 export function AuthDemo() {
+  // Key para forçar re-mount dos componentes após auth mudar
+  const [authKey, setAuthKey] = useState(0)
+
+  const handleAuthChange = () => {
+    // Incrementar key força React a re-montar os componentes
+    setAuthKey(k => k + 1)
+  }
+
   return (
     <div className="space-y-6 w-full max-w-2xl mx-auto">
       <div className="text-center mb-8">
@@ -282,9 +323,9 @@ export function AuthDemo() {
         </p>
       </div>
 
-      <AuthControls />
+      <AuthControls onAuthChange={handleAuthChange} />
 
-      <div className="grid gap-6">
+      <div className="grid gap-6" key={authKey}>
         <PublicSection />
         <AdminSection />
       </div>
