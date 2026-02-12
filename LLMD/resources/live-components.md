@@ -158,6 +158,21 @@ this.setState({
   lastUpdatedBy: userId,
   updatedAt: new Date().toISOString()
 })
+
+// ✅ Function updater (access previous state)
+this.setState(prev => ({
+  count: prev.count + 1,
+  lastUpdatedBy: userId
+}))
+```
+
+### setValue (Generic Action)
+
+Built-in action to set any state key from the client:
+
+```typescript
+// Client can call this without defining a custom action
+await component.setValue({ key: 'count', value: 42 })
 ```
 
 ### getSerializableState
@@ -564,7 +579,7 @@ export class MyComponent extends LiveComponent<State> {
 - Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
-- Use reserved names for state properties (id, ws, room, userId, $room, $rooms)
+- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, broadcastToRoom, roomType)
 
 **STATE UPDATES (v1.13.0):**
 ```typescript

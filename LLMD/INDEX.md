@@ -1,6 +1,6 @@
 # FluxStack LLM Documentation
 
-**Version:** 1.12.0 | **Framework:** Bun + Elysia + React + Eden Treaty
+**Version:** 1.12.1 | **Framework:** Bun + Elysia + React + Eden Treaty
 
 ## Quick Navigation
 
