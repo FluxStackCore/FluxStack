@@ -46,7 +46,7 @@ export type FluxStackServerWebSocket = ServerWebSocket<FluxStackWSData>
 export interface LiveMessage {
   type: 'COMPONENT_MOUNT' | 'COMPONENT_UNMOUNT' |
   'COMPONENT_REHYDRATE' | 'COMPONENT_ACTION' | 'CALL_ACTION' |
-  'ACTION_RESPONSE' | 'PROPERTY_UPDATE' | 'STATE_UPDATE' | 'STATE_REHYDRATED' |
+  'ACTION_RESPONSE' | 'PROPERTY_UPDATE' | 'STATE_UPDATE' | 'STATE_DELTA' | 'STATE_REHYDRATED' |
   'ERROR' | 'BROADCAST' | 'FILE_UPLOAD_START' | 'FILE_UPLOAD_CHUNK' | 'FILE_UPLOAD_COMPLETE' |
   'COMPONENT_PING' | 'COMPONENT_PONG' |
   // Room system messages
@@ -117,7 +117,7 @@ export interface WebSocketMessage {
 }
 
 export interface WebSocketResponse {
-  type: 'MESSAGE_RESPONSE' | 'CONNECTION_ESTABLISHED' | 'ERROR' | 'BROADCAST' | 'ACTION_RESPONSE' | 'COMPONENT_MOUNTED' | 'COMPONENT_REHYDRATED' | 'STATE_UPDATE' | 'STATE_REHYDRATED' | 'FILE_UPLOAD_PROGRESS' | 'FILE_UPLOAD_COMPLETE' | 'FILE_UPLOAD_ERROR' | 'FILE_UPLOAD_START_RESPONSE' | 'COMPONENT_PONG' |
+  type: 'MESSAGE_RESPONSE' | 'CONNECTION_ESTABLISHED' | 'ERROR' | 'BROADCAST' | 'ACTION_RESPONSE' | 'COMPONENT_MOUNTED' | 'COMPONENT_REHYDRATED' | 'STATE_UPDATE' | 'STATE_DELTA' | 'STATE_REHYDRATED' | 'FILE_UPLOAD_PROGRESS' | 'FILE_UPLOAD_COMPLETE' | 'FILE_UPLOAD_ERROR' | 'FILE_UPLOAD_START_RESPONSE' | 'COMPONENT_PONG' |
   // Room system responses
   'ROOM_EVENT' | 'ROOM_STATE' | 'ROOM_SYSTEM' | 'ROOM_JOINED' | 'ROOM_LEFT'
   originalType?: string
@@ -281,7 +281,7 @@ export abstract class LiveComponent<TState = ComponentState> {
     }
   }
 
-  // Create a Proxy that auto-emits STATE_UPDATE on any mutation
+  // Create a Proxy that auto-emits STATE_DELTA on any mutation
   private createStateProxy(state: TState): TState {
     const self = this
     return new Proxy(state as object, {
@@ -289,8 +289,8 @@ export abstract class LiveComponent<TState = ComponentState> {
         const oldValue = (target as any)[prop]
         if (oldValue !== value) {
           (target as any)[prop] = value
-          // Auto-sync to frontend
-          self.emit('STATE_UPDATE', { state: self._state })
+          // Delta sync - send only the changed property
+          self.emit('STATE_DELTA', { delta: { [prop]: value } })
         }
         return true
       },
@@ -417,11 +417,12 @@ export abstract class LiveComponent<TState = ComponentState> {
     return Array.from(this.joinedRooms)
   }
 
-  // State management (batch update - single emit)
+  // State management (batch update - single emit with delta)
   public setState(updates: Partial<TState> | ((prev: TState) => Partial<TState>)) {
     const newUpdates = typeof updates === 'function' ? updates(this._state) : updates
     Object.assign(this._state as object, newUpdates)
-    this.emit('STATE_UPDATE', { state: this._state })
+    // Delta sync - send only the changed properties
+    this.emit('STATE_DELTA', { delta: newUpdates })
   }
 
   // Generic setValue action - set any state key with type safety

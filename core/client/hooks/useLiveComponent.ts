@@ -573,6 +573,14 @@ export function useLiveComponent<
             }
           }
           break
+        case 'STATE_DELTA':
+          if (message.payload?.delta) {
+            const oldState = storeRef.current?.getState().state ?? stateData
+            const mergedState = { ...oldState, ...message.payload.delta } as TState
+            updateState(mergedState)
+            onStateChange?.(mergedState, oldState)
+          }
+          break
         case 'STATE_REHYDRATED':
           if (message.payload?.state && message.payload?.newComponentId) {
             setComponentId(message.payload.newComponentId)
