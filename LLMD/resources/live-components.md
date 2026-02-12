@@ -25,6 +25,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
+  static logging = ['lifecycle', 'messages'] as const  // Per-component logging (optional)
   static defaultState = {
     count: 0
   }
@@ -497,6 +498,7 @@ app/client/src/live/
 Each server file contains:
 - `static componentName` - Component identifier
 - `static defaultState` - Initial state object
+- `static logging` - Per-component log control (optional, see [Live Logging](./live-logging.md))
 - Component class extending `LiveComponent`
 - Client link via `import type { Demo as _Client }`
 
@@ -718,6 +720,7 @@ export function UploadDemo() {
 ## Related
 
 - [Live Auth](./live-auth.md) - Authentication for Live Components
+- [Live Logging](./live-logging.md) - Per-component logging control
 - [Live Rooms](./live-rooms.md) - Multi-room real-time communication
 - [Live Upload](./live-upload.md) - Chunked file upload
 - [Project Structure](../patterns/project-structure.md)
