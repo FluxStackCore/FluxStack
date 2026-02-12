@@ -21,7 +21,7 @@
 
 export type LiveLogCategory = 'lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket'
 
-export type LiveLogConfig = boolean | LiveLogCategory[]
+export type LiveLogConfig = boolean | readonly LiveLogCategory[]
 
 // Registry: componentId → resolved logging config
 const componentConfigs = new Map<string, LiveLogConfig>()

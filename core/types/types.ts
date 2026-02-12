@@ -238,7 +238,7 @@ export abstract class LiveComponent<TState = ComponentState> {
    *
    * Categories: 'lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket'
    */
-  static logging?: boolean | ('lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket')[]
+  static logging?: boolean | readonly ('lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket')[]
 
   /**
    * Configuração de autenticação do componente.
