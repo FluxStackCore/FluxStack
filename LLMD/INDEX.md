@@ -6,6 +6,7 @@
 
 **First Time?** → [core/framework-lifecycle.md](core/framework-lifecycle.md)
 **Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
+**Live Components Auth?** → [resources/live-auth.md](resources/live-auth.md)
 **Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md)
 **Config Issues?** → [config/declarative-system.md](config/declarative-system.md)
 **Plugin Development?** → [resources/plugins-external.md](resources/plugins-external.md)
@@ -28,6 +29,7 @@
 - [Routes with Eden Treaty](resources/routes-eden.md) - Type-safe API routes
 - [Controllers & Services](resources/controllers.md) - Business logic patterns
 - [Live Components](resources/live-components.md) - WebSocket components
+- [Live Auth](resources/live-auth.md) - Authentication for Live Components
 - [Live Rooms](resources/live-rooms.md) - Multi-room real-time communication
 - [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
 - [External Plugins](resources/plugins-external.md) - Plugin development

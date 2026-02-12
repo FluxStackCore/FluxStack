@@ -717,7 +717,9 @@ export function UploadDemo() {
 
 ## Related
 
+- [Live Auth](./live-auth.md) - Authentication for Live Components
+- [Live Rooms](./live-rooms.md) - Multi-room real-time communication
+- [Live Upload](./live-upload.md) - Chunked file upload
 - [Project Structure](../patterns/project-structure.md)
 - [Type Safety Patterns](../patterns/type-safety.md)
 - [WebSocket Plugin](../core/plugin-system.md)
-- [Live Upload](./live-upload.md)
