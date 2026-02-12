@@ -160,7 +160,6 @@ export class ProjectCreator {
         "@types/react": "^18.2.0",
         "@types/react-dom": "^18.2.0",
         "@types/uuid": "^10.0.0",
-        "@types/ws": "^8.18.1",
         "@testing-library/react": "^14.0.0",
         "@testing-library/jest-dom": "^6.1.0",
         "@testing-library/user-event": "^14.5.0",
@@ -175,14 +174,12 @@ export class ProjectCreator {
         "@sinclair/typebox": "^0.34.41",
         "@vitejs/plugin-react": "^4.0.0",
         "chalk": "^5.3.0",
-        "chokidar": "^4.0.3",
         "elysia": "latest",
         "react": "^18.2.0",
         "react-dom": "^18.2.0",
         "react-icons": "^5.5.0",
         "uuid": "^13.0.0",
         "vite": "^5.0.0",
-        "ws": "^8.18.3",
         "zustand": "^5.0.8"
       }
     }
