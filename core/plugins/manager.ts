@@ -177,6 +177,7 @@ export class PluginManager extends EventEmitter {
     const results: PluginHookResult[] = []
     const loadOrder = this.registry.getLoadOrder()
     const enabledPlugins = this.getEnabledPlugins()
+    const enabledSet = new Set(enabledPlugins.map(p => p.name))
 
     this.logger.debug(`Executing hook '${hook}' on ${enabledPlugins.length} plugins`, {
       hook,
@@ -186,7 +187,7 @@ export class PluginManager extends EventEmitter {
     })
 
     const executePlugin = async (plugin: Plugin): Promise<PluginHookResult> => {
-      if (!enabledPlugins.includes(plugin)) {
+      if (!enabledSet.has(plugin.name)) {
         return {
           success: true,
           duration: 0,
@@ -291,9 +292,10 @@ export class PluginManager extends EventEmitter {
           retries
         }
 
-        // Create timeout promise
+        // Create timeout promise with cleanup
+        let timeoutId: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
             reject(new FluxStackError(
               `Plugin '${plugin.name}' hook '${hook}' timed out after ${timeout}ms`,
               'PLUGIN_TIMEOUT',
@@ -304,7 +306,7 @@ export class PluginManager extends EventEmitter {
 
         // Execute the hook with appropriate context
         let hookPromise: Promise<any>
-        
+
         switch (hook) {
           case 'setup':
           case 'onServerStart':
@@ -325,7 +327,11 @@ export class PluginManager extends EventEmitter {
         }
 
         // Race between hook execution and timeout
-        await Promise.race([hookPromise, timeoutPromise])
+        try {
+          await Promise.race([hookPromise, timeoutPromise])
+        } finally {
+          clearTimeout(timeoutId)
+        }
 
         const duration = Date.now() - startTime
         

@@ -676,14 +676,19 @@ export class PluginRegistry {
   }
 
   /**
-   * Update the load order based on dependencies and priorities
+   * Update the load order based on dependencies and priorities.
+   *
+   * Uses a priority-aware topological sort: at each round, picks all plugins
+   * whose dependencies are already placed, then sorts that group by priority
+   * (highest first) before appending. This preserves dependency constraints
+   * while respecting priority within each dependency level.
    */
   private updateLoadOrder(): void {
-    const visited = new Set<string>()
+    // First, detect circular dependencies via DFS
     const visiting = new Set<string>()
-    const order: string[] = []
+    const visited = new Set<string>()
 
-    const visit = (pluginName: string) => {
+    const detectCycles = (pluginName: string) => {
       if (visiting.has(pluginName)) {
         throw new FluxStackError(
           `Circular dependency detected involving plugin '${pluginName}'`,
@@ -691,41 +696,64 @@ export class PluginRegistry {
           400
         )
       }
-
-      if (visited.has(pluginName)) {
-        return
-      }
+      if (visited.has(pluginName)) return
 
       visiting.add(pluginName)
-
       const plugin = this.plugins.get(pluginName)
       if (plugin?.dependencies) {
-        for (const dependency of plugin.dependencies) {
-          if (this.plugins.has(dependency)) {
-            visit(dependency)
+        for (const dep of plugin.dependencies) {
+          if (this.plugins.has(dep)) {
+            detectCycles(dep)
           }
         }
       }
-
       visiting.delete(pluginName)
       visited.add(pluginName)
-      order.push(pluginName)
     }
 
-    // Visit all plugins to build dependency order
     for (const pluginName of this.plugins.keys()) {
-      visit(pluginName)
+      detectCycles(pluginName)
     }
 
-    // Sort by priority within dependency groups
-    this.loadOrder = order.sort((a, b) => {
-      const pluginA = this.plugins.get(a)
-      const pluginB = this.plugins.get(b)
-      if (!pluginA || !pluginB) return 0
-      const priorityA = typeof pluginA.priority === 'number' ? pluginA.priority : 0
-      const priorityB = typeof pluginB.priority === 'number' ? pluginB.priority : 0
-      return priorityB - priorityA
-    })
+    // Kahn's algorithm with priority-aware group selection
+    const placed = new Set<string>()
+    const order: string[] = []
+    const remaining = new Set(this.plugins.keys())
+
+    while (remaining.size > 0) {
+      // Find all plugins whose dependencies are satisfied
+      const ready: string[] = []
+      for (const name of remaining) {
+        const plugin = this.plugins.get(name)
+        const deps = plugin?.dependencies ?? []
+        const allDepsPlaced = deps.every(d => !this.plugins.has(d) || placed.has(d))
+        if (allDepsPlaced) {
+          ready.push(name)
+        }
+      }
+
+      if (ready.length === 0) {
+        // Should not happen after cycle detection, but guard against it
+        break
+      }
+
+      // Sort ready plugins by priority (highest first)
+      ready.sort((a, b) => {
+        const pluginA = this.plugins.get(a)
+        const pluginB = this.plugins.get(b)
+        const priorityA = typeof pluginA?.priority === 'number' ? pluginA.priority : 0
+        const priorityB = typeof pluginB?.priority === 'number' ? pluginB.priority : 0
+        return priorityB - priorityA
+      })
+
+      for (const name of ready) {
+        order.push(name)
+        placed.add(name)
+        remaining.delete(name)
+      }
+    }
+
+    this.loadOrder = order
   }
 
   /**
