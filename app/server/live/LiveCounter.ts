@@ -7,6 +7,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
+  static logging = ['lifecycle', 'messages', 'state', 'rooms'] as const
   static defaultState = {
     count: 0,
     lastUpdatedBy: null as string | null,
