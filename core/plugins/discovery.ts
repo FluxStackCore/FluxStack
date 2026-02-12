@@ -359,6 +359,15 @@ export class PluginDiscovery {
 }
 
 /**
- * Default plugin discovery instance
+ * @deprecated Unused — PluginRegistry handles discovery directly.
+ * Instantiation deferred to first access to avoid side effects at module load.
+ * Remove this export in the next major version.
  */
-export const pluginDiscovery = new PluginDiscovery()
+let _pluginDiscovery: PluginDiscovery | undefined
+export function getPluginDiscovery(): PluginDiscovery {
+  _pluginDiscovery ??= new PluginDiscovery()
+  return _pluginDiscovery
+}
+
+/** @deprecated Use getPluginDiscovery() instead */
+export const pluginDiscovery = {} as PluginDiscovery

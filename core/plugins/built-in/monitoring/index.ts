@@ -415,6 +415,7 @@ function initializeHttpMetrics(registry: MetricsRegistry, collector: MetricsColl
 
 function startSystemMetricsCollection(context: PluginContext, collector: MetricsCollector, options: MonitoringOptions) {
   const intervals: NodeJS.Timeout[] = []
+  const cpuCount = os.cpus().length // Cache — CPU count does not change at runtime
 
   // Initialize system metrics in collector
   collector.createGauge('process_memory_rss_bytes', 'Process resident set size in bytes')
@@ -462,8 +463,8 @@ function startSystemMetricsCollection(context: PluginContext, collector: Metrics
       recordGauge(metricsRegistry, 'system_memory_free_bytes', freeMem)
       recordGauge(metricsRegistry, 'system_memory_used_bytes', totalMem - freeMem)
 
-      // CPU count
-      recordGauge(metricsRegistry, 'system_cpu_count', os.cpus().length)
+      // CPU count (cached)
+      recordGauge(metricsRegistry, 'system_cpu_count', cpuCount)
 
       // Load average (Unix-like systems only)
       if (process.platform !== 'win32') {
@@ -696,11 +697,17 @@ function recordGauge(registry: MetricsRegistry, name: string, value: number, lab
   })
 }
 
+const MAX_HISTOGRAM_VALUES = 1000
+
 function recordHistogram(registry: MetricsRegistry, name: string, value: number, labels?: Record<string, string>) {
   const key = createMetricKey(name, labels)
-  
+
   const existing = registry.histograms.get(key)
   if (existing) {
+    if (existing.values.length >= MAX_HISTOGRAM_VALUES) {
+      // Keep the most recent half to preserve statistical relevance
+      existing.values = existing.values.slice(MAX_HISTOGRAM_VALUES >> 1)
+    }
     existing.values.push(value)
     existing.timestamp = Date.now()
   } else {

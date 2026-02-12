@@ -285,6 +285,9 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   }
 }
 
+/** Shared instance — stateless, safe to reuse across all plugin utils */
+const sharedConfigManager = new DefaultPluginConfigManager()
+
 /**
  * Create plugin configuration utilities
  */
@@ -333,13 +336,11 @@ export function createPluginUtils(logger?: Logger): PluginUtils {
     },
 
     deepMerge: (target: any, source: any): any => {
-      const manager = new DefaultPluginConfigManager()
-      return (manager as any).deepMerge(target, source)
+      return (sharedConfigManager as any).deepMerge(target, source)
     },
 
     validateSchema: (data: any, schema: any): { valid: boolean; errors: string[] } => {
-      const manager = new DefaultPluginConfigManager()
-      const result = manager.validatePluginConfig({ name: 'temp', configSchema: schema }, data)
+      const result = sharedConfigManager.validatePluginConfig({ name: 'temp', configSchema: schema }, data)
       return {
         valid: result.valid,
         errors: result.errors

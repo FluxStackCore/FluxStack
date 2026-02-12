@@ -30,7 +30,7 @@ export class PluginModuleResolver {
         this.resolveCache.delete(firstKey)
       }
     }
-    this.cacheSet(key, value)
+    this.resolveCache.set(key, value)
   }
 
   /**

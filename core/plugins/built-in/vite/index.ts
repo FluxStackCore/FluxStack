@@ -11,6 +11,9 @@ type Plugin = FluxStack.Plugin
 const PLUGIN_PRIORITY = 800
 const INDEX_FILE = "index.html"
 
+/** Cached at module load — NODE_ENV does not change at runtime */
+const IS_DEV = isDevelopment()
+
 /** Create static file handler with cached base directory */
 function createStaticFallback() {
   // Discover base directory once
@@ -94,7 +97,7 @@ export const vitePlugin: Plugin = {
       return
     }
 
-    if (!isDevelopment()) {
+    if (!IS_DEV) {
       context.logger.debug("Production mode: static file serving enabled")
       context.app.all('*', createStaticFallback())
       return
@@ -107,7 +110,7 @@ export const vitePlugin: Plugin = {
   onServerStart: async (context: PluginContext) => {
     if (!pluginsConfig.viteEnabled) return
 
-    if (!isDevelopment()) {
+    if (!IS_DEV) {
       context.logger.debug('Static files ready')
       return
     }
@@ -116,7 +119,7 @@ export const vitePlugin: Plugin = {
   },
 
   onBeforeRoute: async (ctx: RequestContext) => {
-    if (!isDevelopment()) return
+    if (!IS_DEV) return
 
     const shouldSkip = (pluginsConfig.viteExcludePaths ?? []).some(prefix =>
       ctx.path === prefix || ctx.path.startsWith(prefix + '/')
