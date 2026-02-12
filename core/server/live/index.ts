@@ -12,3 +12,17 @@ export { connectionManager } from './WebSocketConnectionManager'
 export { fileUploadManager } from './FileUploadManager'
 export { stateSignature } from './StateSignature'
 export { performanceMonitor } from './LiveComponentPerformanceMonitor'
+
+// 🔒 Auth system
+export { liveAuthManager, LiveAuthManager } from './auth/LiveAuthManager'
+export { AuthenticatedContext, AnonymousContext, ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
+export type {
+  LiveAuthProvider,
+  LiveAuthCredentials,
+  LiveAuthUser,
+  LiveAuthContext,
+  LiveComponentAuth,
+  LiveActionAuth,
+  LiveActionAuthMap,
+  LiveAuthResult,
+} from './auth/types'

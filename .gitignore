@@ -140,3 +140,4 @@ chrome_data
 .chromium
 core/server/live/auto-generated-components.ts
 Fluxstack-Desktop
+.claude/settings.local.json

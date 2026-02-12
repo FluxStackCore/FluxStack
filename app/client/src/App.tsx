@@ -7,6 +7,7 @@ import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
 import { ChatDemo } from './live/ChatDemo'
 import { RoomChatDemo } from './live/RoomChatDemo'
+import { AuthDemo } from './live/AuthDemo'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -123,6 +124,16 @@ function AppContent() {
               note={<>🚀 Chat com múltiplas salas usando o novo sistema <code className="text-purple-400">$room</code>!</>}
             >
               <RoomChatDemo />
+            </DemoPage>
+          }
+        />
+        <Route
+          path="/auth"
+          element={
+            <DemoPage
+              note={<>🔒 Sistema de autenticação declarativo para Live Components com <code className="text-purple-400">$auth</code>!</>}
+            >
+              <AuthDemo />
             </DemoPage>
           }
         />

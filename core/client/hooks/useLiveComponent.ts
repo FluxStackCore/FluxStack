@@ -67,6 +67,8 @@ export interface LiveComponentProxy<
   readonly $status: 'synced' | 'disconnected' | 'connecting' | 'reconnecting' | 'loading' | 'mounting' | 'error'
   readonly $componentId: string | null
   readonly $dirty: boolean
+  /** Whether the WebSocket connection is authenticated on the server */
+  readonly $authenticated: boolean
 
   // Methods
   $call: (action: string, payload?: any) => Promise<void>
@@ -164,7 +166,7 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
 // ===== Propriedades Reservadas =====
 
 const RESERVED_PROPS = new Set([
-  '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty',
+  '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$authenticated',
   '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$onBroadcast', '$updateLocal',
   '$room', '$rooms', '$field', '$sync',
   'then', 'toJSON', 'valueOf', 'toString',
@@ -262,6 +264,7 @@ export function useLiveComponent<
   // WebSocket context
   const {
     connected,
+    authenticated: wsAuthenticated,
     sendMessage,
     sendMessageAndWait,
     registerComponent,
@@ -286,6 +289,7 @@ export function useLiveComponent<
   const broadcastHandlerRef = useRef<((event: { type: string; data: any }) => void) | null>(null)
   const roomMessageHandlers = useRef<Set<(msg: RoomServerMessage) => void>>(new Set())
   const roomManagerRef = useRef<RoomManager | null>(null)
+  const mountFnRef = useRef<(() => Promise<void>) | null>(null)
 
   // State
   const stateData = store((s) => s.state)
@@ -295,6 +299,7 @@ export function useLiveComponent<
   const [error, setError] = useState<string | null>(null)
   const [rehydrating, setRehydrating] = useState(false)
   const [mountFailed, setMountFailed] = useState(false) // Previne loop infinito de mount
+  const [authDenied, setAuthDenied] = useState(false) // Track if mount failed due to AUTH_DENIED
 
   const log = useCallback((msg: string, data?: any) => {
     if (debug) console.log(`[${componentName}] ${msg}`, data || '')
@@ -371,7 +376,11 @@ export function useLiveComponent<
       }
     } catch (err: any) {
       setError(err.message)
-      setMountFailed(true) // Previne loop infinito
+      // Track if auth was the reason for failure
+      if (err.message?.includes('AUTH_DENIED')) {
+        setAuthDenied(true)
+      }
+      setMountFailed(true) // Previne loop infinito para TODOS os erros
       onError?.(err.message)
       if (!fallbackToLocal) throw err
     } finally {
@@ -379,6 +388,9 @@ export function useLiveComponent<
       mountingRef.current = false
     }
   }, [connected, componentName, initialState, room, userId, sendMessageAndWait, updateState, log, onMount, onError, fallbackToLocal, mountFailed])
+
+  // Keep mount function ref updated
+  mountFnRef.current = mount
 
   // ===== Unmount =====
   const unmount = useCallback(async () => {
@@ -628,6 +640,28 @@ export function useLiveComponent<
     }
   }, [connected, autoMount, mount, componentId, rehydrating, rehydrate, mountFailed])
 
+  // ===== Auto Re-mount on Auth Change =====
+  // When auth changes from false to true and component failed due to AUTH_DENIED, retry mount
+  const prevAuthRef = useRef(wsAuthenticated)
+  useEffect(() => {
+    const wasNotAuthenticated = !prevAuthRef.current
+    const isNowAuthenticated = wsAuthenticated
+    prevAuthRef.current = wsAuthenticated
+
+    // Only retry if: auth changed from false→true AND we had an auth denial
+    if (wasNotAuthenticated && isNowAuthenticated && authDenied) {
+      log('Auth changed to authenticated, retrying mount...')
+      // Reset flags to allow retry
+      setAuthDenied(false)
+      setMountFailed(false)
+      setError(null)
+      mountedRef.current = false
+      mountingRef.current = false
+      // Small delay to ensure state is updated, use ref to avoid stale closure
+      setTimeout(() => mountFnRef.current?.(), 50)
+    }
+  }, [wsAuthenticated, authDenied, log])
+
   // ===== Connection Changes =====
   const prevConnected = useRef(connected)
   useEffect(() => {
@@ -716,6 +750,7 @@ export function useLiveComponent<
           case '$status': return getStatus()
           case '$componentId': return componentId
           case '$dirty': return pendingChanges.current.size > 0
+          case '$authenticated': return wsAuthenticated
           case '$call': return call
           case '$callAndWait': return callAndWait
           case '$mount': return mount
@@ -781,10 +816,10 @@ export function useLiveComponent<
       },
 
       ownKeys() {
-        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal', '$room', '$rooms']
+        return [...Object.keys(stateData), '$state', '$connected', '$loading', '$error', '$status', '$componentId', '$dirty', '$authenticated', '$call', '$callAndWait', '$mount', '$unmount', '$refresh', '$set', '$field', '$sync', '$onBroadcast', '$updateLocal', '$room', '$rooms']
       }
     })
-  }, [stateData, connected, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion, roomManager])
+  }, [stateData, connected, wsAuthenticated, loading, error, componentId, call, callAndWait, mount, unmount, refresh, setProperty, optimistic, sendMessageAndWait, createFieldBinding, sync, localVersion, roomManager])
 
   return proxy
 }

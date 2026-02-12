@@ -10,6 +10,9 @@ import type {
 } from '@core/plugins/types'
 import { stateSignature, type SignedState } from './StateSignature'
 import { performanceMonitor } from './LiveComponentPerformanceMonitor'
+import { liveAuthManager } from './auth/LiveAuthManager'
+import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
+import type { LiveComponentAuth, LiveActionAuthMap } from './auth/types'
 
 // Enhanced interfaces for registry improvements
 export interface ComponentMetadata {
@@ -265,12 +268,23 @@ export class ComponentRegistry {
       initialState = {}
     }
 
+    // 🔒 Auth check: Verify component-level authorization
+    const authContext = ws.data?.authContext || ANONYMOUS_CONTEXT
+    const componentAuth = (ComponentClass as any).auth as LiveComponentAuth | undefined
+    const authResult = liveAuthManager.authorizeComponent(authContext, componentAuth)
+    if (!authResult.allowed) {
+      throw new Error(`AUTH_DENIED: ${authResult.reason}`)
+    }
+
     // Create component instance with registry methods
     const component = new ComponentClass(
       { ...initialState, ...props },
       ws,
       options
     )
+
+    // 🔒 Inject auth context into component
+    component.setAuthContext(authContext)
 
     // Inject registry methods
     component.broadcastToRoom = (message: BroadcastMessage) => {
@@ -426,13 +440,24 @@ export class ComponentRegistry {
         }
       }
 
+      // 🔒 Auth check on rehydration
+      const authContext = ws.data?.authContext || ANONYMOUS_CONTEXT
+      const componentAuth = (ComponentClass as any).auth as LiveComponentAuth | undefined
+      const authResult = liveAuthManager.authorizeComponent(authContext, componentAuth)
+      if (!authResult.allowed) {
+        return { success: false, error: `AUTH_DENIED: ${authResult.reason}` }
+      }
+
       // Extract validated state
       const clientState = await stateSignature.extractData(signedState)
-      
+
       // Create new component instance with client state (merge with initial state if from definition)
       const finalState = definition ? { ...initialState, ...clientState } : clientState
       const component = new ComponentClass(finalState, ws, options)
-      
+
+      // 🔒 Inject auth context
+      component.setAuthContext(authContext)
+
       // Store component
       this.components.set(component.id, component)
       this.wsConnections.set(component.id, ws)
@@ -520,6 +545,25 @@ export class ComponentRegistry {
       console.log(`🔄 Component '${componentId}' not found - triggering re-hydration request`)
       // Return special error that triggers re-hydration on client
       throw new Error(`COMPONENT_REHYDRATION_REQUIRED:${componentId}`)
+    }
+
+    // 🔒 Auth check: Verify action-level authorization
+    const componentClass = component.constructor as any
+    const actionAuthMap = componentClass.actionAuth as LiveActionAuthMap | undefined
+    const actionAuth = actionAuthMap?.[action]
+
+    if (actionAuth) {
+      const authContext = (component as any).$auth || ANONYMOUS_CONTEXT
+      const componentName = componentClass.componentName || componentClass.name
+      const authResult = await liveAuthManager.authorizeAction(
+        authContext,
+        componentName,
+        action,
+        actionAuth
+      )
+      if (!authResult.allowed) {
+        throw new Error(`AUTH_DENIED: ${authResult.reason}`)
+      }
     }
 
     try {

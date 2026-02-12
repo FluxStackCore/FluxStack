@@ -8,6 +8,7 @@ const navItems = [
   { to: '/upload', label: 'Upload' },
   { to: '/chat', label: 'Chat' },
   { to: '/room-chat', label: 'Room Chat' },
+  { to: '/auth', label: 'Auth' },
   { to: '/api-test', label: 'API Test' }
 ]
 

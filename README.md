@@ -46,6 +46,7 @@
 - **WebSocket Sync** - Real-time state synchronization
 - **Reactive Proxy** - `this.state.count++` auto-syncs
 - **Room System** - Multi-room real-time communication
+- **Auth System** - Declarative RBAC for components
 
 </td>
 <td width="50%">
@@ -409,6 +410,71 @@ Rooms are accessible both from Live Components (WebSocket) and via REST API for 
 </tr>
 </table>
 
+### 🔐 Authentication
+
+Declarative auth for Live Components with role-based access control.
+
+<table>
+<tr>
+<td width="50%">
+
+**Server: protect components and actions**
+
+```typescript
+// app/server/live/AdminPanel.ts
+export class AdminPanel extends LiveComponent<State> {
+  static componentName = 'AdminPanel'
+  static defaultState = { users: [] }
+
+  // Component requires admin role
+  static auth = {
+    required: true,
+    roles: ['admin']
+  }
+
+  // Per-action permissions
+  static actionAuth = {
+    deleteUser: { permissions: ['users.delete'] }
+  }
+
+  async deleteUser(payload: { userId: string }) {
+    // Access user info via $auth
+    console.log(`${this.$auth.user?.id} deleting user`)
+    return { success: true }
+  }
+}
+```
+
+</td>
+<td width="50%">
+
+**Client: authenticate dynamically**
+
+```tsx
+import { useLiveComponents } from '@/core/client'
+
+function LoginButton() {
+  const { authenticated, authenticate } = useLiveComponents()
+
+  const handleLogin = async () => {
+    await authenticate({ token: 'my-jwt-token' })
+    // Components auto re-mount with new auth!
+  }
+
+  return (
+    <button onClick={handleLogin}>
+      {authenticated ? 'Logged in' : 'Login'}
+    </button>
+  )
+}
+```
+
+Components that fail with `AUTH_DENIED` automatically retry when authentication succeeds.
+
+</td>
+</tr>
+</table>
+
 ---
 
 ## 🔒 Type-Safe API Development
@@ -581,6 +647,7 @@ Default routes included in the demo app (React Router v7):
 | `/counter` | Live Counter |
 | `/form` | Live Form |
 | `/upload` | Live Upload |
+| `/auth` | Auth Demo |
 | `/api-test` | Eden Treaty Demo |
 
 ---
@@ -726,6 +793,7 @@ powershell -c "irm bun.sh/install.ps1 | iex"
 - [LLMD Index](./LLMD/INDEX.md) — Navigation hub
 - [Framework Lifecycle](./LLMD/core/framework-lifecycle.md)
 - [Live Components](./LLMD/resources/live-components.md)
+- [Live Auth](./LLMD/resources/live-auth.md)
 - [Live Rooms](./LLMD/resources/live-rooms.md)
 - [Routes & Eden Treaty](./LLMD/resources/routes-eden.md)
 - [CLI Reference](./LLMD/reference/cli-commands.md)

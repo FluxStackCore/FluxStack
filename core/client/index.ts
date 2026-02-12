@@ -16,7 +16,8 @@ export {
 } from './LiveComponentsProvider'
 export type {
   LiveComponentsProviderProps,
-  LiveComponentsContextValue
+  LiveComponentsContextValue,
+  LiveAuthOptions
 } from './LiveComponentsProvider'
 
 // Chunked Upload Hook
