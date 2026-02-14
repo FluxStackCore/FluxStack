@@ -98,6 +98,28 @@
 
 > Per-component logging is controlled via `static logging` on the class. See [Live Logging](../resources/live-logging.md).
 
+## Authentication
+
+| Variable | Type | Default | Description | Config File |
+|----------|------|---------|-------------|-------------|
+| `AUTH_DEFAULT_GUARD` | enum | `'session'` | Auth guard: `session`, `token` | auth.config.ts |
+| `AUTH_DEFAULT_PROVIDER` | enum | `'memory'` | User provider: `memory`, `database` | auth.config.ts |
+| `AUTH_HASH_ALGORITHM` | enum | `'bcrypt'` | Hash algorithm: `bcrypt`, `argon2id` | auth.config.ts |
+| `AUTH_BCRYPT_ROUNDS` | number | `10` | Bcrypt cost rounds | auth.config.ts |
+| `AUTH_RATE_LIMIT_MAX_ATTEMPTS` | number | `5` | Max login attempts before lockout | auth.config.ts |
+| `AUTH_RATE_LIMIT_DECAY_SECONDS` | number | `60` | Rate limit window (seconds) | auth.config.ts |
+| `AUTH_TOKEN_TTL` | number | `86400` | Bearer token TTL (seconds, token guard only) | auth.config.ts |
+
+## Session
+
+| Variable | Type | Default | Description | Config File |
+|----------|------|---------|-------------|-------------|
+| `SESSION_COOKIE` | string | `'fluxstack_session'` | Session cookie name | session.config.ts |
+| `SESSION_LIFETIME` | number | `7200` | Session duration (seconds) | session.config.ts |
+| `SESSION_HTTP_ONLY` | boolean | `true` | HttpOnly cookie flag | session.config.ts |
+| `SESSION_SECURE` | boolean | `false` | Secure cookie flag (HTTPS only) | session.config.ts |
+| `SESSION_SAME_SITE` | enum | `'lax'` | SameSite policy: `lax`, `strict`, `none` | session.config.ts |
+
 ## Logging
 
 | Variable | Type | Default | Description | Config File |
