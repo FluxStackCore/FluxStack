@@ -97,6 +97,7 @@ export function auth(guardName?: string) {
         }
       }
     })
+    .as('scoped')
 }
 
 /**
@@ -132,6 +133,7 @@ export function guest(guardName?: string) {
         }
       }
     })
+    .as('scoped')
 }
 
 /**
@@ -155,6 +157,7 @@ export function authOptional(guardName?: string) {
         auth: guard,
       }
     })
+    .as('scoped')
 }
 
 export { buildRequestContext }

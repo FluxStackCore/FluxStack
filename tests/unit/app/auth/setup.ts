@@ -11,6 +11,13 @@ import { createHash, randomBytes, pbkdf2Sync } from 'crypto'
 const hashStore = new Map<string, string>()
 
 const BunMock = {
+  // Elysia checks Bun.version at startup
+  version: '1.2.0',
+  env: process.env,
+
+  // Elysia calls Bun.gc() during request handling
+  gc() {},
+
   password: {
     async hash(password: string, options?: any): Promise<string> {
       const salt = randomBytes(16).toString('hex')
