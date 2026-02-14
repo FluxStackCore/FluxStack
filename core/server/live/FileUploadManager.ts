@@ -1,33 +1,70 @@
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { existsSync } from 'fs'
 import { join, extname } from 'path'
-import type { 
-  ActiveUpload, 
-  FileUploadStartMessage, 
+import type {
+  ActiveUpload,
+  FileUploadStartMessage,
   FileUploadChunkMessage,
   FileUploadCompleteMessage,
   FileUploadProgressResponse,
   FileUploadCompleteResponse
 } from '@core/types/types'
 
+/**
+ * Sanitize a filename to only contain safe characters.
+ * Strips path separators, null bytes, and non-ASCII control characters.
+ * Replaces spaces and special characters with underscores.
+ */
+function sanitizeFilename(name: string): string {
+  // Remove null bytes and control characters
+  let safe = name.replace(/[\x00-\x1f\x7f]/g, '')
+  // Remove path separators and parent directory references
+  safe = safe.replace(/[/\\]/g, '').replace(/\.\./g, '')
+  // Replace spaces and characters that cause issues in URLs/shells
+  safe = safe.replace(/[<>:"|?*#{}%~&]/g, '_').replace(/\s+/g, '_')
+  // Collapse multiple underscores
+  safe = safe.replace(/_+/g, '_')
+  // Remove leading dots (hidden files)
+  safe = safe.replace(/^\.+/, '')
+  // Fallback if name is empty after sanitization
+  return safe || 'upload'
+}
+
 export class FileUploadManager {
   private activeUploads = new Map<string, ActiveUpload>()
-  private readonly maxUploadSize = 500 * 1024 * 1024 // 500MB max (aceita qualquer arquivo)
+  private readonly maxUploadSize = 500 * 1024 * 1024 // 500MB max
   private readonly chunkTimeout = 30000 // 30 seconds timeout per chunk
-  private readonly allowedTypes: string[] = [] // Array vazio = aceita todos os tipos de arquivo
+  private readonly allowedTypes: string[] = [] // Empty array = accepts all file types
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
 
   constructor() {
     // Cleanup stale uploads every 5 minutes
-    setInterval(() => this.cleanupStaleUploads(), 5 * 60 * 1000)
+    this.cleanupTimer = setInterval(() => this.cleanupStaleUploads(), 5 * 60 * 1000)
+    // Allow the timer to not block process exit
+    if (this.cleanupTimer && typeof this.cleanupTimer === 'object' && 'unref' in this.cleanupTimer) {
+      this.cleanupTimer.unref()
+    }
+  }
+
+  /** Stop the background cleanup timer (useful for tests and graceful shutdown) */
+  dispose(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
   }
 
   async startUpload(message: FileUploadStartMessage): Promise<{ success: boolean; error?: string }> {
     try {
       const { uploadId, componentId, filename, fileType, fileSize, chunkSize = 64 * 1024 } = message
 
-      // Validate file size (sem restrição de tipo)
+      // Validate file size
       if (fileSize > this.maxUploadSize) {
         throw new Error(`File too large: ${fileSize} bytes. Max: ${this.maxUploadSize} bytes`)
+      }
+
+      if (fileSize <= 0) {
+        throw new Error('File size must be positive')
       }
 
       // Check if upload already exists
@@ -42,7 +79,7 @@ export class FileUploadManager {
       const upload: ActiveUpload = {
         uploadId,
         componentId,
-        filename,
+        filename: sanitizeFilename(filename),
         fileType,
         fileSize,
         totalChunks,
@@ -57,7 +94,7 @@ export class FileUploadManager {
       console.log('📤 Upload started:', {
         uploadId,
         componentId,
-        filename,
+        filename: upload.filename,
         fileType,
         fileSize,
         totalChunks
@@ -138,13 +175,13 @@ export class FileUploadManager {
   private async finalizeUpload(upload: ActiveUpload): Promise<void> {
     try {
       console.log(`✅ Upload completed: ${upload.uploadId}`)
-      
+
       // Assemble file from chunks
       const fileUrl = await this.assembleFile(upload)
-      
+
       // Cleanup
       this.activeUploads.delete(upload.uploadId)
-      
+
     } catch (error: any) {
       console.error(`❌ Upload finalization failed for ${upload.uploadId}:`, error.message)
       throw error
@@ -170,7 +207,6 @@ export class FileUploadManager {
 
       console.log(`✅ Upload validation passed: ${uploadId} (${upload.bytesReceived} bytes)`)
 
-
       // Assemble file from chunks
       const fileUrl = await this.assembleFile(upload)
 
@@ -189,7 +225,7 @@ export class FileUploadManager {
 
     } catch (error: any) {
       console.error(`❌ Upload completion failed for ${message.uploadId}:`, error.message)
-      
+
       return {
         type: 'FILE_UPLOAD_COMPLETE',
         componentId: '',
@@ -209,11 +245,12 @@ export class FileUploadManager {
         await mkdir(uploadsDir, { recursive: true })
       }
 
-      // Generate unique filename
+      // Generate unique filename with sanitized base name
       const timestamp = Date.now()
       const extension = extname(upload.filename)
-      const baseName = upload.filename.replace(extension, '')
-      const safeFilename = `${baseName}_${timestamp}${extension}`
+      const baseName = upload.filename.slice(0, -extension.length || undefined)
+      const safeBaseName = sanitizeFilename(baseName)
+      const safeFilename = `${safeBaseName}_${timestamp}${extension}`
       const filePath = join(uploadsDir, safeFilename)
 
       // Assemble chunks in order
@@ -249,7 +286,7 @@ export class FileUploadManager {
 
     for (const [uploadId, upload] of this.activeUploads) {
       const timeSinceLastChunk = now - upload.lastChunkTime
-      
+
       if (timeSinceLastChunk > this.chunkTimeout * 2) {
         staleUploads.push(uploadId)
       }

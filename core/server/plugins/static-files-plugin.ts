@@ -1,9 +1,20 @@
-// 🔥 FluxStack Static Files Plugin - Serve Public Files & Uploads
+// FluxStack Static Files Plugin - Serve Public Files & Uploads
 
 import { existsSync, statSync } from 'fs'
 import { mkdir } from 'fs/promises'
 import { resolve } from 'path'
+import { pluginsConfig } from '@config'
 import type { Plugin, PluginContext } from '../../plugins/types'
+
+/** MIME types that should never be executed inline (security) */
+const FORCE_DOWNLOAD_TYPES = new Set([
+  'application/x-executable',
+  'application/x-sharedlib',
+  'application/x-msdos-program',
+])
+
+/** Extensions that carry a content hash in their filename (immutable) */
+const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
 export const staticFilesPlugin: Plugin = {
   name: 'static-files',
@@ -15,16 +26,24 @@ export const staticFilesPlugin: Plugin = {
 
   setup: async (context: PluginContext) => {
     const projectRoot = process.cwd()
-    const publicDir = resolve(projectRoot, 'public')
-    const uploadsDir = resolve(projectRoot, 'uploads')
+    const publicDirName = pluginsConfig.staticPublicDir || 'public'
+    const uploadsDirName = pluginsConfig.staticUploadsDir || 'uploads'
+    const cacheMaxAge = pluginsConfig.staticCacheMaxAge ?? 31536000
+    const enablePublic = pluginsConfig.staticEnablePublic !== false
+    const enableUploads = pluginsConfig.staticEnableUploads !== false
+
+    const publicDir = resolve(projectRoot, publicDirName)
+    const uploadsDir = resolve(projectRoot, uploadsDirName)
 
     // Create directories if they don't exist
-    await mkdir(publicDir, { recursive: true })
-    await mkdir(uploadsDir, { recursive: true })
-    await mkdir(resolve(uploadsDir, 'avatars'), { recursive: true })
+    if (enablePublic) await mkdir(publicDir, { recursive: true })
+    if (enableUploads) {
+      await mkdir(uploadsDir, { recursive: true })
+      await mkdir(resolve(uploadsDir, 'avatars'), { recursive: true })
+    }
 
     // Helper to serve files from a directory
-    const serveFile = (baseDir: string) => ({ params, set }: any) => {
+    const serveFile = (baseDir: string, isUpload: boolean) => ({ params, set }: any) => {
       const requestedPath = params['*'] || ''
       const filePath = resolve(baseDir, requestedPath)
 
@@ -34,15 +53,11 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'Invalid path' }
       }
 
-      // Check if file exists
-      if (!existsSync(filePath)) {
-        set.status = 404
-        return { error: 'File not found' }
-      }
-
-      // Check if it's a file (not directory)
+      // Check if file exists and is a file (not directory)
+      let stat
       try {
-        if (!statSync(filePath).isFile()) {
+        stat = statSync(filePath)
+        if (!stat.isFile()) {
           set.status = 404
           return { error: 'Not a file' }
         }
@@ -51,19 +66,47 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'File not found' }
       }
 
-      // Set cache header (1 year)
-      set.headers['cache-control'] = 'public, max-age=31536000'
+      // Security headers for all served files
+      set.headers['x-content-type-options'] = 'nosniff'
+
+      // Cache strategy: hashed filenames get immutable cache, uploads get short cache
+      if (HASHED_EXT.test(requestedPath)) {
+        set.headers['cache-control'] = `public, max-age=${cacheMaxAge}, immutable`
+      } else if (isUpload) {
+        // Uploads change frequently — short cache with revalidation
+        set.headers['cache-control'] = 'public, max-age=3600, must-revalidate'
+      } else {
+        set.headers['cache-control'] = `public, max-age=${cacheMaxAge}`
+      }
+
+      // ETag based on mtime + size for conditional requests
+      const etag = `"${stat.mtimeMs.toString(36)}-${stat.size.toString(36)}"`
+      set.headers['etag'] = etag
 
       // Bun.file() handles: content-type, content-length, streaming
-      return Bun.file(filePath)
+      const file = Bun.file(filePath)
+
+      // Force download for dangerous MIME types on uploads
+      if (isUpload && FORCE_DOWNLOAD_TYPES.has(file.type)) {
+        set.headers['content-disposition'] = 'attachment'
+      }
+
+      return file
     }
 
-    // Register routes
-    context.app.get('/api/static/*', serveFile(publicDir))
-    context.app.get('/api/uploads/*', serveFile(uploadsDir))
+    // Register routes based on config
+    const routes: string[] = []
 
-    context.logger.debug('📁 Static files plugin ready', {
-      routes: ['/api/static/*', '/api/uploads/*']
-    })
+    if (enablePublic) {
+      context.app.get('/api/static/*', serveFile(publicDir, false))
+      routes.push('/api/static/*')
+    }
+
+    if (enableUploads) {
+      context.app.get('/api/uploads/*', serveFile(uploadsDir, true))
+      routes.push('/api/uploads/*')
+    }
+
+    context.logger.debug('📁 Static files plugin ready', { routes })
   }
 }

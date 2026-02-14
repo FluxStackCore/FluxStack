@@ -20,26 +20,35 @@ const STATIC_MAX_AGE = 31536000
 /** Extensions that carry a content hash in their filename (immutable) */
 const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
+/** Content types eligible for pre-compressed serving */
+const COMPRESSIBLE_TYPES = new Set(['.js', '.css', '.html', '.svg', '.json', '.xml', '.txt', '.map'])
+
 /**
  * Recursively collect all files under `dir` as relative paths (e.g. "/assets/app.abc123.js").
  * Runs once at startup — in production the build output never changes.
  */
 function collectFiles(dir: string, prefix = ''): Map<string, string> {
   const map = new Map<string, string>()
-  try {
-    const entries = readdirSync(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      const rel = prefix + '/' + entry.name
-      if (entry.isDirectory()) {
-        for (const [k, v] of collectFiles(join(dir, entry.name), rel)) {
-          map.set(k, v)
-        }
-      } else if (entry.isFile()) {
-        map.set(rel, join(dir, entry.name))
+  if (!existsSync(dir)) return map
+
+  const entries = readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const rel = prefix + '/' + entry.name
+    if (entry.isDirectory()) {
+      for (const [k, v] of collectFiles(join(dir, entry.name), rel)) {
+        map.set(k, v)
       }
+    } else if (entry.isFile()) {
+      map.set(rel, join(dir, entry.name))
     }
-  } catch {}
+  }
   return map
+}
+
+/** Get file extension from a path */
+function getExtension(path: string): string {
+  const dotIdx = path.lastIndexOf('.')
+  return dotIdx === -1 ? '' : path.slice(dotIdx)
 }
 
 /** Create static file handler with full in-memory cache */
@@ -59,6 +68,16 @@ function createStaticFallback() {
 
   // Bun.file() handle cache — avoids re-creating handles on repeated requests
   const fileCache = new Map<string, ReturnType<typeof Bun.file>>()
+
+  // Pre-build set of paths that have .gz counterparts for fast lookup
+  const gzMap = new Map<string, string>()
+  for (const [relPath, absPath] of fileMap) {
+    if (relPath.endsWith('.gz')) continue
+    const gzAbsPath = absPath + '.gz'
+    if (fileMap.has(relPath + '.gz') || existsSync(gzAbsPath)) {
+      gzMap.set(relPath, gzAbsPath)
+    }
+  }
 
   return (c: { request?: Request }) => {
     const req = c.request
@@ -96,6 +115,32 @@ function createStaticFallback() {
     // O(1) lookup in pre-scanned file map
     const absolutePath = fileMap.get(pathname)
     if (absolutePath) {
+      // Check for pre-compressed .gz version
+      const acceptEncoding = req.headers.get('accept-encoding') || ''
+      const ext = getExtension(pathname)
+      const gzPath = gzMap.get(pathname)
+
+      if (gzPath && COMPRESSIBLE_TYPES.has(ext) && acceptEncoding.includes('gzip')) {
+        let gzFile = fileCache.get(pathname + '.gz')
+        if (!gzFile) {
+          gzFile = Bun.file(gzPath)
+          fileCache.set(pathname + '.gz', gzFile)
+        }
+
+        const originalFile = Bun.file(absolutePath)
+        const headers: Record<string, string> = {
+          'Content-Encoding': 'gzip',
+          'Content-Type': originalFile.type,
+          'Vary': 'Accept-Encoding',
+        }
+
+        if (HASHED_EXT.test(pathname)) {
+          headers['Cache-Control'] = `public, max-age=${STATIC_MAX_AGE}, immutable`
+        }
+
+        return new Response(gzFile, { headers })
+      }
+
       let file = fileCache.get(pathname)
       if (!file) {
         file = Bun.file(absolutePath)
@@ -115,8 +160,13 @@ function createStaticFallback() {
     }
 
     // SPA fallback: serve index.html for unmatched routes
+    // Use no-cache so the browser always revalidates (picks up new deploys)
     if (indexFile) {
-      return indexFile
+      return new Response(indexFile, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
     }
   }
 }
@@ -143,7 +193,8 @@ async function proxyToVite(ctx: RequestContext): Promise<void> {
     })
 
     ctx.handled = true
-    ctx.response = new Response(await response.arrayBuffer(), {
+    // Stream the proxy response instead of buffering it entirely in memory
+    ctx.response = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers
