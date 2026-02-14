@@ -4,6 +4,7 @@
 
 ## Quick Navigation
 
+**AI Agent?** → [agent.md](agent.md) - Guia completo para agentes de IA
 **First Time?** → [core/framework-lifecycle.md](core/framework-lifecycle.md)
 **Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
 **REST API Auth?** → [resources/rest-auth.md](resources/rest-auth.md)
