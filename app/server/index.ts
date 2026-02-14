@@ -21,9 +21,15 @@ import { appConfig } from "@config"
 import { liveAuthManager } from "@core/server/live/auth"
 import { DevAuthProvider } from "./auth/DevAuthProvider"
 
+// 🔐 Auth system (Guard + Provider, Laravel-inspired)
+import { initAuth } from "@server/auth"
+
 // Registrar provider de desenvolvimento (tokens simples para testes)
 liveAuthManager.register(new DevAuthProvider())
 console.log('🔓 DevAuthProvider registered')
+
+// Inicializar sistema de autenticação
+initAuth()
 
 const framework = new FluxStackFramework()
   .use(swaggerPlugin)

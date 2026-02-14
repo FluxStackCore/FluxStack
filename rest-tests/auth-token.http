@@ -1,0 +1,113 @@
+@base = http://localhost:3000/api
+
+# =============================================
+# Auth Tests - Bearer Token Guard
+# =============================================
+# Requer: AUTH_DEFAULT_GUARD=token no .env
+# =============================================
+
+### ===== Health Check =====
+
+GET {{base}}/health
+
+### ===== Register =====
+# @name register
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Register (duplicado - 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Jane Doe",
+  "email": "john@example.com",
+  "password": "other123"
+}
+
+### ===== Register (campos faltando - 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "No Email"
+}
+
+### ===== Register (senha curta - 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Short Pass",
+  "email": "short@example.com",
+  "password": "12"
+}
+
+### ===== Login =====
+# @name login
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Login (senha errada - 401) =====
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "wrong-password"
+}
+
+### ===== Login (email desconhecido - 401) =====
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "unknown@example.com",
+  "password": "secret123"
+}
+
+### ===== Me (sem token - 401) =====
+
+GET {{base}}/auth/me
+
+### ===== Me (com Bearer token) =====
+
+GET {{base}}/auth/me
+Authorization: Bearer {{login.response.body.token}}
+
+### ===== Me (token inválido - 401) =====
+
+GET {{base}}/auth/me
+Authorization: Bearer token-invalido-123
+
+### ===== Logout (sem token - 401) =====
+
+POST {{base}}/auth/logout
+
+### ===== Logout (com Bearer token) =====
+
+POST {{base}}/auth/logout
+Authorization: Bearer {{login.response.body.token}}
+
+### ===== Me após logout (token revogado - 401) =====
+
+GET {{base}}/auth/me
+Authorization: Bearer {{login.response.body.token}}

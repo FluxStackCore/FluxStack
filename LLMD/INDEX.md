@@ -6,6 +6,7 @@
 
 **First Time?** → [core/framework-lifecycle.md](core/framework-lifecycle.md)
 **Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
+**REST API Auth?** → [resources/rest-auth.md](resources/rest-auth.md)
 **Live Components Auth?** → [resources/live-auth.md](resources/live-auth.md)
 **Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md)
 **Debugging Logs?** → [resources/live-logging.md](resources/live-logging.md)
@@ -30,6 +31,7 @@
 - [Routes with Eden Treaty](resources/routes-eden.md) - Type-safe API routes
 - [Controllers & Services](resources/controllers.md) - Business logic patterns
 - [Live Components](resources/live-components.md) - WebSocket components
+- [REST Auth](resources/rest-auth.md) - Session & Token guards, middleware, rate limiting
 - [Live Auth](resources/live-auth.md) - Authentication for Live Components
 - [Live Rooms](resources/live-rooms.md) - Multi-room real-time communication
 - [Live Logging](resources/live-logging.md) - Per-component logging control

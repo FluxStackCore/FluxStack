@@ -1,0 +1,62 @@
+@base = http://localhost:3000/api
+
+# =============================================
+# Users CRUD - Bearer Token Guard
+# =============================================
+# Requer: AUTH_DEFAULT_GUARD=token no .env
+# Execute o login antes para obter o token
+# =============================================
+
+### ===== Login (obter token) =====
+# @name login
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Listar usuários =====
+
+GET {{base}}/users
+Authorization: Bearer {{login.response.body.token}}
+
+### ===== Criar usuário =====
+# @name createUser
+
+POST {{base}}/users
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "name": "New User",
+  "email": "new@example.com"
+}
+
+### ===== Buscar usuário por ID =====
+
+GET {{base}}/users/1
+Authorization: Bearer {{login.response.body.token}}
+
+### ===== Atualizar usuário =====
+
+PUT {{base}}/users/1
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com"
+}
+
+### ===== Deletar usuário =====
+
+DELETE {{base}}/users/1
+Authorization: Bearer {{login.response.body.token}}
+
+### ===== Listar após delete =====
+
+GET {{base}}/users
+Authorization: Bearer {{login.response.body.token}}

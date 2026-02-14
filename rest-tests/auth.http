@@ -1,0 +1,112 @@
+@base = http://localhost:3000/api
+
+### ===== Health Check =====
+
+GET {{base}}/health
+
+### ===== Register =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Register (duplicate - should return 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Jane Doe",
+  "email": "john@example.com",
+  "password": "other123"
+}
+
+### ===== Register (missing fields - should return 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "No Email"
+}
+
+### ===== Register (short password - should return 422) =====
+
+POST {{base}}/auth/register
+Content-Type: application/json
+
+{
+  "name": "Short Pass",
+  "email": "short@example.com",
+  "password": "12"
+}
+
+### ===== Login =====
+
+# @name login
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Login (wrong password - should return 401) =====
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "wrong-password"
+}
+
+### ===== Login (unknown email - should return 401) =====
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "unknown@example.com",
+  "password": "secret123"
+}
+
+### ===== Me (no auth - should return 401) =====
+
+GET {{base}}/auth/me
+
+### ===== Me (with session cookie) =====
+# Copy the fluxstack_session cookie value from the login response above
+
+GET {{base}}/auth/me
+Cookie: fluxstack_session=PASTE_SESSION_COOKIE_HERE
+
+### ===== Logout (no auth - should return 401) =====
+
+POST {{base}}/auth/logout
+
+### ===== Logout (with session cookie) =====
+# Copy the fluxstack_session cookie value from the login response
+
+POST {{base}}/auth/logout
+Cookie: fluxstack_session=PASTE_SESSION_COOKIE_HERE
+
+### ===== Users CRUD =====
+
+GET {{base}}/users
+
+###
+
+POST {{base}}/users
+Content-Type: application/json
+
+{
+  "name": "Test User",
+  "email": "test@example.com"
+}
