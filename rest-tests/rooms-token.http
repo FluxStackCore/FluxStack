@@ -1,0 +1,69 @@
+@base = http://localhost:3000/api
+
+# =============================================
+# Rooms API - Bearer Token Guard
+# =============================================
+# Requer: AUTH_DEFAULT_GUARD=token no .env
+# Execute o login antes para obter o token
+# =============================================
+
+### ===== Login (obter token) =====
+# @name login
+
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "secret123"
+}
+
+### ===== Enviar mensagem para sala =====
+
+POST {{base}}/rooms/geral/messages
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "user": "John",
+  "text": "Hello from REST Client!"
+}
+
+### ===== Enviar mensagem para outra sala =====
+
+POST {{base}}/rooms/tech/messages
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "user": "John",
+  "text": "Discussing tech topics"
+}
+
+### ===== Emitir evento customizado =====
+
+POST {{base}}/rooms/geral/emit
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "event": "notification",
+  "data": {
+    "type": "alert",
+    "message": "System update scheduled"
+  }
+}
+
+### ===== Emitir evento de typing =====
+
+POST {{base}}/rooms/geral/emit
+Content-Type: application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "event": "user:typing",
+  "data": {
+    "user": "John",
+    "typing": true
+  }
+}
