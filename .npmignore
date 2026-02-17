@@ -76,7 +76,12 @@ CLAUDE.md
 TEST_RESULTS.md
 README-Docker.md
 
-# Docker files are generated automatically in dist/ during build
+# Docker files (generated automatically in dist/ during build)
+Dockerfile
+.dockerignore
+
+# Internal review documents
+LIVE_COMPONENTS_REVIEW.md
 
 # Scripts and utilities
 scripts/
