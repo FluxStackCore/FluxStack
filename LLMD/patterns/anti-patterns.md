@@ -277,6 +277,100 @@ if (import.meta.env.DEV) {
 }
 ```
 
+## Live Component Security Anti-Patterns
+
+### Never Omit publicActions
+
+```typescript
+// ❌ WRONG - No publicActions = ALL remote actions blocked (secure by default)
+export class MyComponent extends LiveComponent<State> {
+  static componentName = 'MyComponent'
+  static defaultState = { count: 0 }
+
+  async increment() { this.state.count++ }  // Client CANNOT call this!
+}
+
+// ✅ CORRECT - Explicitly whitelist callable methods
+export class MyComponent extends LiveComponent<State> {
+  static componentName = 'MyComponent'
+  static publicActions = ['increment'] as const  // Only increment is callable
+  static defaultState = { count: 0 }
+
+  async increment() { this.state.count++ }
+
+  // Internal helper - not in publicActions, so not callable from client
+  private _recalculate() { /* ... */ }
+}
+```
+
+**Why**: Components without `publicActions` deny ALL remote actions. This is secure by default - if you forget, nothing is exposed rather than everything.
+
+### Never Include setValue Without Careful Consideration
+
+```typescript
+// ❌ DANGEROUS - setValue allows client to set ANY state key
+static publicActions = ['sendMessage', 'setValue'] as const
+// Client can now do: component.setValue({ key: 'isAdmin', value: true })
+
+// ✅ CORRECT - Only expose specific, safe actions
+static publicActions = ['sendMessage', 'deleteMessage'] as const
+```
+
+**Why**: `setValue` is a generic action that allows the client to modify any state property. Only include it if all state fields are safe for clients to modify.
+
+### Never Trust MIME Types Alone for Uploads
+
+```typescript
+// ❌ WRONG - Only checking MIME type header (easily spoofed)
+if (file.type === 'image/jpeg') {
+  // Accept file - but it could be an EXE with a fake MIME header!
+}
+
+// ✅ CORRECT - Framework validates magic bytes automatically
+// FileUploadManager.validateContentMagicBytes() runs on completeUpload()
+// No manual code needed - the framework handles this
+```
+
+**Why**: MIME types come from the client and can be spoofed. The framework validates actual file content (magic bytes) against the claimed type.
+
+### Never Store Sensitive Data in State
+
+```typescript
+// ❌ WRONG - Token goes to the client via STATE_UPDATE/STATE_DELTA
+export class Chat extends LiveComponent<State> {
+  static defaultState = { messages: [], token: '' }  // token synced to client!
+  static publicActions = ['connect'] as const
+
+  async connect(payload: { token: string }) {
+    this.state.token = payload.token  // 💀 Visible in browser DevTools!
+  }
+}
+
+// ✅ CORRECT - Use $private for server-only data
+export class Chat extends LiveComponent<State> {
+  static defaultState = { messages: [] as string[] }
+  static publicActions = ['connect'] as const
+
+  async connect(payload: { token: string }) {
+    this.$private.token = payload.token  // 🔒 Never leaves the server
+    this.state.messages = await fetch(this.$private.token)
+  }
+}
+```
+
+**Why**: Everything in `state` is serialized and sent to the client via WebSocket. Use `$private` for tokens, API keys, internal IDs, or any data the client should not see.
+
+### Never Ignore Double Extensions
+
+```typescript
+// ❌ WRONG - Only checking last extension
+const ext = filename.split('.').pop()  // Returns 'jpg' for 'malware.exe.jpg'
+
+// ✅ CORRECT - Framework checks all intermediate extensions automatically
+// FileUploadManager blocks files like 'malware.exe.jpg'
+// No manual code needed - handled at framework level
+```
+
 ## Summary Table
 
 | Anti-Pattern | Impact | Solution |
@@ -288,6 +382,10 @@ if (import.meta.env.DEV) {
 | Deep relative imports | Fragile paths | Use aliases |
 | NPM plugins without whitelist | Security risk | Set PLUGINS_ALLOWED |
 | Business logic in routes | Unmaintainable | Use controllers |
+| Missing `publicActions` | All actions blocked | Always define whitelist |
+| Including `setValue` carelessly | Privilege escalation | Use specific actions |
+| Sensitive data in `state` | Data leak to client | Use `$private` instead |
+| Trusting MIME types alone | File disguise attacks | Framework validates magic bytes |
 
 ## Related
 
@@ -295,3 +393,5 @@ if (import.meta.env.DEV) {
 - [Type Safety](./type-safety.md)
 - [Plugin Security](../core/plugin-system.md)
 - [Routes with Eden Treaty](../resources/routes-eden.md)
+- [Live Components](../resources/live-components.md)
+- [Live Upload](../resources/live-upload.md)

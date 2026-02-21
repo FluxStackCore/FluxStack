@@ -14,6 +14,7 @@ export interface ChatMessage {
 
 export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState> {
   static componentName = 'LiveRoomChat'
+  static publicActions = ['joinRoom', 'leaveRoom', 'switchRoom', 'sendMessage', 'setUsername'] as const
   static defaultState = {
     username: '',
     activeRoom: null as string | null,

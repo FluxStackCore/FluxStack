@@ -52,17 +52,23 @@ type ExtractState<T> = T extends { new(...args: any[]): { state: infer S } }
   ? S extends Record<string, any> ? S : Record<string, any>
   : ExtractDefaultState<T>
 
-// Extrai as Actions (métodos públicos async) da classe do servidor
-// Filtra métodos internos do framework que não devem ser expostos como actions
+// Extrai os nomes de publicActions como union type
+type ExtractPublicActionNames<T> = T extends { publicActions: readonly (infer A)[] }
+  ? A extends string ? A : never
+  : never
+
+// Extrai as Actions respeitando publicActions (MANDATORY)
+// - Se publicActions está definido: somente métodos listados são expostos
+// - Se publicActions NÃO está definido: nenhuma action disponível (secure by default)
 type ExtractActions<T> = T extends { new(...args: any[]): infer Instance }
-  ? {
-      [K in keyof Instance as Instance[K] extends (...args: any[]) => Promise<any>
-        ? K extends 'setState' | 'getState' | 'getValue' | 'setValue' | 'setValues' | 'getSnapshot' | 'setAuthContext'
-          ? never
-          : K
-        : never
-      ]: Instance[K]
-    }
+  ? T extends { publicActions: readonly string[] }
+    ? {
+        [K in keyof Instance as K extends ExtractPublicActionNames<T>
+          ? Instance[K] extends (...args: any[]) => Promise<any> ? K : never
+          : never
+        ]: Instance[K]
+      }
+    : Record<string, never>
   : Record<string, never>
 
 // ===== Opções do Live.use() =====
@@ -75,7 +81,7 @@ interface LiveUseOptions<TState> extends UseLiveComponentOptions {
 // ===== Hook Principal =====
 
 function useLive<
-  T extends { new(...args: any[]): any; defaultState?: Record<string, any>; componentName: string },
+  T extends { new(...args: any[]): any; defaultState?: Record<string, any>; componentName: string; publicActions?: readonly string[] },
   TBroadcasts extends Record<string, any> = Record<string, any>
 >(
   ComponentClass: T,

@@ -18,6 +18,7 @@ export interface SignedState<T = any> {
   keyId?: string // For key rotation
   compressed?: boolean // For state compression
   encrypted?: boolean // For sensitive data
+  nonce?: string // 🔒 Anti-replay: unique per signed state
 }
 
 export interface StateValidationResult {
@@ -26,6 +27,7 @@ export interface StateValidationResult {
   tampered?: boolean
   expired?: boolean
   keyRotated?: boolean
+  replayed?: boolean // 🔒 Anti-replay: nonce was already consumed
 }
 
 export interface StateBackup<T = any> {
@@ -57,6 +59,10 @@ export class StateSignature {
   private compressionConfig: CompressionConfig
   private backups = new Map<string, StateBackup[]>() // componentId -> backups
   private migrationFunctions = new Map<string, (state: any) => any>() // version -> migration function
+  // 🔒 Anti-replay: track consumed nonces to prevent state replay attacks
+  private consumedNonces = new Set<string>()
+  private readonly nonceMaxAge = 24 * 60 * 60 * 1000 // Nonces expire with the state (24h)
+  private nonceTimestamps = new Map<string, number>() // nonce -> timestamp for cleanup
 
   constructor(secretKey?: string, options?: {
     keyRotation?: Partial<KeyRotationConfig>
@@ -108,10 +114,11 @@ export class StateSignature {
     setInterval(() => {
       this.rotateKey()
     }, this.keyRotationConfig.rotationInterval)
-    
-    // Cleanup old keys
+
+    // Cleanup old keys and expired nonces
     setInterval(() => {
       this.cleanupOldKeys()
+      this.cleanupExpiredNonces()
     }, 24 * 60 * 60 * 1000) // Daily cleanup
   }
 
@@ -159,6 +166,26 @@ export class StateSignature {
     }
   }
 
+  /**
+   * 🔒 Remove expired nonces to prevent unbounded memory growth
+   */
+  private cleanupExpiredNonces(): void {
+    const now = Date.now()
+    let cleaned = 0
+
+    for (const [nonce, timestamp] of this.nonceTimestamps) {
+      if (now - timestamp > this.nonceMaxAge) {
+        this.consumedNonces.delete(nonce)
+        this.nonceTimestamps.delete(nonce)
+        cleaned++
+      }
+    }
+
+    if (cleaned > 0) {
+      liveLog('state', null, `🧹 Cleaned up ${cleaned} expired nonces (${this.consumedNonces.size} active)`)
+    }
+  }
+
   private getKeyById(keyId: string): string | null {
     const keyData = this.keyHistory.get(keyId)
     return keyData ? keyData.key : null
@@ -179,37 +206,38 @@ export class StateSignature {
   ): Promise<SignedState<T>> {
     const timestamp = Date.now()
     const keyId = this.getCurrentKeyId()
-    
+    const nonce = randomBytes(16).toString('hex') // 🔒 Anti-replay nonce
+
     let processedData = data
     let compressed = false
     let encrypted = false
-    
+
     try {
       // Serialize data for processing
       const serializedData = JSON.stringify(data)
-      
+
       // Compress if enabled and data is large enough
-      if (this.compressionConfig.enabled && 
+      if (this.compressionConfig.enabled &&
           (options?.compress !== false) &&
           Buffer.byteLength(serializedData, 'utf8') > this.compressionConfig.threshold) {
-        
+
         const compressedBuffer = await gzipAsync(Buffer.from(serializedData, 'utf8'))
         processedData = compressedBuffer.toString('base64') as any
         compressed = true
-        
+
         liveLog('state', componentId, `🗜️ State compressed: ${Buffer.byteLength(serializedData, 'utf8')} -> ${compressedBuffer.length} bytes`)
       }
-      
+
       // Encrypt sensitive data if requested
       if (options?.encrypt) {
         const encryptedData = await this.encryptData(processedData)
         processedData = encryptedData as any
         encrypted = true
-        
+
         liveLog('state', componentId, `🔒 State encrypted for component: ${componentId}`)
       }
-      
-      // Create payload for signing
+
+      // Create payload for signing (includes nonce for anti-replay)
       const payload = {
         data: processedData,
         componentId,
@@ -217,9 +245,10 @@ export class StateSignature {
         version,
         keyId,
         compressed,
-        encrypted
+        encrypted,
+        nonce
       }
-      
+
       // Generate signature with current key
       const signature = this.createSignature(payload)
       
@@ -235,6 +264,7 @@ export class StateSignature {
         keyId,
         compressed,
         encrypted,
+        nonce: nonce.substring(0, 8) + '...',
         signature: signature.substring(0, 16) + '...'
       })
 
@@ -246,7 +276,8 @@ export class StateSignature {
         version,
         keyId,
         compressed,
-        encrypted
+        encrypted,
+        nonce
       }
       
     } catch (error) {
@@ -258,14 +289,19 @@ export class StateSignature {
   /**
    * Validate signed state integrity with enhanced security checks
    */
-  public async validateState<T>(signedState: SignedState<T>, maxAge?: number): Promise<StateValidationResult> {
-    const { data, signature, timestamp, componentId, version, keyId, compressed, encrypted } = signedState
-    
+  /**
+   * Validate signed state integrity with enhanced security checks.
+   * @param consumeNonce If true (default), the nonce is consumed and the same signed state cannot be reused.
+   *                     Set to false for read-only validation without consuming the nonce.
+   */
+  public async validateState<T>(signedState: SignedState<T>, maxAge?: number, consumeNonce = true): Promise<StateValidationResult> {
+    const { data, signature, timestamp, componentId, version, keyId, compressed, encrypted, nonce } = signedState
+
     try {
       // Check timestamp (prevent replay attacks)
       const age = Date.now() - timestamp
       const ageLimit = maxAge || this.maxAge
-      
+
       if (age > ageLimit) {
         return {
           valid: false,
@@ -274,10 +310,23 @@ export class StateSignature {
         }
       }
 
+      // 🔒 Anti-replay: check if this nonce was already consumed
+      if (nonce && consumeNonce && this.consumedNonces.has(nonce)) {
+        liveWarn('state', componentId, '⚠️ Replay attack detected - nonce already consumed:', {
+          componentId,
+          nonce: nonce.substring(0, 8) + '...'
+        })
+        return {
+          valid: false,
+          error: 'State already consumed - replay attack detected',
+          replayed: true
+        }
+      }
+
       // Determine which key to use for validation
       let validationKey = this.currentKey
       let keyRotated = false
-      
+
       if (keyId) {
         const historicalKey = this.getKeyById(keyId)
         if (historicalKey) {
@@ -292,27 +341,30 @@ export class StateSignature {
         }
       }
 
-      // Recreate payload for verification
-      const payload = {
+      // Recreate payload for verification (must include nonce if present)
+      const payload: Record<string, unknown> = {
         data,
         componentId,
         timestamp,
         version,
         keyId,
         compressed,
-        encrypted
+        encrypted,
+      }
+      if (nonce !== undefined) {
+        payload.nonce = nonce
       }
 
       // Verify signature with appropriate key
       const expectedSignature = this.createSignature(payload, validationKey)
-      
+
       if (!this.constantTimeEquals(signature, expectedSignature)) {
         liveWarn('state', componentId, '⚠️ State signature mismatch:', {
           componentId,
           expected: expectedSignature.substring(0, 16) + '...',
           received: signature.substring(0, 16) + '...'
         })
-        
+
         return {
           valid: false,
           error: 'State signature invalid - possible tampering',
@@ -320,10 +372,17 @@ export class StateSignature {
         }
       }
 
+      // 🔒 Anti-replay: consume the nonce so it cannot be reused
+      if (nonce && consumeNonce) {
+        this.consumedNonces.add(nonce)
+        this.nonceTimestamps.set(nonce, Date.now())
+      }
+
       liveLog('state', componentId, '✅ State signature valid:', {
         componentId,
         age: `${Math.round(age / 1000)}s`,
-        version
+        version,
+        nonceConsumed: !!(nonce && consumeNonce)
       })
 
       return { valid: true }
@@ -622,7 +681,8 @@ export class StateSignature {
       currentKeyId: this.getCurrentKeyId(),
       keyHistoryCount: this.keyHistory.size,
       compressionEnabled: this.compressionConfig.enabled,
-      rotationInterval: this.keyRotationConfig.rotationInterval
+      rotationInterval: this.keyRotationConfig.rotationInterval,
+      activeNonces: this.consumedNonces.size // 🔒 Anti-replay tracking
     }
   }
 }

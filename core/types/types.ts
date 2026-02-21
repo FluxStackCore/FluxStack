@@ -217,7 +217,7 @@ export interface ServerRoomProxy<TState = any, TEvents extends Record<string, an
   setState: (updates: Partial<TState>) => void
 }
 
-export abstract class LiveComponent<TState = ComponentState> {
+export abstract class LiveComponent<TState = ComponentState, TPrivate extends Record<string, any> = Record<string, any>> {
   /** Component name for registry lookup - must be defined in subclasses */
   static componentName: string
   /** Default state - must be defined in subclasses */
@@ -273,6 +273,9 @@ export abstract class LiveComponent<TState = ComponentState> {
   public userId?: string
   public broadcastToRoom: (message: BroadcastMessage) => void = () => {} // Will be injected by registry
 
+  // 🔒 Server-only private state (NEVER sent to client)
+  private _privateState: TPrivate = {} as TPrivate
+
   // Auth context (injected by registry during mount)
   private _authContext: LiveAuthContext = ANONYMOUS_CONTEXT
 
@@ -319,6 +322,7 @@ export abstract class LiveComponent<TState = ComponentState> {
       ...Object.getOwnPropertyNames(Object.getPrototypeOf(this)),
       // Known internal properties
       'state', '_state', 'ws', 'id', 'room', 'userId', 'broadcastToRoom',
+      '$private', '_privateState',
       '$room', '$rooms', 'roomType', 'roomHandles', 'joinedRooms', 'roomEventUnsubscribers'
     ])
 
@@ -352,6 +356,33 @@ export abstract class LiveComponent<TState = ComponentState> {
         return (target as any)[prop]
       }
     }) as TState
+  }
+
+  // ========================================
+  // 🔒 $private - Server-Only State
+  // ========================================
+
+  /**
+   * Server-only state that is NEVER synchronized with the client.
+   * Use this for sensitive data like tokens, API keys, internal IDs, etc.
+   *
+   * Unlike `this.state`, mutations to `$private` do NOT trigger
+   * STATE_DELTA or STATE_UPDATE messages.
+   *
+   * ⚠️ Private state is lost on rehydration (since it's never sent to client).
+   * Re-populate it in your action handlers as needed.
+   *
+   * @example
+   * async connect(payload: { token: string }) {
+   *   this.$private.token = payload.token
+   *   this.$private.apiKey = await getKey()
+   *
+   *   // Only UI-relevant data goes to state (synced with client)
+   *   this.state.messages = await fetchMessages(this.$private.token)
+   * }
+   */
+  public get $private(): TPrivate {
+    return this._privateState
   }
 
   // ========================================
@@ -524,9 +555,9 @@ export abstract class LiveComponent<TState = ComponentState> {
   }
 
   /**
-   * List of methods that are explicitly callable from the client.
-   * If defined in a subclass, ONLY these methods can be called via CALL_ACTION.
-   * If not defined, all methods except the blocklist are callable (legacy behavior).
+   * 🔒 REQUIRED: List of methods that are explicitly callable from the client.
+   * ONLY these methods can be called via CALL_ACTION.
+   * Components without publicActions will deny ALL remote actions (secure by default).
    *
    * @example
    * static publicActions = ['sendMessage', 'deleteMessage', 'join'] as const
@@ -542,6 +573,8 @@ export abstract class LiveComponent<TState = ComponentState> {
     'createStateProxy', 'createDirectStateAccessors', 'generateId',
     // Auth internals
     'setAuthContext', '$auth',
+    // Private state internals
+    '$private', '_privateState',
     // Room internals
     '$room', '$rooms', 'subscribeToRoom', 'unsubscribeFromRoom',
     'emitRoomEvent', 'onRoomEvent', 'emitRoomEventWithState',
@@ -560,10 +593,15 @@ export abstract class LiveComponent<TState = ComponentState> {
         throw new Error(`Action '${action}' is not callable`)
       }
 
-      // 🔒 Security: If publicActions whitelist is defined, enforce it
+      // 🔒 Security: publicActions whitelist is MANDATORY
+      // Components without publicActions deny ALL remote actions (secure by default)
       const componentClass = this.constructor as typeof LiveComponent
       const publicActions = componentClass.publicActions
-      if (publicActions && !publicActions.includes(action)) {
+      if (!publicActions) {
+        console.warn(`🔒 [SECURITY] Component '${componentClass.componentName || componentClass.name}' has no publicActions defined. All remote actions are blocked. Define static publicActions to allow specific actions.`)
+        throw new Error(`Action '${action}' is not callable - component has no publicActions defined`)
+      }
+      if (!publicActions.includes(action)) {
         throw new Error(`Action '${action}' is not callable`)
       }
 
@@ -729,6 +767,7 @@ export abstract class LiveComponent<TState = ComponentState> {
     }
     this.joinedRooms.clear()
     this.roomHandles.clear()
+    this._privateState = {} as TPrivate
 
     this.unsubscribeFromRoom()
     // Override in subclasses for custom cleanup
@@ -802,6 +841,11 @@ export type ActionReturn<
  * Get the state type from a LiveComponent class
  */
 export type InferComponentState<T extends LiveComponent<any>> = T extends LiveComponent<infer S> ? S : never
+
+/**
+ * Get the private state type from a LiveComponent class
+ */
+export type InferPrivateState<T extends LiveComponent<any, any>> = T extends LiveComponent<any, infer P> ? P : never
 
 /**
  * Type-safe call signature for a component

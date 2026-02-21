@@ -4,6 +4,7 @@
 
 ## Quick Facts
 
+- **`publicActions` is the foundation** - Only whitelisted methods can be called remotely
 - Declarative auth configuration via `static auth` and `static actionAuth`
 - Role-based access control (RBAC) with OR logic
 - Permission-based access control with AND logic
@@ -22,6 +23,7 @@ import type { LiveComponentAuth } from '@core/server/live/auth/types'
 
 export class ProtectedChat extends LiveComponent<typeof ProtectedChat.defaultState> {
   static componentName = 'ProtectedChat'
+  static publicActions = ['sendMessage'] as const  // 🔒 REQUIRED
   static defaultState = {
     messages: [] as string[]
   }
@@ -47,6 +49,7 @@ import type { LiveComponentAuth } from '@core/server/live/auth/types'
 
 export class AdminPanel extends LiveComponent<typeof AdminPanel.defaultState> {
   static componentName = 'AdminPanel'
+  static publicActions = ['deleteUser'] as const  // 🔒 REQUIRED
   static defaultState = {
     users: [] as { id: string; name: string; role: string }[]
   }
@@ -74,6 +77,7 @@ import type { LiveComponentAuth } from '@core/server/live/auth/types'
 
 export class ContentEditor extends LiveComponent<typeof ContentEditor.defaultState> {
   static componentName = 'ContentEditor'
+  static publicActions = ['editContent', 'saveContent'] as const  // 🔒 REQUIRED
   static defaultState = {
     content: ''
   }
@@ -95,6 +99,7 @@ import type { LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/aut
 
 export class ModerationPanel extends LiveComponent<typeof ModerationPanel.defaultState> {
   static componentName = 'ModerationPanel'
+  static publicActions = ['getReports', 'deleteReport', 'banUser'] as const  // 🔒 REQUIRED
   static defaultState = {
     reports: [] as any[]
   }
@@ -104,7 +109,7 @@ export class ModerationPanel extends LiveComponent<typeof ModerationPanel.defaul
     required: true
   }
 
-  // Per-action auth
+  // Per-action auth (works together with publicActions)
   static actionAuth: LiveActionAuthMap = {
     deleteReport: { permissions: ['reports.delete'] },
     banUser: { roles: ['admin', 'moderator'] }
@@ -382,7 +387,7 @@ For testing, a `DevAuthProvider` with simple tokens is available:
 │  1. WebSocket connect → store authContext on ws.data        │
 │  2. AUTH message → liveAuthManager.authenticate()           │
 │  3. COMPONENT_MOUNT → check static auth config              │
-│  4. CALL_ACTION → check static actionAuth config            │
+│  4. CALL_ACTION → check blocklist → publicActions → actionAuth │
 │  5. Component has access to this.$auth                      │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -416,9 +421,21 @@ interface LiveAuthCredentials {
 }
 ```
 
+## Security Layers (Action Execution Order)
+
+When a client calls an action, the server checks in this order:
+
+1. **Blocklist** - Internal methods (destroy, setState, emit, etc.) are always blocked
+2. **Private methods** - Methods starting with `_` or `#` are blocked
+3. **publicActions** - Action must be in the whitelist (mandatory, no fallback)
+4. **actionAuth** - Per-action role/permission check (if defined)
+5. **Method exists** - Action must exist on the component instance
+6. **Object.prototype** - Blocks toString, valueOf, hasOwnProperty
+
 ## Critical Rules
 
 **ALWAYS:**
+- Define `static publicActions` listing all client-callable methods (MANDATORY)
 - Define `static auth` for protected components
 - Define `static actionAuth` for protected actions
 - Use `$auth.hasRole()` / `$auth.hasPermission()` in action logic
@@ -426,6 +443,7 @@ interface LiveAuthCredentials {
 - Handle `AUTH_DENIED` errors in client UI
 
 **NEVER:**
+- Omit `publicActions` (component will deny ALL remote actions)
 - Store sensitive data in component state
 - Trust client-side auth checks alone (always verify server-side)
 - Expose tokens in error messages

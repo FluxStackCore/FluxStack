@@ -41,6 +41,7 @@ interface AdminPanelState {
 
 export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
   static componentName = 'LiveAdminPanel'
+  static publicActions = ['getAuthInfo', 'init', 'listUsers', 'addUser', 'deleteUser', 'clearAudit'] as const
 
   static defaultState: AdminPanelState = {
     users: [

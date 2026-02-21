@@ -7,6 +7,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defaultState> {
   static componentName = 'LiveLocalCounter'
+  static publicActions = ['increment', 'decrement', 'reset'] as const
   static defaultState = {
     count: 0,
     clicks: 0
