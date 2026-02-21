@@ -4,7 +4,7 @@ import { clientConfig } from '@config'
 import { pluginsConfig } from '@config'
 import { isDevelopment } from "@core/utils/helpers"
 import { join } from "path"
-import { statSync, existsSync, readdirSync } from "fs"
+import { existsSync } from "fs"
 
 type Plugin = FluxStack.Plugin
 
@@ -21,24 +21,28 @@ const STATIC_MAX_AGE = 31536000
 const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
 /**
- * Recursively collect all files under `dir` as relative paths (e.g. "/assets/app.abc123.js").
- * Runs once at startup — in production the build output never changes.
+ * Collect all files under `dir` using Bun.Glob (native C++ implementation).
+ * Returns a map of relative URL paths → absolute filesystem paths.
+ *
+ * Throws if the directory does not exist so callers get a clear signal
+ * instead of silently serving nothing.
  */
-function collectFiles(dir: string, prefix = ''): Map<string, string> {
+function collectFiles(dir: string): Map<string, string> {
+  if (!existsSync(dir)) {
+    throw new Error(
+      `Static file directory "${dir}" does not exist. ` +
+      `Run the client build first or check your configuration.`
+    )
+  }
+
   const map = new Map<string, string>()
-  try {
-    const entries = readdirSync(dir, { withFileTypes: true })
-    for (const entry of entries) {
-      const rel = prefix + '/' + entry.name
-      if (entry.isDirectory()) {
-        for (const [k, v] of collectFiles(join(dir, entry.name), rel)) {
-          map.set(k, v)
-        }
-      } else if (entry.isFile()) {
-        map.set(rel, join(dir, entry.name))
-      }
-    }
-  } catch {}
+  const glob = new Bun.Glob("**/*")
+
+  for (const relativePath of glob.scanSync({ cwd: dir, onlyFiles: true, dot: true })) {
+    // scanSync returns paths like "assets/app.abc123.js" (no leading slash)
+    map.set('/' + relativePath, join(dir, relativePath))
+  }
+
   return map
 }
 
@@ -59,6 +63,15 @@ function createStaticFallback() {
 
   // Bun.file() handle cache — avoids re-creating handles on repeated requests
   const fileCache = new Map<string, ReturnType<typeof Bun.file>>()
+
+  // Build a set of paths that have a pre-compressed .gz sibling
+  const gzSet = new Set<string>()
+  for (const [rel] of fileMap) {
+    if (rel.endsWith('.gz')) {
+      // "/assets/app.abc123.js.gz" → "/assets/app.abc123.js"
+      gzSet.add(rel.slice(0, -3))
+    }
+  }
 
   return (c: { request?: Request }) => {
     const req = c.request
@@ -96,6 +109,39 @@ function createStaticFallback() {
     // O(1) lookup in pre-scanned file map
     const absolutePath = fileMap.get(pathname)
     if (absolutePath) {
+      // Check for pre-compressed .gz variant
+      const acceptEncoding = req.headers.get('accept-encoding') || ''
+      if (gzSet.has(pathname) && acceptEncoding.includes('gzip')) {
+        const gzPath = pathname + '.gz'
+        const gzAbsolute = fileMap.get(gzPath)
+        if (gzAbsolute) {
+          let gzFile = fileCache.get(gzPath)
+          if (!gzFile) {
+            gzFile = Bun.file(gzAbsolute)
+            fileCache.set(gzPath, gzFile)
+          }
+
+          // Determine original content type from the uncompressed file
+          let origFile = fileCache.get(pathname)
+          if (!origFile) {
+            origFile = Bun.file(absolutePath)
+            fileCache.set(pathname, origFile)
+          }
+
+          const headers: Record<string, string> = {
+            'Content-Encoding': 'gzip',
+            'Content-Type': origFile.type || 'application/octet-stream',
+            'Vary': 'Accept-Encoding',
+          }
+
+          if (HASHED_EXT.test(pathname)) {
+            headers['Cache-Control'] = `public, max-age=${STATIC_MAX_AGE}, immutable`
+          }
+
+          return new Response(gzFile, { headers })
+        }
+      }
+
       let file = fileCache.get(pathname)
       if (!file) {
         file = Bun.file(absolutePath)
@@ -114,14 +160,19 @@ function createStaticFallback() {
       return file
     }
 
-    // SPA fallback: serve index.html for unmatched routes
+    // SPA fallback: serve index.html for unmatched routes with no-cache
+    // so the browser always checks for a newer version on deploy
     if (indexFile) {
-      return indexFile
+      return new Response(indexFile, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      })
     }
   }
 }
 
-/** Proxy request to Vite dev server */
+/** Proxy request to Vite dev server — streams the response body */
 async function proxyToVite(ctx: RequestContext): Promise<void> {
   const { host, port } = clientConfig.vite
 
@@ -143,7 +194,8 @@ async function proxyToVite(ctx: RequestContext): Promise<void> {
     })
 
     ctx.handled = true
-    ctx.response = new Response(await response.arrayBuffer(), {
+    // Stream the response body instead of buffering the entire payload in memory
+    ctx.response = new Response(response.body, {
       status: response.status,
       statusText: response.statusText,
       headers: response.headers
