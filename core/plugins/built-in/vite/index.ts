@@ -4,7 +4,7 @@ import { clientConfig } from '@config'
 import { pluginsConfig } from '@config'
 import { isDevelopment } from "@core/utils/helpers"
 import { join } from "path"
-import { statSync, existsSync, readdirSync } from "fs"
+import { existsSync } from "fs"
 
 type Plugin = FluxStack.Plugin
 
@@ -21,35 +21,26 @@ const STATIC_MAX_AGE = 31536000
 const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
 /**
- * Recursively collect all files under `dir` as relative paths (e.g. "/assets/app.abc123.js").
- * Runs once at startup — in production the build output never changes.
+ * Collect all files under `dir` using Bun.Glob (native C++ implementation).
+ * Returns a map of relative URL paths → absolute filesystem paths.
  *
  * Throws if the directory does not exist so callers get a clear signal
  * instead of silently serving nothing.
  */
-function collectFiles(dir: string, prefix = ''): Map<string, string> {
-  const map = new Map<string, string>()
-
-  if (!prefix) {
-    // Top-level call: verify the directory exists
-    if (!existsSync(dir)) {
-      throw new Error(
-        `Static file directory "${dir}" does not exist. ` +
-        `Run the client build first or check your configuration.`
-      )
-    }
+function collectFiles(dir: string): Map<string, string> {
+  if (!existsSync(dir)) {
+    throw new Error(
+      `Static file directory "${dir}" does not exist. ` +
+      `Run the client build first or check your configuration.`
+    )
   }
 
-  const entries = readdirSync(dir, { withFileTypes: true })
-  for (const entry of entries) {
-    const rel = prefix + '/' + entry.name
-    if (entry.isDirectory()) {
-      for (const [k, v] of collectFiles(join(dir, entry.name), rel)) {
-        map.set(k, v)
-      }
-    } else if (entry.isFile()) {
-      map.set(rel, join(dir, entry.name))
-    }
+  const map = new Map<string, string>()
+  const glob = new Bun.Glob("**/*")
+
+  for (const relativePath of glob.scanSync({ cwd: dir, onlyFiles: true, dot: true })) {
+    // scanSync returns paths like "assets/app.abc123.js" (no leading slash)
+    map.set('/' + relativePath, join(dir, relativePath))
   }
 
   return map
@@ -75,7 +66,7 @@ function createStaticFallback() {
 
   // Build a set of paths that have a pre-compressed .gz sibling
   const gzSet = new Set<string>()
-  for (const [rel, abs] of fileMap) {
+  for (const [rel] of fileMap) {
     if (rel.endsWith('.gz')) {
       // "/assets/app.abc123.js.gz" → "/assets/app.abc123.js"
       gzSet.add(rel.slice(0, -3))

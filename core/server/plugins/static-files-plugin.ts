@@ -1,6 +1,5 @@
 // FluxStack Static Files Plugin - Serve Public Files & Uploads
 
-import { statSync, type Stats } from 'fs'
 import { mkdir } from 'fs/promises'
 import { resolve, extname, basename } from 'path'
 import type { Plugin, PluginContext } from '../../plugins/types'
@@ -33,14 +32,17 @@ const DANGEROUS_EXTENSIONS = new Set([
 /** Extensions that carry a content hash in their filename (immutable) */
 const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
-/** Generate a weak ETag from file stats (size + mtime) */
-function generateETag(stat: Stats): string {
-  return `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`
+/**
+ * Generate a weak ETag from Bun.file() metadata.
+ * Uses file.lastModified (ms timestamp) which is available without reading the file.
+ * Size comes from stat() since BunFile.size is unreliable until contents are read.
+ */
+function generateETag(size: number, lastModified: number): string {
+  return `W/"${size.toString(16)}-${lastModified.toString(16)}"`
 }
 
 /** Sanitize a filename for use in Content-Disposition header */
 function sanitizeFilename(name: string): string {
-  // Strip path separators, null bytes, and control characters
   return name.replace(/[/\\:\0\x01-\x1f\x7f]/g, '_').replace(/"/g, '\\"')
 }
 
@@ -73,8 +75,8 @@ export const staticFilesPlugin: Plugin = {
     const enablePublic = pluginsConfig.staticEnablePublic
     const enableUploads = pluginsConfig.staticEnableUploads
 
-    // Helper to serve files from a directory
-    const serveFile = (baseDir: string, isUpload: boolean) => ({ params, set, request }: any) => {
+    // Async handler — uses Bun.file() APIs instead of Node fs
+    const serveFile = (baseDir: string, isUpload: boolean) => async ({ params, set, request }: any) => {
       const requestedPath: string = params['*'] || ''
 
       // Reject null bytes early — prevents filesystem confusion
@@ -91,10 +93,13 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'Invalid path' }
       }
 
-      // Single syscall: statSync throws if file doesn't exist
-      let stat: Stats
+      const file = Bun.file(filePath)
+
+      // Bun.file().stat() — single async call, no Node fs import needed.
+      // Returns size, isFile(), ctime etc. without reading file contents.
+      let stat: Awaited<ReturnType<typeof file.stat>>
       try {
-        stat = statSync(filePath)
+        stat = await file.stat()
         if (!stat.isFile()) {
           set.status = 404
           return { error: 'Not a file' }
@@ -104,10 +109,11 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'File not found' }
       }
 
-      // ETag / Last-Modified conditional request handling
-      const etag = generateETag(stat)
-      const lastModified = stat.mtime.toUTCString()
+      // ETag from stat.size (reliable) + file.lastModified (Bun-native, no extra syscall)
+      const etag = generateETag(stat.size, file.lastModified)
+      const lastModified = new Date(file.lastModified).toUTCString()
 
+      // Conditional request: If-None-Match takes priority over If-Modified-Since
       const ifNoneMatch = request?.headers?.get?.('if-none-match')
       if (ifNoneMatch && ifNoneMatch === etag) {
         set.status = 304
@@ -117,13 +123,13 @@ export const staticFilesPlugin: Plugin = {
       const ifModifiedSince = request?.headers?.get?.('if-modified-since')
       if (!ifNoneMatch && ifModifiedSince) {
         const clientDate = new Date(ifModifiedSince).getTime()
-        if (!isNaN(clientDate) && stat.mtimeMs <= clientDate) {
+        if (!isNaN(clientDate) && file.lastModified <= clientDate) {
           set.status = 304
           return null
         }
       }
 
-      // Common security headers
+      // Security headers
       set.headers['x-content-type-options'] = 'nosniff'
       set.headers['etag'] = etag
       set.headers['last-modified'] = lastModified
@@ -137,14 +143,14 @@ export const staticFilesPlugin: Plugin = {
         set.headers['cache-control'] = `public, max-age=${cacheMaxAge}`
       }
 
-      const file = Bun.file(filePath)
-
       // Force download for dangerous MIME types
+      // file.type is resolved from extension by Bun — no disk I/O
       if (shouldForceDownload(filePath, file.type)) {
         const fileName = sanitizeFilename(basename(requestedPath) || 'download')
         set.headers['content-disposition'] = `attachment; filename="${fileName}"`
       }
 
+      // Returning Bun.file() directly lets Bun use sendfile(2) for zero-copy transfer
       return file
     }
 
