@@ -116,6 +116,39 @@ const LiveAlertResolveSchema = t.Object({
   description: 'Result of alert resolution operation'
 })
 
+// 🔒 Per-connection rate limiter to prevent WebSocket message flooding
+class ConnectionRateLimiter {
+  private tokens: number
+  private lastRefill: number
+  private readonly maxTokens: number
+  private readonly refillRate: number // tokens per second
+
+  constructor(maxTokens = 100, refillRate = 50) {
+    this.maxTokens = maxTokens
+    this.tokens = maxTokens
+    this.refillRate = refillRate
+    this.lastRefill = Date.now()
+  }
+
+  tryConsume(count = 1): boolean {
+    this.refill()
+    if (this.tokens >= count) {
+      this.tokens -= count
+      return true
+    }
+    return false
+  }
+
+  private refill(): void {
+    const now = Date.now()
+    const elapsed = (now - this.lastRefill) / 1000
+    this.tokens = Math.min(this.maxTokens, this.tokens + elapsed * this.refillRate)
+    this.lastRefill = now
+  }
+}
+
+const connectionRateLimiters = new Map<string, ConnectionRateLimiter>()
+
 export const liveComponentsPlugin: Plugin = {
   name: 'live-components',
   version: '1.0.0',
@@ -143,8 +176,11 @@ export const liveComponentsPlugin: Plugin = {
         
         async open(ws) {
           const socket = ws as unknown as FluxStackWebSocket
-          const connectionId = `ws-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          const connectionId = `ws-${crypto.randomUUID()}`
           liveLog('websocket', null, `🔌 Live Components WebSocket connected: ${connectionId}`)
+
+          // 🔒 Initialize rate limiter for this connection
+          connectionRateLimiters.set(connectionId, new ConnectionRateLimiter())
 
           // Register connection with enhanced connection manager
           connectionManager.registerConnection(ws as unknown as FluxStackWebSocket, connectionId, 'live-components')
@@ -177,10 +213,14 @@ export const liveComponentsPlugin: Plugin = {
               if (authContext.authenticated) {
                 socket.data.userId = authContext.user?.id
                 liveLog('websocket', null, `🔒 WebSocket authenticated via query: user=${authContext.user?.id}`)
+              } else {
+                // 🔒 Log failed auth attempts (token was provided but auth failed)
+                liveLog('websocket', null, `🔒 WebSocket authentication failed via query token`)
               }
             }
-          } catch {
-            // Query param auth is optional - continue without auth
+          } catch (authError) {
+            // 🔒 Log auth errors instead of silently ignoring them
+            console.warn('🔒 WebSocket query auth error:', authError instanceof Error ? authError.message : 'Unknown error')
           }
 
           // Send connection confirmation
@@ -203,6 +243,20 @@ export const liveComponentsPlugin: Plugin = {
         async message(ws: unknown, rawMessage: LiveMessage | ArrayBuffer | Uint8Array) {
           const socket = ws as FluxStackWebSocket
           try {
+            // 🔒 Rate limiting: reject messages if connection exceeds rate limit
+            const connId = socket.data?.connectionId
+            if (connId) {
+              const limiter = connectionRateLimiters.get(connId)
+              if (limiter && !limiter.tryConsume()) {
+                socket.send(JSON.stringify({
+                  type: 'ERROR',
+                  error: 'Rate limit exceeded. Please slow down.',
+                  timestamp: Date.now()
+                }))
+                return
+              }
+            }
+
             let message: LiveMessage
             let binaryChunkData: Buffer | null = null
 
@@ -312,6 +366,11 @@ export const liveComponentsPlugin: Plugin = {
           const socket = ws as unknown as FluxStackWebSocket
           const connectionId = socket.data?.connectionId
           liveLog('websocket', null, `🔌 Live Components WebSocket disconnected: ${connectionId}`)
+
+          // 🔒 Cleanup rate limiter
+          if (connectionId) {
+            connectionRateLimiters.delete(connectionId)
+          }
 
           // Cleanup connection in connection manager
           if (connectionId) {
@@ -781,11 +840,23 @@ async function handleRoomJoin(ws: FluxStackWebSocket, message: RoomMessage) {
   liveLog('rooms', message.componentId, `🚪 Component ${message.componentId} joining room ${message.roomId}`)
 
   try {
+    // 🔒 Validate room name format (alphanumeric, hyphens, underscores, max 64 chars)
+    if (!message.roomId || !/^[a-zA-Z0-9_:.-]{1,64}$/.test(message.roomId)) {
+      throw new Error('Invalid room name. Must be 1-64 alphanumeric characters, hyphens, underscores, dots, or colons.')
+    }
+
+    // 🔒 Room authorization check
+    const authContext = ws.data?.authContext || ANONYMOUS_CONTEXT
+    const authResult = await liveAuthManager.authorizeRoom(authContext, message.roomId)
+    if (!authResult.allowed) {
+      throw new Error(`Room access denied: ${authResult.reason}`)
+    }
+
     const result = liveRoomManager.joinRoom(
       message.componentId,
       message.roomId,
       ws,
-      message.data?.initialState
+      undefined // 🔒 Don't allow client to set initial room state - server controls this
     )
 
     const response = {
@@ -843,6 +914,11 @@ async function handleRoomEmit(ws: FluxStackWebSocket, message: RoomMessage) {
   liveLog('rooms', message.componentId, `📡 Component ${message.componentId} emitting '${message.event}' to room ${message.roomId}`)
 
   try {
+    // 🔒 Validate room name
+    if (!message.roomId || !/^[a-zA-Z0-9_:.-]{1,64}$/.test(message.roomId)) {
+      throw new Error('Invalid room name')
+    }
+
     const count = liveRoomManager.emitToRoom(
       message.roomId,
       message.event!,
@@ -866,6 +942,17 @@ async function handleRoomStateSet(ws: FluxStackWebSocket, message: RoomMessage) 
   liveLog('rooms', message.componentId, `📝 Component ${message.componentId} updating state in room ${message.roomId}`)
 
   try {
+    // 🔒 Validate room name
+    if (!message.roomId || !/^[a-zA-Z0-9_:.-]{1,64}$/.test(message.roomId)) {
+      throw new Error('Invalid room name')
+    }
+
+    // 🔒 Validate state size (max 1MB per update to prevent memory attacks)
+    const stateStr = JSON.stringify(message.data ?? {})
+    if (stateStr.length > 1024 * 1024) {
+      throw new Error('Room state update too large (max 1MB)')
+    }
+
     liveRoomManager.setRoomState(
       message.roomId,
       message.data ?? {},

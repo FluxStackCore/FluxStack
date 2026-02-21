@@ -36,6 +36,11 @@ class LiveRoomManager {
    * Componente entra em uma sala
    */
   joinRoom<TState = any>(componentId: string, roomId: string, ws: FluxStackWebSocket, initialState?: TState): { state: TState } {
+    // 🔒 Validate room name format
+    if (!roomId || !/^[a-zA-Z0-9_:.-]{1,64}$/.test(roomId)) {
+      throw new Error('Invalid room name. Must be 1-64 alphanumeric characters, hyphens, underscores, dots, or colons.')
+    }
+
     // Criar sala se não existir
     if (!this.rooms.has(roomId)) {
       this.rooms.set(roomId, {
@@ -164,6 +169,9 @@ class LiveRoomManager {
     }, excludeComponentId)
   }
 
+  // 🔒 Maximum room state size (10MB) to prevent memory exhaustion attacks
+  private readonly MAX_ROOM_STATE_SIZE = 10 * 1024 * 1024
+
   /**
    * Atualizar estado da sala
    */
@@ -172,7 +180,15 @@ class LiveRoomManager {
     if (!room) return
 
     // Merge estado
-    room.state = { ...room.state, ...updates }
+    const newState = { ...room.state, ...updates }
+
+    // 🔒 Validate state size to prevent memory exhaustion
+    const stateSize = Buffer.byteLength(JSON.stringify(newState), 'utf8')
+    if (stateSize > this.MAX_ROOM_STATE_SIZE) {
+      throw new Error('Room state exceeds maximum size limit')
+    }
+
+    room.state = newState
     room.lastActivity = Date.now()
 
     // Notificar todos os membros

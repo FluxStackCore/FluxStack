@@ -523,23 +523,68 @@ export abstract class LiveComponent<TState = ComponentState> {
     return { success: true, key, value }
   }
 
-  // Execute action safely
+  /**
+   * List of methods that are explicitly callable from the client.
+   * If defined in a subclass, ONLY these methods can be called via CALL_ACTION.
+   * If not defined, all methods except the blocklist are callable (legacy behavior).
+   *
+   * @example
+   * static publicActions = ['sendMessage', 'deleteMessage', 'join'] as const
+   */
+  static publicActions?: readonly string[]
+
+  // Internal methods that must NEVER be callable from the client
+  private static readonly BLOCKED_ACTIONS: ReadonlySet<string> = new Set([
+    // Lifecycle & internal
+    'constructor', 'destroy', 'executeAction', 'getSerializableState',
+    // State management internals
+    'setState', 'emit', 'broadcast', 'broadcastToRoom',
+    'createStateProxy', 'createDirectStateAccessors', 'generateId',
+    // Auth internals
+    'setAuthContext', '$auth',
+    // Room internals
+    '$room', '$rooms', 'subscribeToRoom', 'unsubscribeFromRoom',
+    'emitRoomEvent', 'onRoomEvent', 'emitRoomEventWithState',
+  ])
+
+  // Execute action safely with security validation
   public async executeAction(action: string, payload: any): Promise<any> {
     try {
-      // Check if method exists
+      // 🔒 Security: Block internal/protected methods from being called remotely
+      if ((LiveComponent.BLOCKED_ACTIONS as Set<string>).has(action)) {
+        throw new Error(`Action '${action}' is not callable`)
+      }
+
+      // 🔒 Security: Block private methods (prefixed with _ or #)
+      if (action.startsWith('_') || action.startsWith('#')) {
+        throw new Error(`Action '${action}' is not callable`)
+      }
+
+      // 🔒 Security: If publicActions whitelist is defined, enforce it
+      const componentClass = this.constructor as typeof LiveComponent
+      const publicActions = componentClass.publicActions
+      if (publicActions && !publicActions.includes(action)) {
+        throw new Error(`Action '${action}' is not callable`)
+      }
+
+      // Check if method exists on the instance
       const method = (this as any)[action]
       if (typeof method !== 'function') {
         throw new Error(`Action '${action}' not found on component`)
+      }
+
+      // 🔒 Security: Block inherited Object.prototype methods
+      if (Object.prototype.hasOwnProperty.call(Object.prototype, action)) {
+        throw new Error(`Action '${action}' is not callable`)
       }
 
       // Execute method
       const result = await method.call(this, payload)
       return result
     } catch (error: any) {
-      this.emit('ERROR', { 
-        action, 
-        error: error.message,
-        stack: error.stack 
+      this.emit('ERROR', {
+        action,
+        error: error.message
       })
       throw error
     }
@@ -665,9 +710,9 @@ export abstract class LiveComponent<TState = ComponentState> {
     // Registry will handle the actual unsubscription
   }
 
-  // Generate unique ID
+  // Generate unique ID using cryptographically secure randomness
   private generateId(): string {
-    return `live-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    return `live-${crypto.randomUUID()}`
   }
 
   // Cleanup when component is destroyed

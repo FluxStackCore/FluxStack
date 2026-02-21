@@ -1,9 +1,9 @@
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { existsSync } from 'fs'
-import { join, extname } from 'path'
-import type { 
-  ActiveUpload, 
-  FileUploadStartMessage, 
+import { join, extname, basename } from 'path'
+import type {
+  ActiveUpload,
+  FileUploadStartMessage,
   FileUploadChunkMessage,
   FileUploadCompleteMessage,
   FileUploadProgressResponse,
@@ -12,9 +12,24 @@ import type {
 
 export class FileUploadManager {
   private activeUploads = new Map<string, ActiveUpload>()
-  private readonly maxUploadSize = 500 * 1024 * 1024 // 500MB max (aceita qualquer arquivo)
+  private readonly maxUploadSize = 50 * 1024 * 1024 // 🔒 50MB max (reduced from 500MB)
   private readonly chunkTimeout = 30000 // 30 seconds timeout per chunk
-  private readonly allowedTypes: string[] = [] // Array vazio = aceita todos os tipos de arquivo
+  // 🔒 Default allowed MIME types - safe file types only
+  private readonly allowedTypes: string[] = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+    'application/pdf',
+    'text/plain', 'text/csv', 'text/markdown',
+    'application/json',
+    'application/zip', 'application/gzip',
+  ]
+  // 🔒 Blocked file extensions that could be dangerous
+  private readonly blockedExtensions: Set<string> = new Set([
+    '.exe', '.bat', '.cmd', '.com', '.msi', '.scr', '.pif',
+    '.sh', '.bash', '.zsh', '.csh',
+    '.ps1', '.psm1', '.psd1',
+    '.vbs', '.vbe', '.js', '.jse', '.wsf', '.wsh',
+    '.dll', '.sys', '.drv', '.so', '.dylib',
+  ])
 
   constructor() {
     // Cleanup stale uploads every 5 minutes
@@ -25,9 +40,26 @@ export class FileUploadManager {
     try {
       const { uploadId, componentId, filename, fileType, fileSize, chunkSize = 64 * 1024 } = message
 
-      // Validate file size (sem restrição de tipo)
+      // 🔒 Validate file size
       if (fileSize > this.maxUploadSize) {
         throw new Error(`File too large: ${fileSize} bytes. Max: ${this.maxUploadSize} bytes`)
+      }
+
+      // 🔒 Validate MIME type against allowlist
+      if (this.allowedTypes.length > 0 && !this.allowedTypes.includes(fileType)) {
+        throw new Error(`File type not allowed: ${fileType}`)
+      }
+
+      // 🔒 Validate filename - sanitize and check extension
+      const safeBase = basename(filename) // Strip any path traversal
+      const ext = extname(safeBase).toLowerCase()
+      if (this.blockedExtensions.has(ext)) {
+        throw new Error(`File extension not allowed: ${ext}`)
+      }
+
+      // 🔒 Validate filename length
+      if (safeBase.length > 255) {
+        throw new Error('Filename too long')
       }
 
       // Check if upload already exists
@@ -209,11 +241,9 @@ export class FileUploadManager {
         await mkdir(uploadsDir, { recursive: true })
       }
 
-      // Generate unique filename
-      const timestamp = Date.now()
-      const extension = extname(upload.filename)
-      const baseName = upload.filename.replace(extension, '')
-      const safeFilename = `${baseName}_${timestamp}${extension}`
+      // 🔒 Generate secure unique filename using UUID (prevents path traversal and name collisions)
+      const extension = extname(basename(upload.filename)).toLowerCase()
+      const safeFilename = `${crypto.randomUUID()}${extension}`
       const filePath = join(uploadsDir, safeFilename)
 
       // Assemble chunks in order
