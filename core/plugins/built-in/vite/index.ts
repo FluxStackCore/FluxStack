@@ -39,8 +39,10 @@ function collectFiles(dir: string): Map<string, string> {
   const glob = new Bun.Glob("**/*")
 
   for (const relativePath of glob.scanSync({ cwd: dir, onlyFiles: true, dot: true })) {
-    // scanSync returns paths like "assets/app.abc123.js" (no leading slash)
-    map.set('/' + relativePath, join(dir, relativePath))
+    // scanSync may return OS-native separators (backslashes on Windows)
+    // Normalize to forward slashes so URL lookups always match
+    const urlPath = '/' + relativePath.replaceAll('\\', '/')
+    map.set(urlPath, join(dir, relativePath))
   }
 
   return map
