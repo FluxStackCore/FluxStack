@@ -1,8 +1,8 @@
 // FluxStack Static Files Plugin - Serve Public Files & Uploads
 
-import { existsSync, statSync, type Stats } from 'fs'
+import { statSync, type Stats } from 'fs'
 import { mkdir } from 'fs/promises'
-import { resolve, extname } from 'path'
+import { resolve, extname, basename } from 'path'
 import type { Plugin, PluginContext } from '../../plugins/types'
 import { pluginsConfig } from '@config'
 
@@ -33,9 +33,15 @@ const DANGEROUS_EXTENSIONS = new Set([
 /** Extensions that carry a content hash in their filename (immutable) */
 const HASHED_EXT = /\.[0-9a-f]{8,}\.\w+$/
 
-/** Generate an ETag from file stats (size + mtime) */
+/** Generate a weak ETag from file stats (size + mtime) */
 function generateETag(stat: Stats): string {
-  return `"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`
+  return `W/"${stat.size.toString(16)}-${stat.mtimeMs.toString(16)}"`
+}
+
+/** Sanitize a filename for use in Content-Disposition header */
+function sanitizeFilename(name: string): string {
+  // Strip path separators, null bytes, and control characters
+  return name.replace(/[/\\:\0\x01-\x1f\x7f]/g, '_').replace(/"/g, '\\"')
 }
 
 /** Check if a MIME type or extension should force download */
@@ -69,7 +75,14 @@ export const staticFilesPlugin: Plugin = {
 
     // Helper to serve files from a directory
     const serveFile = (baseDir: string, isUpload: boolean) => ({ params, set, request }: any) => {
-      const requestedPath = params['*'] || ''
+      const requestedPath: string = params['*'] || ''
+
+      // Reject null bytes early — prevents filesystem confusion
+      if (requestedPath.includes('\0')) {
+        set.status = 400
+        return { error: 'Invalid path' }
+      }
+
       const filePath = resolve(baseDir, requestedPath)
 
       // Path traversal protection
@@ -78,14 +91,8 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'Invalid path' }
       }
 
-      // Check if file exists
-      if (!existsSync(filePath)) {
-        set.status = 404
-        return { error: 'File not found' }
-      }
-
-      // Check if it's a file (not directory)
-      let stat: ReturnType<typeof statSync>
+      // Single syscall: statSync throws if file doesn't exist
+      let stat: Stats
       try {
         stat = statSync(filePath)
         if (!stat.isFile()) {
@@ -97,17 +104,29 @@ export const staticFilesPlugin: Plugin = {
         return { error: 'File not found' }
       }
 
-      // ETag-based conditional request handling
+      // ETag / Last-Modified conditional request handling
       const etag = generateETag(stat)
+      const lastModified = stat.mtime.toUTCString()
+
       const ifNoneMatch = request?.headers?.get?.('if-none-match')
       if (ifNoneMatch && ifNoneMatch === etag) {
         set.status = 304
-        return ''
+        return null
+      }
+
+      const ifModifiedSince = request?.headers?.get?.('if-modified-since')
+      if (!ifNoneMatch && ifModifiedSince) {
+        const clientDate = new Date(ifModifiedSince).getTime()
+        if (!isNaN(clientDate) && stat.mtimeMs <= clientDate) {
+          set.status = 304
+          return null
+        }
       }
 
       // Common security headers
       set.headers['x-content-type-options'] = 'nosniff'
       set.headers['etag'] = etag
+      set.headers['last-modified'] = lastModified
 
       // Cache strategy: hashed assets are immutable, uploads get short cache
       if (!isUpload && HASHED_EXT.test(requestedPath)) {
@@ -122,7 +141,7 @@ export const staticFilesPlugin: Plugin = {
 
       // Force download for dangerous MIME types
       if (shouldForceDownload(filePath, file.type)) {
-        const fileName = requestedPath.split('/').pop() || 'download'
+        const fileName = sanitizeFilename(basename(requestedPath) || 'download')
         set.headers['content-disposition'] = `attachment; filename="${fileName}"`
       }
 
@@ -138,7 +157,6 @@ export const staticFilesPlugin: Plugin = {
 
     if (enableUploads) {
       await mkdir(uploadsDir, { recursive: true })
-      await mkdir(resolve(uploadsDir, 'avatars'), { recursive: true })
       context.app.get('/api/uploads/*', serveFile(uploadsDir, true))
       context.logger.debug('Static uploads route registered: /api/uploads/*')
     }
