@@ -27,6 +27,7 @@ ${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
+  static publicActions = ['increment', 'decrement', 'reset'] as const
   static defaultState = {
     count: 0
   }
@@ -58,6 +59,7 @@ ${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
+  static publicActions = ['submit', 'reset'] as const
   static defaultState = {
     name: '',
     email: '',
@@ -89,6 +91,7 @@ ${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
+  static publicActions = ['sendMessage', 'setUsername'] as const
   static defaultState = {
     messages: [] as Array<{ id: string; text: string; username: string; timestamp: string }>,
     username: '',
@@ -125,6 +128,7 @@ ${clientLink}
 
 export class ${name} extends LiveComponent<typeof ${name}.defaultState> {
   static componentName = '${name}'
+  static publicActions = ['updateMessage', 'increment', 'reset'] as const
   static defaultState = {
     message: 'Hello from ${name}!',
     count: 0

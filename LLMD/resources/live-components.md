@@ -6,7 +6,8 @@
 
 - Server-side state management with WebSocket sync
 - **Direct state access** - `this.count++` auto-syncs (v1.13.0)
-- Automatic state persistence and re-hydration
+- **Mandatory `publicActions`** - Only whitelisted methods are callable from client (secure by default)
+- Automatic state persistence and re-hydration (with anti-replay nonces)
 - Room-based event system for multi-user sync
 - Type-safe client-server communication (FluxStackWebSocket)
 - Built-in connection management and recovery
@@ -25,6 +26,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
+  static publicActions = ['increment', 'decrement', 'reset'] as const  // 🔒 REQUIRED
   static logging = ['lifecycle', 'messages'] as const  // Per-component logging (optional)
   static defaultState = {
     count: 0
@@ -56,6 +58,7 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
 1. **Direct state access** - `this.count++` instead of `this.state.count++`
 2. **declare keyword** - TypeScript hint for dynamic properties
 3. **Cleaner code** - No need to prefix with `this.state.`
+4. **Mandatory `publicActions`** - Components without it deny ALL remote actions (secure by default)
 
 ### Key Changes in v1.12.0
 
@@ -72,6 +75,7 @@ import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
+  static publicActions = ['increment'] as const  // 🔒 REQUIRED
   static defaultState = {
     count: 0,
     lastUpdatedBy: null as string | null,
@@ -186,12 +190,17 @@ this.setState(prev => ({
 
 ### setValue (Generic Action)
 
-Built-in action to set any state key from the client:
+Built-in action to set any state key from the client. **Must be explicitly included in `publicActions` to be callable:**
 
 ```typescript
-// Client can call this without defining a custom action
+// Server: opt-in to setValue
+static publicActions = ['increment', 'setValue'] as const  // Must include 'setValue'
+
+// Client can then call:
 await component.setValue({ key: 'count', value: 42 })
 ```
+
+> **Security note:** `setValue` is powerful - it allows the client to set any state key. Only add it to `publicActions` if you trust the client to modify any state field.
 
 ### getSerializableState
 
@@ -260,11 +269,13 @@ const counter = Live.use(LiveCounter, {
 
 ## Actions
 
-Actions are methods called from the client:
+Actions are methods callable from the client. **Only methods listed in `publicActions` can be called remotely.** Components without `publicActions` deny ALL remote actions.
 
 ```typescript
 // Server-side
 export class LiveForm extends LiveComponent<FormState> {
+  static publicActions = ['submit', 'validate'] as const  // 🔒 REQUIRED
+
   async submit() {
     const { name, email } = this.state
     
@@ -429,10 +440,11 @@ On reconnect, components restore previous state:
 
 1. Client stores signed state in localStorage
 2. On reconnect, sends signed state to server
-3. Server validates signature
+3. Server validates signature (HMAC-SHA256) and **anti-replay nonce**
 4. Component re-hydrated with previous state
+5. State expires after 24 hours (configurable)
 
-No manual code needed - automatic.
+No manual code needed - automatic. Each signed state includes a cryptographic nonce that is consumed on validation, preventing replay attacks.
 
 ## Multi-User Synchronization
 
@@ -530,6 +542,7 @@ app/client/src/live/
 
 Each server file contains:
 - `static componentName` - Component identifier
+- `static publicActions` - **REQUIRED** whitelist of client-callable methods
 - `static defaultState` - Initial state object
 - `static logging` - Per-component log control (optional, see [Live Logging](./live-logging.md))
 - Component class extending `LiveComponent`
@@ -583,6 +596,7 @@ export class MyComponent extends LiveComponent<State> {
 
 **ALWAYS:**
 - Define `static componentName` matching class name
+- Define `static publicActions` listing ALL client-callable methods (MANDATORY)
 - Define `static defaultState` inside the class
 - Use `typeof ClassName.defaultState` for type parameter
 - Use `declare` for each state property (TypeScript type hint)
@@ -592,12 +606,14 @@ export class MyComponent extends LiveComponent<State> {
 - Add client link: `import type { Demo as _Client } from '@client/...'`
 
 **NEVER:**
+- Omit `static publicActions` (component will deny ALL remote actions)
 - Export separate `defaultState` constant (use static)
 - Create constructor just to call super() (not needed)
 - Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
 - Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, broadcastToRoom, roomType)
+- Include `setValue` in `publicActions` unless you trust clients to modify any state key
 
 **STATE UPDATES (v1.13.0) — all auto-sync via Proxy:**
 ```typescript
@@ -636,6 +652,8 @@ import { liveUploadDefaultState, type LiveUploadState } from '@app/shared'
 export const defaultState: LiveUploadState = liveUploadDefaultState
 
 export class LiveUpload extends LiveComponent<LiveUploadState> {
+  static componentName = 'LiveUpload'
+  static publicActions = ['startUpload', 'updateProgress', 'completeUpload', 'failUpload', 'reset'] as const
   static defaultState = defaultState
 
   constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
