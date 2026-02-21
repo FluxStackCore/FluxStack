@@ -258,13 +258,9 @@ export class ComponentRegistry {
         }
 
         if (!ComponentClass) {
-          const availableComponents = [
-            ...Array.from(this.definitions.keys()),
-            ...Array.from(this.autoDiscoveredComponents.keys())
-          ]
-          throw new Error(`Component '${componentName}' not found. Available: ${availableComponents.join(', ')}`)
+          throw new Error(`Component '${componentName}' not found`)
         }
-      
+
       // Create a default initial state for auto-discovered components
       initialState = {}
     }
@@ -356,8 +352,11 @@ export class ComponentRegistry {
 
     liveLog('lifecycle', component.id, `🚀 Mounted component: ${componentName} (${component.id}) in ${renderTime}ms`)
     
-    // Send initial state to client with signature
-    const signedState = await stateSignature.signState(component.id, component.getSerializableState(), 1, {
+    // Send initial state to client with signature (include component name for rehydration validation)
+    const signedState = await stateSignature.signState(component.id, {
+      ...component.getSerializableState(),
+      __componentName: componentName
+    }, 1, {
       compress: true,
       backup: true
     })
@@ -434,13 +433,9 @@ export class ComponentRegistry {
         }
 
         if (!ComponentClass) {
-          const availableComponents = [
-            ...Array.from(this.definitions.keys()),
-            ...Array.from(this.autoDiscoveredComponents.keys())
-          ]
           return {
             success: false,
-            error: `Component '${componentName}' not found. Available: ${availableComponents.join(', ')}`
+            error: `Component '${componentName}' not found`
           }
         }
       }
@@ -454,10 +449,25 @@ export class ComponentRegistry {
       }
 
       // Extract validated state
-      const clientState = await stateSignature.extractData(signedState)
+      const clientState = await stateSignature.extractData(signedState) as Record<string, any>
+
+      // 🔒 Security: Validate component name matches the signed state to prevent cross-component rehydration
+      if (clientState.__componentName && clientState.__componentName !== componentName) {
+        liveLog('lifecycle', componentId, '❌ Component name mismatch in rehydration - possible tampering:', {
+          expected: clientState.__componentName,
+          received: componentName
+        })
+        return {
+          success: false,
+          error: 'Component class mismatch - state tampering detected'
+        }
+      }
+
+      // Remove internal metadata before passing to component
+      const { __componentName, ...cleanState } = clientState
 
       // Create new component instance with client state (merge with initial state if from definition)
-      const finalState = definition ? { ...initialState, ...clientState } : clientState
+      const finalState = definition ? { ...initialState, ...cleanState } : cleanState
       const component = new ComponentClass(finalState, ws, options)
 
       // 🔒 Inject auth context
@@ -500,10 +510,10 @@ export class ComponentRegistry {
         stateVersion: signedState.version
       })
       
-      // Send updated state to client (with new signature)
+      // Send updated state to client (with new signature, include component name)
       const newSignedState = await stateSignature.signState(
-        component.id, 
-        component.getSerializableState(),
+        component.id,
+        { ...component.getSerializableState(), __componentName: componentName },
         signedState.version + 1
       )
       
