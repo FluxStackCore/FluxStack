@@ -202,9 +202,47 @@ await component.setValue({ key: 'count', value: 42 })
 
 > **Security note:** `setValue` is powerful - it allows the client to set any state key. Only add it to `publicActions` if you trust the client to modify any state field.
 
+### $private — Server-Only State
+
+`$private` is a key-value store that lives **exclusively on the server**. It is NEVER synchronized with the client — no `STATE_UPDATE`, no `STATE_DELTA`, not included in `getSerializableState()`.
+
+Use it for sensitive data like tokens, API keys, internal IDs, or any server-side bookkeeping:
+
+```typescript
+export class Chat extends LiveComponent<typeof Chat.defaultState> {
+  static componentName = 'Chat'
+  static publicActions = ['connect', 'sendMessage'] as const
+  static defaultState = { messages: [] as string[] }
+
+  async connect(payload: { token: string }) {
+    // 🔒 Stays on server — never sent to client
+    this.$private.token = payload.token
+    this.$private.apiKey = await getApiKey()
+
+    // ✅ Only UI data goes to state (synced with client)
+    this.state.messages = await fetchMessages(this.$private.token)
+    return { success: true }
+  }
+
+  async sendMessage(payload: { text: string }) {
+    // Use $private data for server-side logic
+    await postToAPI(this.$private.apiKey, payload.text)
+    this.state.messages = [...this.state.messages, payload.text]
+    return { success: true }
+  }
+}
+```
+
+**Key facts:**
+- Starts as an empty `{}` — no static default needed
+- Mutations do NOT trigger any WebSocket messages
+- Cleared automatically on `destroy()`
+- Lost on rehydration (re-populate in your action handlers)
+- Blocked from remote access (`$private` and `_privateState` are in BLOCKED_ACTIONS)
+
 ### getSerializableState
 
-Get current state for serialization:
+Get current state for serialization (does NOT include `$private`):
 
 ```typescript
 const currentState = this.getSerializableState()
@@ -612,8 +650,9 @@ export class MyComponent extends LiveComponent<State> {
 - Forget `static componentName` (breaks minification)
 - Emit room events without subscribing first
 - Store non-serializable data in state
-- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, broadcastToRoom, roomType)
+- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, $private, broadcastToRoom, roomType)
 - Include `setValue` in `publicActions` unless you trust clients to modify any state key
+- Store sensitive data (tokens, API keys, secrets) in `state` — use `$private` instead
 
 **STATE UPDATES (v1.13.0) — all auto-sync via Proxy:**
 ```typescript

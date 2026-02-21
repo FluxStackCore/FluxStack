@@ -333,6 +333,33 @@ if (file.type === 'image/jpeg') {
 
 **Why**: MIME types come from the client and can be spoofed. The framework validates actual file content (magic bytes) against the claimed type.
 
+### Never Store Sensitive Data in State
+
+```typescript
+// ❌ WRONG - Token goes to the client via STATE_UPDATE/STATE_DELTA
+export class Chat extends LiveComponent<State> {
+  static defaultState = { messages: [], token: '' }  // token synced to client!
+  static publicActions = ['connect'] as const
+
+  async connect(payload: { token: string }) {
+    this.state.token = payload.token  // 💀 Visible in browser DevTools!
+  }
+}
+
+// ✅ CORRECT - Use $private for server-only data
+export class Chat extends LiveComponent<State> {
+  static defaultState = { messages: [] as string[] }
+  static publicActions = ['connect'] as const
+
+  async connect(payload: { token: string }) {
+    this.$private.token = payload.token  // 🔒 Never leaves the server
+    this.state.messages = await fetch(this.$private.token)
+  }
+}
+```
+
+**Why**: Everything in `state` is serialized and sent to the client via WebSocket. Use `$private` for tokens, API keys, internal IDs, or any data the client should not see.
+
 ### Never Ignore Double Extensions
 
 ```typescript
@@ -357,6 +384,7 @@ const ext = filename.split('.').pop()  // Returns 'jpg' for 'malware.exe.jpg'
 | Business logic in routes | Unmaintainable | Use controllers |
 | Missing `publicActions` | All actions blocked | Always define whitelist |
 | Including `setValue` carelessly | Privilege escalation | Use specific actions |
+| Sensitive data in `state` | Data leak to client | Use `$private` instead |
 | Trusting MIME types alone | File disguise attacks | Framework validates magic bytes |
 
 ## Related
