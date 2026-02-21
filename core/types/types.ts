@@ -217,7 +217,7 @@ export interface ServerRoomProxy<TState = any, TEvents extends Record<string, an
   setState: (updates: Partial<TState>) => void
 }
 
-export abstract class LiveComponent<TState = ComponentState> {
+export abstract class LiveComponent<TState = ComponentState, TPrivate extends Record<string, any> = Record<string, any>> {
   /** Component name for registry lookup - must be defined in subclasses */
   static componentName: string
   /** Default state - must be defined in subclasses */
@@ -274,7 +274,7 @@ export abstract class LiveComponent<TState = ComponentState> {
   public broadcastToRoom: (message: BroadcastMessage) => void = () => {} // Will be injected by registry
 
   // 🔒 Server-only private state (NEVER sent to client)
-  private _privateState: Record<string, any> = {}
+  private _privateState: TPrivate = {} as TPrivate
 
   // Auth context (injected by registry during mount)
   private _authContext: LiveAuthContext = ANONYMOUS_CONTEXT
@@ -381,7 +381,7 @@ export abstract class LiveComponent<TState = ComponentState> {
    *   this.state.messages = await fetchMessages(this.$private.token)
    * }
    */
-  public get $private(): Record<string, any> {
+  public get $private(): TPrivate {
     return this._privateState
   }
 
@@ -767,7 +767,7 @@ export abstract class LiveComponent<TState = ComponentState> {
     }
     this.joinedRooms.clear()
     this.roomHandles.clear()
-    this._privateState = {}
+    this._privateState = {} as TPrivate
 
     this.unsubscribeFromRoom()
     // Override in subclasses for custom cleanup
@@ -841,6 +841,11 @@ export type ActionReturn<
  * Get the state type from a LiveComponent class
  */
 export type InferComponentState<T extends LiveComponent<any>> = T extends LiveComponent<infer S> ? S : never
+
+/**
+ * Get the private state type from a LiveComponent class
+ */
+export type InferPrivateState<T extends LiveComponent<any, any>> = T extends LiveComponent<any, infer P> ? P : never
 
 /**
  * Type-safe call signature for a component

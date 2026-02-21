@@ -233,12 +233,39 @@ export class Chat extends LiveComponent<typeof Chat.defaultState> {
 }
 ```
 
+#### Typed $private (optional)
+
+Pass a second generic to get full autocomplete and type checking:
+
+```typescript
+interface ChatPrivate {
+  token: string
+  apiKey: string
+  retryCount: number
+}
+
+export class Chat extends LiveComponent<typeof Chat.defaultState, ChatPrivate> {
+  static componentName = 'Chat'
+  static publicActions = ['connect'] as const
+  static defaultState = { messages: [] as string[] }
+
+  async connect(payload: { token: string }) {
+    this.$private.token = payload.token     // ✅ autocomplete
+    this.$private.retryCount = 0            // ✅ must be number
+    this.$private.tokkken = 'x'             // ❌ TypeScript error (typo)
+  }
+}
+```
+
+The second generic defaults to `Record<string, any>`, so existing components work without changes.
+
 **Key facts:**
 - Starts as an empty `{}` — no static default needed
 - Mutations do NOT trigger any WebSocket messages
 - Cleared automatically on `destroy()`
 - Lost on rehydration (re-populate in your action handlers)
 - Blocked from remote access (`$private` and `_privateState` are in BLOCKED_ACTIONS)
+- Optional `TPrivate` generic for full type safety
 
 ### getSerializableState
 

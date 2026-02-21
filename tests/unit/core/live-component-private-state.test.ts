@@ -41,6 +41,7 @@ interface ChatState {
   connected: boolean
 }
 
+// Untyped $private (backward compatible - Record<string, any>)
 class ChatComponent extends LiveComponent<ChatState> {
   static componentName = 'ChatComponent'
   static defaultState: ChatState = { messages: [], connected: false }
@@ -68,6 +69,33 @@ class ChatComponent extends LiveComponent<ChatState> {
   // Expose private data intentionally (for testing)
   async getPrivateToken() {
     return { token: this.$private.token }
+  }
+}
+
+// Typed $private (full type safety)
+interface SecurePrivate {
+  token: string
+  apiKey: string
+  retryCount: number
+}
+
+class TypedPrivateComponent extends LiveComponent<ChatState, SecurePrivate> {
+  static componentName = 'TypedPrivateComponent'
+  static defaultState: ChatState = { messages: [], connected: false }
+  static publicActions = ['connect', 'sendMessage'] as const
+
+  async connect(payload: { token: string }) {
+    this.$private.token = payload.token
+    this.$private.apiKey = 'typed-key'
+    this.$private.retryCount = 0
+    this.state.connected = true
+    return { success: true }
+  }
+
+  async sendMessage(payload: { text: string }) {
+    this.$private.retryCount++
+    this.state.messages = [...this.state.messages, payload.text]
+    return { success: true, retries: this.$private.retryCount }
   }
 }
 
@@ -244,6 +272,78 @@ describe('$private - Server-Only State', () => {
 
       // State should still be intact (destroy clears rooms etc but state remains readable)
       expect(component.state.connected).toBe(true)
+    })
+  })
+})
+
+describe('$private - Typed Private State (TPrivate generic)', () => {
+  let ws: FluxStackWebSocket
+  let component: TypedPrivateComponent
+
+  beforeEach(() => {
+    ws = createMockWs()
+    component = new TypedPrivateComponent({}, ws)
+    ;(ws.send as ReturnType<typeof vi.fn>).mockClear()
+  })
+
+  describe('Type-safe access', () => {
+    it('should allow setting typed properties', () => {
+      component.$private.token = 'typed-token'
+      component.$private.apiKey = 'typed-key'
+      component.$private.retryCount = 0
+
+      expect(component.$private.token).toBe('typed-token')
+      expect(component.$private.apiKey).toBe('typed-key')
+      expect(component.$private.retryCount).toBe(0)
+    })
+
+    it('should work within actions with correct types', async () => {
+      await component.executeAction('connect', { token: 'my-typed-token' })
+
+      expect(component.$private.token).toBe('my-typed-token')
+      expect(component.$private.apiKey).toBe('typed-key')
+      expect(component.$private.retryCount).toBe(0)
+    })
+
+    it('should track retryCount across action calls', async () => {
+      await component.executeAction('connect', { token: 'tok' })
+      await component.executeAction('sendMessage', { text: 'a' })
+      await component.executeAction('sendMessage', { text: 'b' })
+
+      expect(component.$private.retryCount).toBe(2)
+      expect(component.state.messages).toEqual(['a', 'b'])
+    })
+  })
+
+  describe('Isolation (same guarantees as untyped)', () => {
+    it('should NOT include typed $private in getSerializableState()', () => {
+      component.$private.token = 'secret'
+      component.$private.apiKey = 'key'
+      component.$private.retryCount = 5
+
+      const serialized = component.getSerializableState()
+
+      expect(serialized).not.toHaveProperty('token')
+      expect(serialized).not.toHaveProperty('apiKey')
+      expect(serialized).not.toHaveProperty('retryCount')
+    })
+
+    it('should NOT emit STATE_DELTA when typed $private changes', () => {
+      component.$private.token = 'a'
+      component.$private.apiKey = 'b'
+      component.$private.retryCount = 99
+
+      expect(ws.send).not.toHaveBeenCalled()
+    })
+
+    it('should clear typed $private on destroy', () => {
+      component.$private.token = 'secret'
+      component.$private.retryCount = 10
+
+      component.destroy()
+
+      // After destroy, $private is reset to empty object
+      expect(component.$private).toEqual({})
     })
   })
 })
