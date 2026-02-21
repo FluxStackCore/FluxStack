@@ -7,6 +7,7 @@ import type { FormDemo as _Client } from '@client/src/live/FormDemo'
 
 export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
   static componentName = 'LiveForm'
+  static publicActions = ['submit', 'reset', 'validate'] as const
   static defaultState = {
     name: '',
     email: '',

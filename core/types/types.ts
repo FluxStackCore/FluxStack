@@ -524,9 +524,9 @@ export abstract class LiveComponent<TState = ComponentState> {
   }
 
   /**
-   * List of methods that are explicitly callable from the client.
-   * If defined in a subclass, ONLY these methods can be called via CALL_ACTION.
-   * If not defined, all methods except the blocklist are callable (legacy behavior).
+   * 🔒 REQUIRED: List of methods that are explicitly callable from the client.
+   * ONLY these methods can be called via CALL_ACTION.
+   * Components without publicActions will deny ALL remote actions (secure by default).
    *
    * @example
    * static publicActions = ['sendMessage', 'deleteMessage', 'join'] as const
@@ -560,10 +560,15 @@ export abstract class LiveComponent<TState = ComponentState> {
         throw new Error(`Action '${action}' is not callable`)
       }
 
-      // 🔒 Security: If publicActions whitelist is defined, enforce it
+      // 🔒 Security: publicActions whitelist is MANDATORY
+      // Components without publicActions deny ALL remote actions (secure by default)
       const componentClass = this.constructor as typeof LiveComponent
       const publicActions = componentClass.publicActions
-      if (publicActions && !publicActions.includes(action)) {
+      if (!publicActions) {
+        console.warn(`🔒 [SECURITY] Component '${componentClass.componentName || componentClass.name}' has no publicActions defined. All remote actions are blocked. Define static publicActions to allow specific actions.`)
+        throw new Error(`Action '${action}' is not callable - component has no publicActions defined`)
+      }
+      if (!publicActions.includes(action)) {
         throw new Error(`Action '${action}' is not callable`)
       }
 

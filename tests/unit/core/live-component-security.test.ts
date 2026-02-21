@@ -72,7 +72,7 @@ interface ChatState {
   secretKey: string
 }
 
-// Component WITHOUT publicActions (legacy - uses blocklist)
+// Component WITHOUT publicActions (insecure legacy pattern - now blocks ALL remote actions)
 class LegacyComponent extends LiveComponent<ChatState> {
   static componentName = 'LegacyComponent'
   static defaultState: ChatState = { messages: [], isAdmin: false, secretKey: 'secret-123' }
@@ -250,29 +250,31 @@ describe('🔒 Security: Arbitrary Method Execution (CWE-94)', () => {
     })
   })
 
-  describe('Legitimate actions still work', () => {
-    it('should allow calling public methods on legacy component', async () => {
-      const result = await legacy.executeAction('sendMessage', { text: 'hello' })
-      expect(result.success).toBe(true)
+  describe('Components without publicActions block ALL remote actions', () => {
+    it('should block ALL actions on component without publicActions (secure by default)', async () => {
+      // Even though sendMessage exists as a method, it's blocked because publicActions is not defined
+      await expect(legacy.executeAction('sendMessage', { text: 'hello' }))
+        .rejects.toThrow('component has no publicActions defined')
     })
 
-    it('should allow calling deleteMessage on legacy component', async () => {
-      const result = await legacy.executeAction('deleteMessage', { index: 0 })
-      expect(result.success).toBe(true)
+    it('should block deleteMessage on component without publicActions', async () => {
+      await expect(legacy.executeAction('deleteMessage', { index: 0 }))
+        .rejects.toThrow('component has no publicActions defined')
     })
 
-    it('should return error for non-existent action', async () => {
-      await expect(legacy.executeAction('nonExistentMethod', {})).rejects.toThrow("Action 'nonExistentMethod' not found on component")
+    it('should return "no publicActions" error for any action on legacy component', async () => {
+      await expect(legacy.executeAction('nonExistentMethod', {}))
+        .rejects.toThrow('component has no publicActions defined')
     })
   })
 
   describe('Error messages do not leak stack traces', () => {
     it('should not include stack trace in error emit', async () => {
-      // Clear previous sends
+      // Use secure component to test a blocked (non-whitelisted) action
       ;(ws.send as ReturnType<typeof vi.fn>).mockClear()
 
       try {
-        await legacy.executeAction('nonExistentMethod', {})
+        await secure.executeAction('resetDatabase', {})
       } catch { /* expected */ }
 
       const msg = getLastSentMessage(ws)
@@ -689,11 +691,12 @@ describe('🔒 Security: Information Disclosure Prevention (CWE-209)', () => {
   })
 
   it('should not expose stack traces in error messages', async () => {
-    const component = new LegacyComponent({}, ws)
+    // Use SecureComponent to test a non-whitelisted action error
+    const component = new SecureComponent({}, ws)
     ;(ws.send as ReturnType<typeof vi.fn>).mockClear()
 
     try {
-      await component.executeAction('nonExistent', {})
+      await component.executeAction('resetDatabase', {})
     } catch { /* expected */ }
 
     const msg = getLastSentMessage(ws)
@@ -736,16 +739,14 @@ describe('🔒 Security: setValue Protection (CWE-306)', () => {
     })).rejects.toThrow("Action 'setValue' is not callable")
   })
 
-  it('should still allow setValue on legacy components (no publicActions)', async () => {
-    // LegacyComponent doesn't define publicActions, so setValue is allowed
-    // (it's not in the blocked list because it's a legitimate user-facing feature)
+  it('should block setValue on legacy components (no publicActions = secure by default)', async () => {
+    // LegacyComponent doesn't define publicActions, so ALL remote actions are blocked
     const component = new LegacyComponent({}, ws)
 
-    const result = await component.executeAction('setValue', {
+    await expect(component.executeAction('setValue', {
       key: 'isAdmin',
       value: true
-    })
-    expect(result.success).toBe(true)
+    })).rejects.toThrow('component has no publicActions defined')
   })
 })
 

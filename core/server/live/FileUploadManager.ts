@@ -10,10 +10,35 @@ import type {
   FileUploadCompleteResponse
 } from '@core/types/types'
 
+// 🔒 Magic bytes mapping for content validation
+// Validates actual file content, not just the MIME type header
+const MAGIC_BYTES: Record<string, { bytes: number[]; offset?: number }[]> = {
+  'image/jpeg': [{ bytes: [0xFF, 0xD8, 0xFF] }],
+  'image/png': [{ bytes: [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A] }],
+  'image/gif': [
+    { bytes: [0x47, 0x49, 0x46, 0x38, 0x37, 0x61] }, // GIF87a
+    { bytes: [0x47, 0x49, 0x46, 0x38, 0x39, 0x61] }, // GIF89a
+  ],
+  'image/webp': [
+    { bytes: [0x52, 0x49, 0x46, 0x46], offset: 0 }, // RIFF header
+    // Byte 8-11 should be WEBP, checked separately
+  ],
+  'application/pdf': [{ bytes: [0x25, 0x50, 0x44, 0x46] }], // %PDF
+  'application/zip': [
+    { bytes: [0x50, 0x4B, 0x03, 0x04] }, // PK\x03\x04
+    { bytes: [0x50, 0x4B, 0x05, 0x06] }, // Empty archive
+  ],
+  'application/gzip': [{ bytes: [0x1F, 0x8B] }],
+}
+
 export class FileUploadManager {
   private activeUploads = new Map<string, ActiveUpload>()
   private readonly maxUploadSize = 50 * 1024 * 1024 // 🔒 50MB max (reduced from 500MB)
   private readonly chunkTimeout = 30000 // 30 seconds timeout per chunk
+  // 🔒 Per-user upload quota tracking
+  private userUploadBytes = new Map<string, number>() // userId -> total bytes uploaded
+  private readonly maxBytesPerUser = 500 * 1024 * 1024 // 🔒 500MB per user total
+  private readonly quotaResetInterval = 24 * 60 * 60 * 1000 // Reset quotas daily
   // 🔒 Default allowed MIME types - safe file types only
   private readonly allowedTypes: string[] = [
     'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -34,15 +59,25 @@ export class FileUploadManager {
   constructor() {
     // Cleanup stale uploads every 5 minutes
     setInterval(() => this.cleanupStaleUploads(), 5 * 60 * 1000)
+    // 🔒 Reset per-user upload quotas daily
+    setInterval(() => this.resetUploadQuotas(), this.quotaResetInterval)
   }
 
-  async startUpload(message: FileUploadStartMessage): Promise<{ success: boolean; error?: string }> {
+  async startUpload(message: FileUploadStartMessage, userId?: string): Promise<{ success: boolean; error?: string }> {
     try {
       const { uploadId, componentId, filename, fileType, fileSize, chunkSize = 64 * 1024 } = message
 
       // 🔒 Validate file size
       if (fileSize > this.maxUploadSize) {
         throw new Error(`File too large: ${fileSize} bytes. Max: ${this.maxUploadSize} bytes`)
+      }
+
+      // 🔒 Per-user upload quota check
+      if (userId) {
+        const currentUsage = this.userUploadBytes.get(userId) || 0
+        if (currentUsage + fileSize > this.maxBytesPerUser) {
+          throw new Error(`Upload quota exceeded for user. Used: ${currentUsage} bytes, limit: ${this.maxBytesPerUser} bytes`)
+        }
       }
 
       // 🔒 Validate MIME type against allowlist
@@ -55,6 +90,18 @@ export class FileUploadManager {
       const ext = extname(safeBase).toLowerCase()
       if (this.blockedExtensions.has(ext)) {
         throw new Error(`File extension not allowed: ${ext}`)
+      }
+
+      // 🔒 Double extension bypass prevention (e.g., malware.exe.jpg)
+      const parts = safeBase.split('.')
+      if (parts.length > 2) {
+        // Check all intermediate extensions
+        for (let i = 1; i < parts.length - 1; i++) {
+          const intermediateExt = '.' + parts[i].toLowerCase()
+          if (this.blockedExtensions.has(intermediateExt)) {
+            throw new Error(`Suspicious double extension detected: ${intermediateExt} in ${safeBase}`)
+          }
+        }
       }
 
       // 🔒 Validate filename length
@@ -86,13 +133,20 @@ export class FileUploadManager {
 
       this.activeUploads.set(uploadId, upload)
 
+      // 🔒 Reserve quota for this upload
+      if (userId) {
+        const currentUsage = this.userUploadBytes.get(userId) || 0
+        this.userUploadBytes.set(userId, currentUsage + fileSize)
+      }
+
       console.log('📤 Upload started:', {
         uploadId,
         componentId,
         filename,
         fileType,
         fileSize,
-        totalChunks
+        totalChunks,
+        userId: userId || 'anonymous'
       })
 
       return { success: true }
@@ -200,8 +254,10 @@ export class FileUploadManager {
         throw new Error(`Incomplete upload: received ${upload.bytesReceived}/${upload.fileSize} bytes (${bytesShort} bytes short)`)
       }
 
-      console.log(`✅ Upload validation passed: ${uploadId} (${upload.bytesReceived} bytes)`)
+      // 🔒 Content validation: verify file magic bytes match claimed MIME type
+      this.validateContentMagicBytes(upload)
 
+      console.log(`✅ Upload validation passed: ${uploadId} (${upload.bytesReceived} bytes)`)
 
       // Assemble file from chunks
       const fileUrl = await this.assembleFile(upload)
@@ -292,6 +348,83 @@ export class FileUploadManager {
 
     if (staleUploads.length > 0) {
       console.log(`🧹 Cleaned up ${staleUploads.length} stale uploads`)
+    }
+  }
+
+  /**
+   * 🔒 Validate that the first bytes of the uploaded file match the claimed MIME type.
+   * Prevents attacks where a malicious file is uploaded with a fake MIME type header.
+   */
+  private validateContentMagicBytes(upload: ActiveUpload): void {
+    const expectedSignatures = MAGIC_BYTES[upload.fileType]
+    if (!expectedSignatures) {
+      // No magic bytes defined for this type (text types, SVG, JSON, etc.) - skip binary check
+      // For text types, we could add content sniffing but it's less critical
+      return
+    }
+
+    // Get the first chunk to read magic bytes
+    const firstChunk = upload.receivedChunks.get(0)
+    if (!firstChunk) {
+      throw new Error('Cannot validate file content: first chunk missing')
+    }
+
+    const headerBuffer = Buffer.isBuffer(firstChunk)
+      ? firstChunk
+      : Buffer.from(firstChunk, 'base64')
+
+    // Check if any of the expected signatures match
+    let matched = false
+    for (const sig of expectedSignatures) {
+      const offset = sig.offset ?? 0
+      if (headerBuffer.length < offset + sig.bytes.length) {
+        continue // File too small for this signature
+      }
+
+      let sigMatches = true
+      for (let i = 0; i < sig.bytes.length; i++) {
+        if (headerBuffer[offset + i] !== sig.bytes[i]) {
+          sigMatches = false
+          break
+        }
+      }
+
+      if (sigMatches) {
+        matched = true
+        break
+      }
+    }
+
+    if (!matched) {
+      console.warn(`🔒 Content validation failed for upload ${upload.uploadId}: ` +
+        `claimed type ${upload.fileType} does not match file magic bytes`)
+      throw new Error(
+        `File content does not match claimed type '${upload.fileType}'. ` +
+        `The file may be disguised as a different format.`
+      )
+    }
+  }
+
+  /**
+   * 🔒 Reset per-user upload quotas (called periodically)
+   */
+  private resetUploadQuotas(): void {
+    const userCount = this.userUploadBytes.size
+    this.userUploadBytes.clear()
+    if (userCount > 0) {
+      console.log(`🔒 Reset upload quotas for ${userCount} users`)
+    }
+  }
+
+  /**
+   * Get per-user upload usage
+   */
+  getUserUploadUsage(userId: string): { used: number; limit: number; remaining: number } {
+    const used = this.userUploadBytes.get(userId) || 0
+    return {
+      used,
+      limit: this.maxBytesPerUser,
+      remaining: Math.max(0, this.maxBytesPerUser - used)
     }
   }
 

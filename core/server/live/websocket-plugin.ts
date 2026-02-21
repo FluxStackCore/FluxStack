@@ -776,9 +776,11 @@ async function handleAuth(ws: FluxStackWebSocket, message: LiveMessage) {
 // File Upload Handler Functions
 async function handleFileUploadStart(ws: FluxStackWebSocket, message: FileUploadStartMessage) {
   liveLog('messages', message.componentId || null, '📤 Starting file upload:', message.uploadId)
-  
-  const result = await fileUploadManager.startUpload(message)
-  
+
+  // 🔒 Pass userId for per-user upload quota enforcement
+  const userId = ws.data?.userId || ws.data?.authContext?.user?.id
+  const result = await fileUploadManager.startUpload(message, userId)
+
   const response = {
     type: 'FILE_UPLOAD_START_RESPONSE',
     componentId: message.componentId,
@@ -788,7 +790,7 @@ async function handleFileUploadStart(ws: FluxStackWebSocket, message: FileUpload
     requestId: message.requestId,
     timestamp: Date.now()
   }
-  
+
   ws.send(JSON.stringify(response))
 }
 

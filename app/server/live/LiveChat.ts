@@ -14,6 +14,7 @@ export type ChatMessage = {
 
 export class LiveChat extends LiveComponent<typeof LiveChat.defaultState> {
   static componentName = 'LiveChat'
+  static publicActions = ['sendMessage'] as const
   static defaultState = {
     messages: [] as ChatMessage[]
   }

@@ -28,6 +28,7 @@ interface ProtectedChatState {
 
 export class LiveProtectedChat extends LiveComponent<ProtectedChatState> {
   static componentName = 'LiveProtectedChat'
+  static publicActions = ['join', 'sendMessage', 'deleteMessage', 'clearMessages', 'getAuthInfo'] as const
 
   static defaultState: ProtectedChatState = {
     messages: [],

@@ -7,6 +7,7 @@ import type { UploadDemo as _Client } from '@client/src/live/UploadDemo'
 
 export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   static componentName = 'LiveUpload'
+  static publicActions = ['startUpload', 'updateProgress', 'completeUpload', 'failUpload', 'reset'] as const
   static defaultState = {
     status: 'idle' as 'idle' | 'uploading' | 'complete' | 'error',
     progress: 0,
