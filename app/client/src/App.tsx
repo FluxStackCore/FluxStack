@@ -153,7 +153,7 @@ function App() {
       debug={false}
     >
       <AppContent />
-      <LiveDebugger />
+      {import.meta.env.DEV && <LiveDebugger />}
     </LiveComponentsProvider>
   )
 }
