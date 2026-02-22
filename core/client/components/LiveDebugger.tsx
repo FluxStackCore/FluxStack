@@ -83,52 +83,129 @@ const LABELS: Record<string, string> = {
   ERROR: 'ERROR',
 }
 
-// ===== Compact JSON Viewer =====
+// ===== Collapsible JSON Tree Viewer =====
 
-function Json({ data, depth = 0 }: { data: unknown; depth?: number }) {
-  if (data === null || data === undefined) return <span style={{ color: '#6b7280' }}>{String(data)}</span>
-  if (typeof data === 'boolean') return <span style={{ color: '#f59e0b' }}>{String(data)}</span>
-  if (typeof data === 'number') return <span style={{ color: '#60a5fa' }}>{data}</span>
-  if (typeof data === 'string') {
-    const display = data.length > 80 ? data.slice(0, 80) + '...' : data
-    return <span style={{ color: '#34d399' }}>"{display}"</span>
-  }
-
+function jsonPreview(data: unknown): string {
+  if (data === null || data === undefined) return String(data)
+  if (typeof data !== 'object') return JSON.stringify(data)
   if (Array.isArray(data)) {
-    if (data.length === 0) return <span style={{ color: '#6b7280' }}>[]</span>
-    if (depth > 2) return <span style={{ color: '#6b7280' }}>[{data.length}]</span>
-    return (
-      <span>
-        <span style={{ color: '#6b7280' }}>[</span>
-        {data.map((item, i) => (
-          <span key={i}>
-            {i > 0 && <span style={{ color: '#6b7280' }}>, </span>}
-            <Json data={item} depth={depth + 1} />
-          </span>
-        ))}
-        <span style={{ color: '#6b7280' }}>]</span>
-      </span>
-    )
+    if (data.length === 0) return '[]'
+    const items = data.slice(0, 3).map(jsonPreview).join(', ')
+    return data.length <= 3 ? `[${items}]` : `[${items}, ...+${data.length - 3}]`
   }
+  const entries = Object.entries(data as Record<string, unknown>)
+  if (entries.length === 0) return '{}'
+  const items = entries.slice(0, 3).map(([k, v]) => {
+    const val = typeof v === 'object' && v !== null
+      ? (Array.isArray(v) ? `[${v.length}]` : `{${Object.keys(v).length}}`)
+      : JSON.stringify(v)
+    return `${k}: ${val}`
+  }).join(', ')
+  return entries.length <= 3 ? `{ ${items} }` : `{ ${items}, ...+${entries.length - 3} }`
+}
 
-  if (typeof data === 'object') {
-    const entries = Object.entries(data as Record<string, unknown>)
-    if (entries.length === 0) return <span style={{ color: '#6b7280' }}>{'{}'}</span>
-    if (depth > 2) return <span style={{ color: '#6b7280' }}>{'{'}...{entries.length}{'}'}</span>
+function isExpandable(data: unknown): boolean {
+  return data !== null && typeof data === 'object' && (
+    Array.isArray(data) ? data.length > 0 : Object.keys(data as object).length > 0
+  )
+}
+
+function JsonNode({ label, data, defaultOpen = false }: {
+  label?: string | number
+  data: unknown
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  const expandable = isExpandable(data)
+
+  // Primitives
+  if (!expandable) {
+    let rendered: React.ReactNode
+    if (data === null || data === undefined) rendered = <span style={{ color: '#6b7280' }}>{String(data)}</span>
+    else if (typeof data === 'boolean') rendered = <span style={{ color: '#f59e0b' }}>{String(data)}</span>
+    else if (typeof data === 'number') rendered = <span style={{ color: '#60a5fa' }}>{data}</span>
+    else if (typeof data === 'string') {
+      const display = data.length > 120 ? data.slice(0, 120) + '...' : data
+      rendered = <span style={{ color: '#34d399' }}>"{display}"</span>
+    } else {
+      rendered = <span>{String(data)}</span>
+    }
+
     return (
-      <div style={{ paddingLeft: depth > 0 ? 12 : 0 }}>
-        {entries.map(([key, val]) => (
-          <div key={key} style={{ lineHeight: '1.5' }}>
-            <span style={{ color: '#c084fc' }}>{key}</span>
+      <div style={{ lineHeight: '1.6', paddingLeft: 2 }}>
+        {label !== undefined && (
+          <>
+            <span style={{ color: typeof label === 'number' ? '#60a5fa' : '#c084fc' }}>{label}</span>
             <span style={{ color: '#6b7280' }}>: </span>
-            <Json data={val} depth={depth + 1} />
-          </div>
-        ))}
+          </>
+        )}
+        {rendered}
       </div>
     )
   }
 
-  return <span>{String(data)}</span>
+  // Expandable (object / array)
+  const isArray = Array.isArray(data)
+  const entries = isArray
+    ? (data as unknown[]).map((v, i) => [i, v] as [number, unknown])
+    : Object.entries(data as Record<string, unknown>)
+  const bracketOpen = isArray ? '[' : '{'
+  const bracketClose = isArray ? ']' : '}'
+
+  return (
+    <div style={{ lineHeight: '1.6' }}>
+      <div
+        onClick={() => setOpen(!open)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 2, paddingLeft: 2 }}
+      >
+        <span style={{
+          color: '#475569', fontSize: 8, width: 10, flexShrink: 0,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          paddingTop: 4, userSelect: 'none',
+        }}>
+          {open ? '\u25BC' : '\u25B6'}
+        </span>
+        <span>
+          {label !== undefined && (
+            <>
+              <span style={{ color: typeof label === 'number' ? '#60a5fa' : '#c084fc' }}>{label}</span>
+              <span style={{ color: '#6b7280' }}>: </span>
+            </>
+          )}
+          {!open && (
+            <span style={{ color: '#64748b' }}>
+              {bracketOpen} {jsonPreview(data).slice(1, -1)} {bracketClose}
+            </span>
+          )}
+          {open && (
+            <span style={{ color: '#64748b' }}>
+              {bracketOpen}
+              <span style={{ color: '#475569', fontSize: 9, marginLeft: 4 }}>
+                {entries.length} {isArray ? (entries.length === 1 ? 'item' : 'items') : (entries.length === 1 ? 'key' : 'keys')}
+              </span>
+            </span>
+          )}
+        </span>
+      </div>
+      {open && (
+        <div style={{ paddingLeft: 14 }}>
+          {entries.map(([key, val]) => (
+            <JsonNode
+              key={String(key)}
+              label={key}
+              data={val}
+              defaultOpen={false}
+            />
+          ))}
+          <div style={{ color: '#64748b', paddingLeft: 2 }}>{bracketClose}</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Json({ data, depth = 0 }: { data: unknown; depth?: number }) {
+  return <JsonNode data={data} defaultOpen={depth === 0} />
 }
 
 // ===== Event Summary =====
