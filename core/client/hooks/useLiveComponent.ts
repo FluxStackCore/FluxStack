@@ -161,6 +161,16 @@ export interface UseLiveComponentOptions extends HybridComponentOptions {
   syncMode?: 'immediate' | 'debounced' | 'manual'
   /** Persistir estado em localStorage (rehydration). Default: true */
   persistState?: boolean
+  /**
+   * Label de debug para identificar esta instância no Live Debugger.
+   * Aparece no lugar do componentId no painel de debug.
+   * Só tem efeito em development.
+   *
+   * @example
+   * Live.use(LiveCounter, { debugLabel: 'Header Counter' })
+   * Live.use(LiveChat, { debugLabel: 'Main Chat' })
+   */
+  debugLabel?: string
 }
 
 // ===== Propriedades Reservadas =====
@@ -353,7 +363,7 @@ export function useLiveComponent<
       const response = await sendMessageAndWait({
         type: 'COMPONENT_MOUNT',
         componentId: instanceId.current,
-        payload: { component: componentName, props: initialState, room, userId }
+        payload: { component: componentName, props: initialState, room, userId, debugLabel: options.debugLabel }
       }, 5000)
 
       if (response?.success && response?.result?.componentId) {

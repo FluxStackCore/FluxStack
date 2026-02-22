@@ -229,7 +229,7 @@ export class ComponentRegistry {
     ws: FluxStackWebSocket,
     componentName: string,
     props: Record<string, unknown> = {},
-    options?: { room?: string; userId?: string; version?: string }
+    options?: { room?: string; userId?: string; version?: string; debugLabel?: string }
   ): Promise<{ componentId: string; initialState: unknown; signedState: unknown }> {
     const startTime = Date.now()
     
@@ -376,7 +376,8 @@ export class ComponentRegistry {
       component.id,
       componentName,
       component.getSerializableState() as Record<string, unknown>,
-      options?.room
+      options?.room,
+      options?.debugLabel
     )
 
     // Return component ID with signed state for immediate persistence
@@ -706,12 +707,13 @@ export class ComponentRegistry {
       switch (message.type) {
         case 'COMPONENT_MOUNT':
           const mountResult = await this.mountComponent(
-            ws, 
-            message.payload.component, 
+            ws,
+            message.payload.component,
             message.payload.props,
-            { 
+            {
               room: message.payload.room,
-              userId: message.userId 
+              userId: message.userId,
+              debugLabel: message.payload.debugLabel
             }
           )
           return { success: true, result: mountResult }

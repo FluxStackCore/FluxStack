@@ -47,6 +47,8 @@ export interface DebugEvent {
 export interface ComponentSnapshot {
   componentId: string
   componentName: string
+  /** Developer-defined label for easier identification in the debugger */
+  debugLabel?: string
   state: Record<string, unknown>
   rooms: string[]
   mountedAt: number
@@ -140,13 +142,15 @@ class LiveDebugger {
     componentId: string,
     componentName: string,
     initialState: Record<string, unknown>,
-    room?: string
+    room?: string,
+    debugLabel?: string
   ): void {
     if (!this._enabled) return
 
     const snapshot: ComponentSnapshot = {
       componentId,
       componentName,
+      debugLabel,
       state: this.sanitizeState(initialState),
       rooms: room ? [room] : [],
       mountedAt: Date.now(),
@@ -160,7 +164,8 @@ class LiveDebugger {
 
     this.emit('COMPONENT_MOUNT', componentId, componentName, {
       initialState: snapshot.state,
-      room: room ?? null
+      room: room ?? null,
+      debugLabel: debugLabel ?? null
     })
   }
 

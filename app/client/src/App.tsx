@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router'
 import { api } from './lib/eden-api'
-import { LiveComponentsProvider } from '@/core/client'
+import { LiveComponentsProvider, LiveDebugger } from '@/core/client'
 import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
 import { ChatDemo } from './live/ChatDemo'
 import { RoomChatDemo } from './live/RoomChatDemo'
 import { AuthDemo } from './live/AuthDemo'
-import { LiveDebuggerPanel } from './live/LiveDebuggerPanel'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -70,9 +69,6 @@ function AppContent() {
 
   return (
     <Routes>
-      {/* Debugger - full-page standalone route */}
-      <Route path="/debugger" element={<LiveDebuggerPanel />} />
-
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage apiStatus={apiStatus} />} />
         <Route
@@ -157,6 +153,7 @@ function App() {
       debug={false}
     >
       <AppContent />
+      <LiveDebugger />
     </LiveComponentsProvider>
   )
 }

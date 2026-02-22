@@ -41,6 +41,8 @@ export interface DebugEvent {
 export interface ComponentSnapshot {
   componentId: string
   componentName: string
+  /** Developer-defined label for easier identification in the debugger */
+  debugLabel?: string
   state: Record<string, unknown>
   rooms: string[]
   mountedAt: number
@@ -216,6 +218,7 @@ export function useLiveDebugger(options: UseLiveDebuggerOptions = {}): UseLiveDe
           return [...prev, {
             componentId: event.componentId,
             componentName: event.componentName,
+            debugLabel: (event.data.debugLabel as string) || undefined,
             state: (event.data.initialState as Record<string, unknown>) || {},
             rooms: event.data.room ? [event.data.room as string] : [],
             mountedAt: event.timestamp,

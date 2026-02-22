@@ -31,6 +31,8 @@ export { useLiveUpload } from './hooks/useLiveUpload'
 export { Live } from './components/Live'
 
 // Live Component Debugger
+export { LiveDebugger } from './components/LiveDebugger'
+export type { LiveDebuggerProps } from './components/LiveDebugger'
 export { useLiveDebugger } from './hooks/useLiveDebugger'
 export type {
   DebugEvent,
