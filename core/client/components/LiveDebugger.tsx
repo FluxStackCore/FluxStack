@@ -651,7 +651,6 @@ export function LiveDebugger({
               isSelected={selectedId === comp.componentId}
               onSelect={() => {
                 setSelectedId(selectedId === comp.componentId ? null : comp.componentId)
-                setTab('events')
               }}
             />
           ))}
