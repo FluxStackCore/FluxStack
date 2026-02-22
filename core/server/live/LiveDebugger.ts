@@ -93,7 +93,7 @@ class LiveDebugger {
     // Read from FluxStack config system (config/system/runtime.config.ts)
     // Defaults to true in development, false otherwise.
     // Override via DEBUG_LIVE env var or config reload.
-    this._enabled = appRuntimeConfig.values.debugLive
+    this._enabled = appRuntimeConfig.values.debugLive ?? false
   }
 
   get enabled(): boolean {
