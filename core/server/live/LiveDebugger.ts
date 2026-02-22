@@ -1,7 +1,7 @@
 // 🔍 FluxStack Live Component Debugger - Server-Side Event Bus
 //
 // Captures and streams debug events from the Live Components system.
-// Only active in development or when DEBUG_LIVE=true.
+// Controlled by debugLive in config/system/runtime.config.ts (DEBUG_LIVE env var).
 //
 // Events captured:
 //   - Component mount/unmount/rehydrate
@@ -16,6 +16,7 @@
 //   liveDebugger.emit('STATE_CHANGE', componentId, componentName, { delta, fullState })
 
 import type { FluxStackWebSocket } from '@core/types/types'
+import { appRuntimeConfig } from '@config'
 
 // ===== Types =====
 
@@ -89,15 +90,10 @@ class LiveDebugger {
   private eventCounter = 0
 
   constructor() {
-    // DEBUG_LIVE env var takes priority when explicitly set
-    // Otherwise, auto-enable in development only
-    const env = typeof process !== 'undefined' ? (process.env.NODE_ENV || 'development') : 'development'
-    const debugLive = typeof process !== 'undefined' ? process.env.DEBUG_LIVE : undefined
-    if (debugLive !== undefined) {
-      this._enabled = debugLive === 'true'
-    } else {
-      this._enabled = env === 'development'
-    }
+    // Read from FluxStack config system (config/system/runtime.config.ts)
+    // Defaults to true in development, false otherwise.
+    // Override via DEBUG_LIVE env var or config reload.
+    this._enabled = appRuntimeConfig.values.debugLive
   }
 
   get enabled(): boolean {
