@@ -14,6 +14,12 @@ import { liveAuthManager } from './auth/LiveAuthManager'
 import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
 import type { LiveComponentAuth, LiveActionAuthMap } from './auth/types'
 import { liveLog, registerComponentLogging, unregisterComponentLogging } from './LiveLogger'
+import { liveDebugger } from './LiveDebugger'
+import { _setLiveDebugger } from '@core/types/types'
+
+// Inject debugger into types.ts (server-only) so LiveComponent class can use it
+// without importing the server-side LiveDebugger module directly
+_setLiveDebugger(liveDebugger)
 
 // Enhanced interfaces for registry improvements
 export interface ComponentMetadata {
@@ -223,7 +229,7 @@ export class ComponentRegistry {
     ws: FluxStackWebSocket,
     componentName: string,
     props: Record<string, unknown> = {},
-    options?: { room?: string; userId?: string; version?: string }
+    options?: { room?: string; userId?: string; version?: string; debugLabel?: string }
   ): Promise<{ componentId: string; initialState: unknown; signedState: unknown }> {
     const startTime = Date.now()
     
@@ -365,11 +371,20 @@ export class ComponentRegistry {
       signedState 
     })
 
+    // Debug: track component mount
+    liveDebugger.trackComponentMount(
+      component.id,
+      componentName,
+      component.getSerializableState() as Record<string, unknown>,
+      options?.room,
+      options?.debugLabel
+    )
+
     // Return component ID with signed state for immediate persistence
-    return { 
+    return {
       componentId: component.id,
       initialState: component.getSerializableState(),
-      signedState 
+      signedState
     }
     } catch (error: any) {
       console.error(`❌ Failed to mount component ${componentName}:`, error)
@@ -544,12 +559,15 @@ export class ComponentRegistry {
     const component = this.components.get(componentId)
     if (!component) return
 
+    // Debug: track unmount
+    liveDebugger.trackComponentUnmount(componentId)
+
     // Cleanup
     component.destroy?.()
 
     // Remove from room subscriptions
     this.unsubscribeFromAllRooms(componentId)
-    
+
     // Remove from maps
     this.components.delete(componentId)
     this.wsConnections.delete(componentId)
@@ -689,12 +707,13 @@ export class ComponentRegistry {
       switch (message.type) {
         case 'COMPONENT_MOUNT':
           const mountResult = await this.mountComponent(
-            ws, 
-            message.payload.component, 
+            ws,
+            message.payload.component,
             message.payload.props,
-            { 
+            {
               room: message.payload.room,
-              userId: message.userId 
+              userId: message.userId,
+              debugLabel: message.payload.debugLabel
             }
           )
           return { success: true, result: mountResult }

@@ -12,6 +12,7 @@ import type { Plugin, PluginContext } from '@core/index'
 import { t, Elysia } from 'elysia'
 import path from 'path'
 import { liveLog } from './LiveLogger'
+import { liveDebugger } from './LiveDebugger'
 
 // ===== Response Schemas for Live Components Routes =====
 
@@ -223,6 +224,9 @@ export const liveComponentsPlugin: Plugin = {
             console.warn('🔒 WebSocket query auth error:', authError instanceof Error ? authError.message : 'Unknown error')
           }
 
+          // Debug: track connection
+          liveDebugger.trackConnection(connectionId)
+
           // Send connection confirmation
           ws.send(JSON.stringify({
             type: 'CONNECTION_ESTABLISHED',
@@ -366,6 +370,12 @@ export const liveComponentsPlugin: Plugin = {
           const socket = ws as unknown as FluxStackWebSocket
           const connectionId = socket.data?.connectionId
           liveLog('websocket', null, `🔌 Live Components WebSocket disconnected: ${connectionId}`)
+
+          // Debug: track disconnection
+          const componentCount = socket.data?.components?.size ?? 0
+          if (connectionId) {
+            liveDebugger.trackDisconnection(connectionId, componentCount)
+          }
 
           // 🔒 Cleanup rate limiter
           if (connectionId) {
@@ -568,6 +578,132 @@ export const liveComponentsPlugin: Plugin = {
           alertId: t.String({ description: 'The unique alert identifier' })
         }),
         response: LiveAlertResolveSchema
+      })
+
+      // ===== Live Component Debugger Routes =====
+
+      // Debug WebSocket - streams debug events in real-time
+      .ws('/debug/ws', {
+        body: t.Any(),
+
+        open(ws) {
+          const socket = ws as unknown as FluxStackWebSocket
+          liveLog('websocket', null, '🔍 Debug client connected')
+          liveDebugger.registerDebugClient(socket)
+        },
+
+        message() {
+          // Debug clients are read-only, no incoming messages to handle
+        },
+
+        close(ws) {
+          const socket = ws as unknown as FluxStackWebSocket
+          liveLog('websocket', null, '🔍 Debug client disconnected')
+          liveDebugger.unregisterDebugClient(socket)
+        }
+      })
+
+      // Debug snapshot - current state of all components
+      .get('/debug/snapshot', () => {
+        return {
+          success: true,
+          snapshot: liveDebugger.getSnapshot(),
+          timestamp: new Date().toISOString()
+        }
+      }, {
+        detail: {
+          summary: 'Debug Snapshot',
+          description: 'Returns current state of all active Live Components for debugging',
+          tags: ['Live Components', 'Debug']
+        }
+      })
+
+      // Debug events - recent event history
+      .get('/debug/events', ({ query }) => {
+        const filter: { componentId?: string; type?: any; limit?: number } = {}
+        if (query.componentId) filter.componentId = query.componentId as string
+        if (query.type) filter.type = query.type
+        if (query.limit) filter.limit = parseInt(query.limit as string, 10)
+
+        return {
+          success: true,
+          events: liveDebugger.getEvents(filter),
+          timestamp: new Date().toISOString()
+        }
+      }, {
+        detail: {
+          summary: 'Debug Events',
+          description: 'Returns recent debug events, optionally filtered by component or type',
+          tags: ['Live Components', 'Debug']
+        },
+        query: t.Object({
+          componentId: t.Optional(t.String()),
+          type: t.Optional(t.String()),
+          limit: t.Optional(t.String())
+        })
+      })
+
+      // Debug toggle - enable/disable debugger at runtime
+      .post('/debug/toggle', ({ body }) => {
+        const enabled = (body as any)?.enabled
+        if (typeof enabled === 'boolean') {
+          liveDebugger.enabled = enabled
+        } else {
+          liveDebugger.enabled = !liveDebugger.enabled
+        }
+        return {
+          success: true,
+          enabled: liveDebugger.enabled,
+          timestamp: new Date().toISOString()
+        }
+      }, {
+        detail: {
+          summary: 'Toggle Debugger',
+          description: 'Enable or disable the Live Component debugger at runtime',
+          tags: ['Live Components', 'Debug']
+        }
+      })
+
+      // Debug component state - get specific component state
+      .get('/debug/components/:componentId', ({ params }) => {
+        const snapshot = liveDebugger.getComponentState(params.componentId)
+        if (!snapshot) {
+          return { success: false, error: 'Component not found' }
+        }
+        return {
+          success: true,
+          component: snapshot,
+          events: liveDebugger.getEvents({
+            componentId: params.componentId,
+            limit: 50
+          }),
+          timestamp: new Date().toISOString()
+        }
+      }, {
+        detail: {
+          summary: 'Debug Component State',
+          description: 'Returns current state and recent events for a specific component',
+          tags: ['Live Components', 'Debug']
+        },
+        params: t.Object({
+          componentId: t.String()
+        })
+      })
+
+      // Clear debug events
+      .post('/debug/clear', () => {
+        liveDebugger.clearEvents()
+        return {
+          success: true,
+          message: 'Debug events cleared',
+          timestamp: new Date().toISOString()
+        }
+      }, {
+        detail: {
+          summary: 'Clear Debug Events',
+          description: 'Clears the debug event history buffer',
+          tags: ['Live Components', 'Debug']
+        }
       })
 
     // Register the grouped routes with the main app
