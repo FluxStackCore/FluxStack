@@ -1,23 +1,53 @@
-// 🔍 FluxStack Live Debugger - In-Page Overlay Component
+// FluxStack Live Debugger - Draggable Floating Window
 //
-// Drop this component anywhere in your app to get a floating debug panel
-// that shows real-time data for all active Live Components on the page.
+// A floating, draggable, resizable debug panel for inspecting Live Components.
+// Toggle with Ctrl+Shift+D or click the small badge in the corner.
 //
 // Usage:
 //   import { LiveDebugger } from '@/core/client'
-//   // In your layout or page:
 //   <LiveDebugger />
-//
-// The panel shows:
-//   - Active components with current state
-//   - Real-time event feed (state changes, actions, rooms, errors)
-//   - Component state inspector
-//   - Auto-enabled in development only
 
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot } from '../hooks/useLiveDebugger'
 
-// ===== Colors & Labels =====
+// ===== Event Type Groups =====
+
+type EventGroup = 'lifecycle' | 'state' | 'actions' | 'rooms' | 'connection' | 'errors'
+
+const EVENT_GROUPS: Record<EventGroup, { label: string; color: string; types: DebugEventType[] }> = {
+  lifecycle: {
+    label: 'Lifecycle',
+    color: '#22c55e',
+    types: ['COMPONENT_MOUNT', 'COMPONENT_UNMOUNT', 'COMPONENT_REHYDRATE'],
+  },
+  state: {
+    label: 'State',
+    color: '#3b82f6',
+    types: ['STATE_CHANGE'],
+  },
+  actions: {
+    label: 'Actions',
+    color: '#8b5cf6',
+    types: ['ACTION_CALL', 'ACTION_RESULT', 'ACTION_ERROR'],
+  },
+  rooms: {
+    label: 'Rooms',
+    color: '#10b981',
+    types: ['ROOM_JOIN', 'ROOM_LEAVE', 'ROOM_EMIT', 'ROOM_EVENT_RECEIVED'],
+  },
+  connection: {
+    label: 'WS',
+    color: '#06b6d4',
+    types: ['WS_CONNECT', 'WS_DISCONNECT'],
+  },
+  errors: {
+    label: 'Errors',
+    color: '#ef4444',
+    types: ['ERROR'],
+  },
+}
+
+const ALL_GROUPS = Object.keys(EVENT_GROUPS) as EventGroup[]
 
 const COLORS: Record<string, string> = {
   COMPONENT_MOUNT: '#22c55e',
@@ -30,6 +60,7 @@ const COLORS: Record<string, string> = {
   ROOM_JOIN: '#10b981',
   ROOM_LEAVE: '#f97316',
   ROOM_EMIT: '#6366f1',
+  ROOM_EVENT_RECEIVED: '#6366f1',
   WS_CONNECT: '#22c55e',
   WS_DISCONNECT: '#ef4444',
   ERROR: '#dc2626',
@@ -46,6 +77,7 @@ const LABELS: Record<string, string> = {
   ROOM_JOIN: 'JOIN',
   ROOM_LEAVE: 'LEAVE',
   ROOM_EMIT: 'EMIT',
+  ROOM_EVENT_RECEIVED: 'ROOM_EVT',
   WS_CONNECT: 'CONNECT',
   WS_DISCONNECT: 'DISCONNECT',
   ERROR: 'ERROR',
@@ -128,12 +160,92 @@ function eventSummary(e: DebugEvent): string {
   }
 }
 
-// ===== Component Card =====
-
-/** Display name: uses debugLabel if set, otherwise componentName */
 function displayName(comp: ComponentSnapshot): string {
   return comp.debugLabel || comp.componentName
 }
+
+// ===== Drag Hook =====
+
+function useDrag(
+  initialPos: { x: number; y: number },
+  onDragEnd?: (pos: { x: number; y: number }) => void
+) {
+  const [pos, setPos] = useState(initialPos)
+  const dragging = useRef(false)
+  const offset = useRef({ x: 0, y: 0 })
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    // Only drag from title bar, not from buttons
+    if ((e.target as HTMLElement).closest('button, input, select')) return
+    dragging.current = true
+    offset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y }
+    e.preventDefault()
+  }, [pos])
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragging.current) return
+      const newX = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - offset.current.x))
+      const newY = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - offset.current.y))
+      setPos({ x: newX, y: newY })
+    }
+    const onMouseUp = () => {
+      if (dragging.current) {
+        dragging.current = false
+        onDragEnd?.(pos)
+      }
+    }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [pos, onDragEnd])
+
+  return { pos, setPos, onMouseDown }
+}
+
+// ===== Resize Hook =====
+
+function useResize(
+  initialSize: { w: number; h: number },
+  minSize = { w: 420, h: 300 }
+) {
+  const [size, setSize] = useState(initialSize)
+  const resizing = useRef(false)
+  const startData = useRef({ mouseX: 0, mouseY: 0, w: 0, h: 0 })
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    resizing.current = true
+    startData.current = { mouseX: e.clientX, mouseY: e.clientY, w: size.w, h: size.h }
+    e.preventDefault()
+    e.stopPropagation()
+  }, [size])
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizing.current) return
+      const dw = e.clientX - startData.current.mouseX
+      const dh = e.clientY - startData.current.mouseY
+      setSize({
+        w: Math.max(minSize.w, startData.current.w + dw),
+        h: Math.max(minSize.h, startData.current.h + dh),
+      })
+    }
+    const onMouseUp = () => { resizing.current = false }
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [minSize.w, minSize.h])
+
+  return { size, onResizeStart }
+}
+
+// ===== Component Card =====
 
 function ComponentCard({
   comp,
@@ -149,71 +261,207 @@ function ComponentCard({
       onClick={onSelect}
       style={{
         width: '100%', textAlign: 'left', cursor: 'pointer',
-        padding: '8px 10px', borderRadius: 6, border: 'none',
+        padding: '6px 8px', borderRadius: 4, border: 'none',
         background: isSelected ? '#1e293b' : 'transparent',
         color: '#e2e8f0', fontFamily: 'monospace', fontSize: 11,
-        display: 'flex', flexDirection: 'column', gap: 2,
+        display: 'flex', flexDirection: 'column', gap: 1,
         transition: 'background 0.15s',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
         <span style={{ color: '#22c55e', fontSize: 6 }}>&#9679;</span>
-        <strong style={{ fontSize: 12 }}>{displayName(comp)}</strong>
+        <strong style={{ fontSize: 11 }}>{displayName(comp)}</strong>
       </div>
       {comp.debugLabel && (
-        <div style={{ fontSize: 9, color: '#64748b' }}>{comp.componentName}</div>
+        <div style={{ fontSize: 9, color: '#64748b', paddingLeft: 11 }}>{comp.componentName}</div>
       )}
-      <div style={{ display: 'flex', gap: 10, color: '#64748b', fontSize: 10 }}>
-        <span>state:{comp.stateChangeCount}</span>
-        <span>actions:{comp.actionCount}</span>
-        {comp.errorCount > 0 && <span style={{ color: '#f87171' }}>err:{comp.errorCount}</span>}
-        {comp.rooms.length > 0 && <span>room:{comp.rooms.join(',')}</span>}
+      <div style={{ display: 'flex', gap: 8, color: '#64748b', fontSize: 9, paddingLeft: 11 }}>
+        <span>S:{comp.stateChangeCount}</span>
+        <span>A:{comp.actionCount}</span>
+        {comp.errorCount > 0 && <span style={{ color: '#f87171' }}>E:{comp.errorCount}</span>}
       </div>
     </button>
+  )
+}
+
+// ===== Filter Bar =====
+
+function FilterBar({
+  activeGroups,
+  toggleGroup,
+  search,
+  setSearch,
+  groupCounts,
+}: {
+  activeGroups: Set<EventGroup>
+  toggleGroup: (g: EventGroup) => void
+  search: string
+  setSearch: (s: string) => void
+  groupCounts: Record<EventGroup, number>
+}) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '4px 8px', borderBottom: '1px solid #1e293b',
+      flexShrink: 0, flexWrap: 'wrap',
+    }}>
+      {ALL_GROUPS.map(g => {
+        const group = EVENT_GROUPS[g]
+        const active = activeGroups.has(g)
+        const count = groupCounts[g] || 0
+        return (
+          <button
+            key={g}
+            onClick={() => toggleGroup(g)}
+            style={{
+              padding: '2px 6px', borderRadius: 3,
+              border: `1px solid ${active ? group.color + '60' : '#1e293b'}`,
+              cursor: 'pointer', fontFamily: 'monospace', fontSize: 9,
+              background: active ? group.color + '20' : 'transparent',
+              color: active ? group.color : '#475569',
+              transition: 'all 0.15s',
+              display: 'flex', alignItems: 'center', gap: 3,
+            }}
+          >
+            {group.label}
+            {count > 0 && (
+              <span style={{
+                fontSize: 8, color: active ? group.color : '#374151',
+                fontWeight: 600,
+              }}>
+                {count}
+              </span>
+            )}
+          </button>
+        )
+      })}
+      <div style={{ flex: 1 }} />
+      <input
+        type="text"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        placeholder="Search..."
+        style={{
+          width: 120, padding: '2px 6px', borderRadius: 3,
+          border: '1px solid #1e293b', background: '#0f172a',
+          color: '#e2e8f0', fontFamily: 'monospace', fontSize: 10,
+          outline: 'none',
+        }}
+        onFocus={e => { e.target.style.borderColor = '#334155' }}
+        onBlur={e => { e.target.style.borderColor = '#1e293b' }}
+      />
+    </div>
   )
 }
 
 // ===== Main Component =====
 
 export interface LiveDebuggerProps {
-  /** Start expanded. Default: false */
+  /** Start open. Default: false */
   defaultOpen?: boolean
-  /** Position on screen. Default: 'bottom' */
-  position?: 'bottom' | 'right'
-  /** Max height when at bottom. Default: 340 */
-  maxHeight?: number
-  /** Max width when on right. Default: 420 */
-  maxWidth?: number
+  /** Initial position. Default: bottom-right corner */
+  defaultPosition?: { x: number; y: number }
+  /** Initial size. Default: 680x420 */
+  defaultSize?: { w: number; h: number }
 }
 
 export function LiveDebugger({
   defaultOpen = false,
-  position = 'bottom',
-  maxHeight = 340,
-  maxWidth = 420,
+  defaultPosition,
+  defaultSize = { w: 680, h: 420 },
 }: LiveDebuggerProps) {
-  const dbg = useLiveDebugger({ maxEvents: 200 })
+  const dbg = useLiveDebugger({ maxEvents: 300 })
   const [open, setOpen] = useState(defaultOpen)
   const [tab, setTab] = useState<'events' | 'state'>('events')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
+  const [activeGroups, setActiveGroups] = useState<Set<EventGroup>>(new Set(ALL_GROUPS))
+  const [search, setSearch] = useState('')
   const feedRef = useRef<HTMLDivElement>(null)
+  const [autoScroll, setAutoScroll] = useState(true)
+
+  // Default position: bottom-right with padding
+  const initPos = defaultPosition ?? {
+    x: typeof window !== 'undefined' ? window.innerWidth - defaultSize.w - 16 : 100,
+    y: typeof window !== 'undefined' ? window.innerHeight - defaultSize.h - 16 : 100,
+  }
+
+  const { pos, onMouseDown } = useDrag(initPos)
+  const { size, onResizeStart } = useResize(defaultSize)
+
+  // Keyboard shortcut: Ctrl+Shift+D
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault()
+        setOpen(prev => !prev)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const selectedComp = selectedId
     ? dbg.components.find(c => c.componentId === selectedId) ?? null
     : null
 
-  // Filter events to selected component
-  const visibleEvents = selectedId
-    ? dbg.events.filter(e => e.componentId === selectedId)
-    : dbg.events
+  // Compute allowed event types from active groups
+  const allowedTypes = useMemo(() => {
+    const types = new Set<DebugEventType>()
+    for (const g of activeGroups) {
+      for (const t of EVENT_GROUPS[g].types) types.add(t)
+    }
+    return types
+  }, [activeGroups])
+
+  // Filter events
+  const visibleEvents = useMemo(() => {
+    return dbg.events.filter(e => {
+      if (!allowedTypes.has(e.type)) return false
+      if (selectedId && e.componentId !== selectedId) return false
+      if (search) {
+        const s = search.toLowerCase()
+        const inData = JSON.stringify(e.data).toLowerCase().includes(s)
+        const inName = e.componentName?.toLowerCase().includes(s)
+        const inType = e.type.toLowerCase().includes(s)
+        if (!inData && !inName && !inType) return false
+      }
+      return true
+    })
+  }, [dbg.events, allowedTypes, selectedId, search])
+
+  // Count events per group (unfiltered by group, but filtered by component)
+  const groupCounts = useMemo(() => {
+    const counts = {} as Record<EventGroup, number>
+    for (const g of ALL_GROUPS) counts[g] = 0
+    const baseEvents = selectedId
+      ? dbg.events.filter(e => e.componentId === selectedId)
+      : dbg.events
+    for (const e of baseEvents) {
+      for (const g of ALL_GROUPS) {
+        if (EVENT_GROUPS[g].types.includes(e.type)) {
+          counts[g]++
+          break
+        }
+      }
+    }
+    return counts
+  }, [dbg.events, selectedId])
 
   // Auto-scroll feed
   useEffect(() => {
-    if (feedRef.current && !dbg.paused) {
+    if (feedRef.current && autoScroll && !dbg.paused) {
       feedRef.current.scrollTop = feedRef.current.scrollHeight
     }
-  }, [visibleEvents.length, dbg.paused])
+  }, [visibleEvents.length, dbg.paused, autoScroll])
+
+  // Detect manual scroll to disable auto-scroll
+  const handleFeedScroll = useCallback(() => {
+    if (!feedRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = feedRef.current
+    const atBottom = scrollHeight - scrollTop - clientHeight < 30
+    setAutoScroll(atBottom)
+  }, [])
 
   const toggleEvent = useCallback((id: string) => {
     setExpandedEvents(prev => {
@@ -224,108 +472,108 @@ export function LiveDebugger({
     })
   }, [])
 
-  // Collapsed bar
+  const toggleGroup = useCallback((g: EventGroup) => {
+    setActiveGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(g)) next.delete(g)
+      else next.add(g)
+      return next
+    })
+  }, [])
+
+  // Badge (when closed) - small floating circle in bottom-right
   if (!open) {
+    const hasErrors = dbg.events.some(e => e.type === 'ERROR' || e.type === 'ACTION_ERROR')
     return (
-      <div
+      <button
+        onClick={() => setOpen(true)}
+        title="Live Debugger (Ctrl+Shift+D)"
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: 16,
+          right: 16,
           zIndex: 99999,
-          height: 32,
-          background: '#020617',
-          borderTop: '1px solid #1e293b',
+          width: 40,
+          height: 40,
+          borderRadius: '50%',
+          border: `2px solid ${dbg.connected ? '#22c55e50' : '#ef444450'}`,
+          background: '#020617e0',
+          color: dbg.connected ? '#22c55e' : '#ef4444',
+          cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          padding: '0 12px',
-          gap: 10,
+          justifyContent: 'center',
+          fontSize: 16,
+          boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+          transition: 'all 0.2s',
           fontFamily: 'monospace',
-          fontSize: 11,
-          color: '#94a3b8',
-          cursor: 'pointer',
-          userSelect: 'none',
+          padding: 0,
         }}
-        onClick={() => setOpen(true)}
       >
-        <span style={{ fontSize: 14 }}>&#128269;</span>
-        <span style={{ fontWeight: 600, letterSpacing: 0.5 }}>LIVE DEBUGGER</span>
-        <span style={{
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-          color: dbg.connected ? '#22c55e' : '#ef4444',
-        }}>
-          <span style={{ fontSize: 6 }}>&#9679;</span>
-          {dbg.connected ? 'connected' : 'disconnected'}
-        </span>
-        <span style={{ color: '#475569' }}>
-          {dbg.componentCount} components
-        </span>
-        <span style={{ color: '#475569' }}>
-          {dbg.eventCount} events
-        </span>
-        <span style={{ flex: 1 }} />
-        <span style={{ color: '#475569' }}>click to expand &#9650;</span>
-      </div>
+        {hasErrors ? (
+          <span style={{ color: '#ef4444', fontSize: 14, fontWeight: 700 }}>!</span>
+        ) : (
+          <span style={{ fontSize: 14 }}>{dbg.componentCount}</span>
+        )}
+      </button>
     )
   }
 
-  // Expanded panel
-  const isBottom = position === 'bottom'
-  const panelStyle: React.CSSProperties = isBottom
-    ? {
-        position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999,
-        height: maxHeight, display: 'flex', flexDirection: 'column',
-      }
-    : {
-        position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 99999,
-        width: maxWidth, display: 'flex', flexDirection: 'column',
-      }
-
+  // Floating window
   return (
-    <div style={{
-      ...panelStyle,
-      background: '#020617',
-      borderTop: isBottom ? '1px solid #334155' : 'none',
-      borderLeft: !isBottom ? '1px solid #334155' : 'none',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      color: '#e2e8f0',
-      boxShadow: '0 -4px 20px rgba(0,0,0,0.5)',
-    }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '6px 12px', borderBottom: '1px solid #1e293b',
-        flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 13 }}>&#128269;</span>
+    <div
+      style={{
+        position: 'fixed',
+        left: pos.x,
+        top: pos.y,
+        width: size.w,
+        height: size.h,
+        zIndex: 99999,
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#020617',
+        border: '1px solid #1e293b',
+        borderRadius: 8,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+        color: '#e2e8f0',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Title bar - draggable */}
+      <div
+        onMouseDown={onMouseDown}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '5px 10px', borderBottom: '1px solid #1e293b',
+          flexShrink: 0, cursor: 'grab', userSelect: 'none',
+          background: '#0f172a',
+        }}
+      >
+        {/* Status dot */}
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
+          background: dbg.connected ? '#22c55e' : '#ef4444',
+        }} />
+
         <span style={{
           fontFamily: 'monospace', fontSize: 11, fontWeight: 700,
-          letterSpacing: 0.5,
+          letterSpacing: 0.5, color: '#94a3b8',
         }}>
           LIVE DEBUGGER
         </span>
 
-        <span style={{
-          fontFamily: 'monospace', fontSize: 10,
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-          color: dbg.connected ? '#22c55e' : '#ef4444',
-        }}>
-          <span style={{ fontSize: 6 }}>&#9679;</span>
-          {dbg.connected ? 'on' : 'off'}
-        </span>
-
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 2, marginLeft: 8 }}>
+        <div style={{ display: 'flex', gap: 1, marginLeft: 4 }}>
           {(['events', 'state'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
               style={{
-                padding: '2px 8px', borderRadius: 4, border: 'none', cursor: 'pointer',
+                padding: '2px 8px', borderRadius: 3, border: 'none', cursor: 'pointer',
                 fontFamily: 'monospace', fontSize: 10, textTransform: 'uppercase',
                 background: tab === t ? '#1e293b' : 'transparent',
-                color: tab === t ? '#e2e8f0' : '#64748b',
+                color: tab === t ? '#e2e8f0' : '#475569',
               }}
             >
               {t}
@@ -338,6 +586,7 @@ export function LiveDebugger({
         {/* Controls */}
         <button
           onClick={dbg.togglePause}
+          title={dbg.paused ? 'Resume' : 'Pause'}
           style={{
             padding: '2px 6px', borderRadius: 3, border: 'none', cursor: 'pointer',
             fontFamily: 'monospace', fontSize: 10,
@@ -345,10 +594,11 @@ export function LiveDebugger({
             color: dbg.paused ? '#fdba74' : '#94a3b8',
           }}
         >
-          {dbg.paused ? '&#9654; Resume' : '&#9646;&#9646; Pause'}
+          {dbg.paused ? '\u25B6' : '\u23F8'}
         </button>
         <button
           onClick={dbg.clearEvents}
+          title="Clear events"
           style={{
             padding: '2px 6px', borderRadius: 3, border: 'none', cursor: 'pointer',
             fontFamily: 'monospace', fontSize: 10,
@@ -357,36 +607,38 @@ export function LiveDebugger({
         >
           Clear
         </button>
-        <span style={{ fontFamily: 'monospace', fontSize: 10, color: '#475569' }}>
-          {dbg.componentCount}C {dbg.eventCount}E
+        <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>
+          {dbg.componentCount}C {visibleEvents.length}/{dbg.eventCount}E
         </span>
         <button
           onClick={() => setOpen(false)}
+          title="Close (Ctrl+Shift+D)"
           style={{
-            padding: '2px 6px', borderRadius: 3, border: 'none', cursor: 'pointer',
-            fontFamily: 'monospace', fontSize: 12,
+            width: 18, height: 18, borderRadius: 3, border: 'none', cursor: 'pointer',
+            fontFamily: 'monospace', fontSize: 12, lineHeight: '18px',
             background: 'transparent', color: '#64748b',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0,
           }}
         >
-          &#9660;
+          &#x2715;
         </button>
       </div>
 
       {/* Body */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        {/* Component list sidebar */}
+        {/* Component sidebar */}
         <div style={{
-          width: 180, borderRight: '1px solid #1e293b',
-          overflow: 'auto', flexShrink: 0, padding: '4px 4px',
+          width: 160, borderRight: '1px solid #1e293b',
+          overflow: 'auto', flexShrink: 0, padding: '3px',
         }}>
-          {/* All button */}
           <button
             onClick={() => setSelectedId(null)}
             style={{
               width: '100%', textAlign: 'left', cursor: 'pointer',
-              padding: '6px 10px', borderRadius: 6, border: 'none',
+              padding: '5px 8px', borderRadius: 4, border: 'none',
               background: selectedId === null ? '#1e293b' : 'transparent',
-              color: '#94a3b8', fontFamily: 'monospace', fontSize: 11,
+              color: '#94a3b8', fontFamily: 'monospace', fontSize: 10,
             }}
           >
             All ({dbg.componentCount})
@@ -399,14 +651,14 @@ export function LiveDebugger({
               isSelected={selectedId === comp.componentId}
               onSelect={() => {
                 setSelectedId(selectedId === comp.componentId ? null : comp.componentId)
-                setTab('events') // switch to events when selecting a component
+                setTab('events')
               }}
             />
           ))}
 
           {dbg.components.length === 0 && (
             <div style={{
-              padding: 12, textAlign: 'center', color: '#475569',
+              padding: 10, textAlign: 'center', color: '#475569',
               fontFamily: 'monospace', fontSize: 10,
             }}>
               No components
@@ -417,156 +669,178 @@ export function LiveDebugger({
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {tab === 'events' ? (
-            /* Events feed */
-            <div ref={feedRef} style={{ flex: 1, overflow: 'auto' }}>
-              {visibleEvents.length === 0 ? (
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  height: '100%', color: '#475569', fontFamily: 'monospace', fontSize: 11,
-                }}>
-                  {dbg.connected
-                    ? dbg.paused ? 'Paused' : 'Waiting for events...'
-                    : 'Connecting...'}
-                </div>
-              ) : (
-                visibleEvents.map(event => {
-                  const color = COLORS[event.type] || '#6b7280'
-                  const label = LABELS[event.type] || event.type
-                  const summary = eventSummary(event)
-                  const isExpanded = expandedEvents.has(event.id)
-                  const time = new Date(event.timestamp)
-                  const ts = `${time.toLocaleTimeString('en-US', { hour12: false })}.${String(time.getMilliseconds()).padStart(3, '0')}`
+            <>
+              {/* Filter bar */}
+              <FilterBar
+                activeGroups={activeGroups}
+                toggleGroup={toggleGroup}
+                search={search}
+                setSearch={setSearch}
+                groupCounts={groupCounts}
+              />
 
-                  return (
-                    <div
-                      key={event.id}
-                      style={{ borderBottom: '1px solid #0f172a', cursor: 'pointer' }}
-                      onClick={() => toggleEvent(event.id)}
-                    >
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        padding: '4px 10px', fontSize: 11, fontFamily: 'monospace',
-                        background: isExpanded ? '#0f172a' : 'transparent',
-                      }}>
-                        <span style={{ color: '#4b5563', fontSize: 10, flexShrink: 0 }}>{ts}</span>
-                        <span style={{
-                          display: 'inline-block', padding: '0 5px', borderRadius: 3,
-                          fontSize: 9, fontWeight: 700, color: '#fff',
-                          background: color, flexShrink: 0, lineHeight: '16px',
-                        }}>
-                          {label}
-                        </span>
-                        {!selectedId && event.componentName && (() => {
-                          const comp = dbg.components.find(c => c.componentId === event.componentId)
-                          const label = comp?.debugLabel || event.componentName
-                          return (
-                            <span style={{ color: '#64748b', flexShrink: 0, fontSize: 10 }}>
-                              {label}
-                            </span>
-                          )
-                        })()}
-                        <span style={{
-                          color: '#94a3b8', fontSize: 10, overflow: 'hidden',
-                          textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-                        }}>
-                          {summary}
-                        </span>
-                      </div>
-                      {isExpanded && (
+              {/* Events feed */}
+              <div
+                ref={feedRef}
+                onScroll={handleFeedScroll}
+                style={{ flex: 1, overflow: 'auto' }}
+              >
+                {visibleEvents.length === 0 ? (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    height: '100%', color: '#475569', fontFamily: 'monospace', fontSize: 11,
+                  }}>
+                    {dbg.connected
+                      ? dbg.paused ? 'Paused' : 'Waiting for events...'
+                      : 'Connecting...'}
+                  </div>
+                ) : (
+                  visibleEvents.map(event => {
+                    const color = COLORS[event.type] || '#6b7280'
+                    const label = LABELS[event.type] || event.type
+                    const summary = eventSummary(event)
+                    const isExpanded = expandedEvents.has(event.id)
+                    const time = new Date(event.timestamp)
+                    const ts = `${time.toLocaleTimeString('en-US', { hour12: false })}.${String(time.getMilliseconds()).padStart(3, '0')}`
+
+                    return (
+                      <div
+                        key={event.id}
+                        style={{ borderBottom: '1px solid #0f172a', cursor: 'pointer' }}
+                        onClick={() => toggleEvent(event.id)}
+                      >
                         <div style={{
-                          padding: '4px 10px 8px 46px', fontSize: 10,
-                          fontFamily: 'monospace', color: '#cbd5e1',
-                          background: '#0f172a',
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          padding: '3px 8px', fontSize: 11, fontFamily: 'monospace',
+                          background: isExpanded ? '#0f172a' : 'transparent',
                         }}>
-                          <Json data={event.data} />
+                          <span style={{ color: '#4b5563', fontSize: 10, flexShrink: 0 }}>{ts}</span>
+                          <span style={{
+                            display: 'inline-block', padding: '0 4px', borderRadius: 2,
+                            fontSize: 9, fontWeight: 700, color: '#fff',
+                            background: color, flexShrink: 0, lineHeight: '15px',
+                          }}>
+                            {label}
+                          </span>
+                          {!selectedId && event.componentName && (() => {
+                            const comp = dbg.components.find(c => c.componentId === event.componentId)
+                            const name = comp?.debugLabel || event.componentName
+                            return (
+                              <span style={{ color: '#64748b', flexShrink: 0, fontSize: 10 }}>
+                                {name}
+                              </span>
+                            )
+                          })()}
+                          <span style={{
+                            color: '#94a3b8', fontSize: 10, overflow: 'hidden',
+                            textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                          }}>
+                            {summary}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  )
-                })
-              )}
-            </div>
+                        {isExpanded && (
+                          <div style={{
+                            padding: '3px 8px 6px 42px', fontSize: 10,
+                            fontFamily: 'monospace', color: '#cbd5e1',
+                            background: '#0f172a',
+                          }}>
+                            <Json data={event.data} />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })
+                )}
+
+                {/* Auto-scroll indicator */}
+                {!autoScroll && visibleEvents.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setAutoScroll(true)
+                      if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight
+                    }}
+                    style={{
+                      position: 'sticky', bottom: 4, left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '3px 10px', borderRadius: 10,
+                      border: '1px solid #1e293b',
+                      background: '#0f172ae0', color: '#94a3b8',
+                      fontFamily: 'monospace', fontSize: 9, cursor: 'pointer',
+                    }}
+                  >
+                    &#8595; Scroll to bottom
+                  </button>
+                )}
+              </div>
+            </>
           ) : (
             /* State inspector */
-            <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
+            <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
               {selectedComp ? (
                 <div>
                   <div style={{
-                    fontFamily: 'monospace', fontSize: 13, fontWeight: 700,
+                    fontFamily: 'monospace', fontSize: 12, fontWeight: 700,
                     marginBottom: 2, color: '#f1f5f9',
                   }}>
                     {displayName(selectedComp)}
                   </div>
                   {selectedComp.debugLabel && (
                     <div style={{
-                      fontFamily: 'monospace', fontSize: 10, color: '#64748b',
+                      fontFamily: 'monospace', fontSize: 9, color: '#64748b',
                       marginBottom: 6,
                     }}>
                       {selectedComp.componentName}
                     </div>
                   )}
 
-                  {/* Stats row */}
+                  {/* Stats */}
                   <div style={{
-                    display: 'flex', gap: 6, marginBottom: 12,
-                    fontFamily: 'monospace', fontSize: 10,
+                    display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap',
+                    fontFamily: 'monospace', fontSize: 9,
                   }}>
-                    <span style={{
-                      padding: '3px 8px', borderRadius: 4, background: '#1e293b',
-                    }}>
-                      <span style={{ color: '#3b82f6' }}>{selectedComp.stateChangeCount}</span>
-                      <span style={{ color: '#64748b' }}> state</span>
-                    </span>
-                    <span style={{
-                      padding: '3px 8px', borderRadius: 4, background: '#1e293b',
-                    }}>
-                      <span style={{ color: '#8b5cf6' }}>{selectedComp.actionCount}</span>
-                      <span style={{ color: '#64748b' }}> actions</span>
-                    </span>
-                    <span style={{
-                      padding: '3px 8px', borderRadius: 4, background: '#1e293b',
-                    }}>
-                      <span style={{ color: selectedComp.errorCount > 0 ? '#ef4444' : '#22c55e' }}>
-                        {selectedComp.errorCount}
+                    {[
+                      { label: 'state', value: selectedComp.stateChangeCount, color: '#3b82f6' },
+                      { label: 'actions', value: selectedComp.actionCount, color: '#8b5cf6' },
+                      { label: 'errors', value: selectedComp.errorCount, color: selectedComp.errorCount > 0 ? '#ef4444' : '#22c55e' },
+                    ].map(s => (
+                      <span key={s.label} style={{
+                        padding: '2px 6px', borderRadius: 3, background: '#1e293b',
+                      }}>
+                        <span style={{ color: s.color }}>{s.value}</span>
+                        <span style={{ color: '#64748b' }}> {s.label}</span>
                       </span>
-                      <span style={{ color: '#64748b' }}> errors</span>
-                    </span>
+                    ))}
                     {selectedComp.rooms.length > 0 && (
                       <span style={{
-                        padding: '3px 8px', borderRadius: 4, background: '#1e293b',
-                        color: '#64748b',
+                        padding: '2px 6px', borderRadius: 3, background: '#1e293b', color: '#64748b',
                       }}>
                         rooms: {selectedComp.rooms.join(', ')}
                       </span>
                     )}
                   </div>
 
-                  {/* ID */}
                   <div style={{
-                    fontFamily: 'monospace', fontSize: 10, color: '#475569',
-                    marginBottom: 10,
+                    fontFamily: 'monospace', fontSize: 9, color: '#475569', marginBottom: 8,
                   }}>
                     {selectedComp.componentId}
                   </div>
 
-                  {/* State tree */}
                   <div style={{
-                    fontFamily: 'monospace', fontSize: 10, color: '#64748b',
+                    fontFamily: 'monospace', fontSize: 9, color: '#64748b',
                     textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4,
                   }}>
                     Current State
                   </div>
                   <div style={{
-                    padding: 10, background: '#0f172a', borderRadius: 6,
-                    fontFamily: 'monospace', fontSize: 11, color: '#e2e8f0',
-                    maxHeight: 200, overflow: 'auto',
+                    padding: 8, background: '#0f172a', borderRadius: 4,
+                    fontFamily: 'monospace', fontSize: 10, color: '#e2e8f0',
+                    overflow: 'auto',
                   }}>
                     <Json data={selectedComp.state} />
                   </div>
                 </div>
               ) : (
-                /* All components state overview */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {dbg.components.length === 0 ? (
                     <div style={{
                       textAlign: 'center', color: '#475569',
@@ -577,28 +851,22 @@ export function LiveDebugger({
                   ) : (
                     dbg.components.map(comp => (
                       <div key={comp.componentId} style={{
-                        padding: 10, background: '#0f172a', borderRadius: 6,
+                        padding: 8, background: '#0f172a', borderRadius: 4,
                       }}>
                         <div style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          marginBottom: 6,
+                          display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4,
                         }}>
                           <span style={{
-                            fontFamily: 'monospace', fontSize: 12,
-                            fontWeight: 700, color: '#f1f5f9',
+                            fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#f1f5f9',
                           }}>
                             {displayName(comp)}
                           </span>
-                          <span style={{
-                            fontFamily: 'monospace', fontSize: 9, color: '#475569',
-                          }}>
+                          <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>
                             S:{comp.stateChangeCount} A:{comp.actionCount}
                             {comp.errorCount > 0 && <span style={{ color: '#f87171' }}> E:{comp.errorCount}</span>}
                           </span>
                         </div>
-                        <div style={{
-                          fontFamily: 'monospace', fontSize: 10, color: '#e2e8f0',
-                        }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#e2e8f0' }}>
                           <Json data={comp.state} />
                         </div>
                       </div>
@@ -609,6 +877,21 @@ export function LiveDebugger({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Resize handle - bottom-right corner */}
+      <div
+        onMouseDown={onResizeStart}
+        style={{
+          position: 'absolute', bottom: 0, right: 0,
+          width: 14, height: 14, cursor: 'nwse-resize',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" style={{ opacity: 0.3 }}>
+          <line x1="7" y1="1" x2="1" y2="7" stroke="#94a3b8" strokeWidth="1" />
+          <line x1="7" y1="4" x2="4" y2="7" stroke="#94a3b8" strokeWidth="1" />
+        </svg>
       </div>
     </div>
   )
