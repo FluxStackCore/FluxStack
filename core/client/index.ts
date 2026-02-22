@@ -29,3 +29,15 @@ export { useLiveUpload } from './hooks/useLiveUpload'
 
 // Live Component Hook (API principal)
 export { Live } from './components/Live'
+
+// Live Component Debugger
+export { useLiveDebugger } from './hooks/useLiveDebugger'
+export type {
+  DebugEvent,
+  DebugEventType,
+  ComponentSnapshot,
+  DebugSnapshot,
+  DebugFilter,
+  UseLiveDebuggerReturn,
+  UseLiveDebuggerOptions
+} from './hooks/useLiveDebugger'

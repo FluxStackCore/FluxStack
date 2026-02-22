@@ -4,6 +4,7 @@ import { roomEvents } from '@core/server/live/RoomEventBus'
 import { liveRoomManager } from '@core/server/live/LiveRoomManager'
 import { ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
 import { liveLog, liveWarn } from '@core/server/live/LiveLogger'
+import { liveDebugger } from '@core/server/live/LiveDebugger'
 import type { LiveAuthContext, LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
 import type { ServerWebSocket } from 'bun'
 
@@ -349,6 +350,13 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           (target as any)[prop] = value
           // Delta sync - send only the changed property
           self.emit('STATE_DELTA', { delta: { [prop]: value } })
+          // Debug: track proxy mutation
+          liveDebugger.trackStateChange(
+            self.id,
+            { [prop]: value } as Record<string, unknown>,
+            target as Record<string, unknown>,
+            'proxy'
+          )
         }
         return true
       },
@@ -544,6 +552,13 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     Object.assign(this._state as object, newUpdates)
     // Delta sync - send only the changed properties
     this.emit('STATE_DELTA', { delta: newUpdates })
+    // Debug: track state change
+    liveDebugger.trackStateChange(
+      this.id,
+      newUpdates as Record<string, unknown>,
+      this._state as Record<string, unknown>,
+      'setState'
+    )
   }
 
   // Generic setValue action - set any state key with type safety
@@ -582,6 +597,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
   // Execute action safely with security validation
   public async executeAction(action: string, payload: any): Promise<any> {
+    const actionStart = Date.now()
     try {
       // 🔒 Security: Block internal/protected methods from being called remotely
       if ((LiveComponent.BLOCKED_ACTIONS as Set<string>).has(action)) {
@@ -616,10 +632,20 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
         throw new Error(`Action '${action}' is not callable`)
       }
 
+      // Debug: track action call
+      liveDebugger.trackActionCall(this.id, action, payload)
+
       // Execute method
       const result = await method.call(this, payload)
+
+      // Debug: track action result
+      liveDebugger.trackActionResult(this.id, action, result, Date.now() - actionStart)
+
       return result
     } catch (error: any) {
+      // Debug: track action error
+      liveDebugger.trackActionError(this.id, action, error.message, Date.now() - actionStart)
+
       this.emit('ERROR', {
         action,
         error: error.message
@@ -686,6 +712,10 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     const notified = roomEvents.emit(this.roomType, this.room, event, data, excludeId)
 
     liveLog('rooms', this.id, `📡 [${this.id}] Room event '${event}' → ${notified} components`)
+
+    // Debug: track room emit
+    liveDebugger.trackRoomEmit(this.id, this.room, event, data)
+
     return notified
   }
 

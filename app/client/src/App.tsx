@@ -8,6 +8,7 @@ import { UploadDemo } from './live/UploadDemo'
 import { ChatDemo } from './live/ChatDemo'
 import { RoomChatDemo } from './live/RoomChatDemo'
 import { AuthDemo } from './live/AuthDemo'
+import { LiveDebuggerPanel } from './live/LiveDebuggerPanel'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -69,6 +70,9 @@ function AppContent() {
 
   return (
     <Routes>
+      {/* Debugger - full-page standalone route */}
+      <Route path="/debugger" element={<LiveDebuggerPanel />} />
+
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage apiStatus={apiStatus} />} />
         <Route
