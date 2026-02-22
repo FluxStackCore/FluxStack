@@ -833,11 +833,13 @@ export function LiveDebugger({
                           </span>
                         </div>
                         {isExpanded && (
-                          <div style={{
-                            padding: '3px 8px 6px 42px', fontSize: 10,
-                            fontFamily: 'monospace', color: '#cbd5e1',
-                            background: '#0f172a',
-                          }}>
+                          <div
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              padding: '3px 8px 6px 42px', fontSize: 10,
+                              fontFamily: 'monospace', color: '#cbd5e1',
+                              background: '#0f172a',
+                            }}>
                             <Json data={event.data} />
                           </div>
                         )}
