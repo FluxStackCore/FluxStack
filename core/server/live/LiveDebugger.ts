@@ -89,10 +89,15 @@ class LiveDebugger {
   private eventCounter = 0
 
   constructor() {
-    // Auto-enable in development or when DEBUG_LIVE env is set
+    // DEBUG_LIVE env var takes priority when explicitly set
+    // Otherwise, auto-enable in development only
     const env = typeof process !== 'undefined' ? (process.env.NODE_ENV || 'development') : 'development'
     const debugLive = typeof process !== 'undefined' ? process.env.DEBUG_LIVE : undefined
-    this._enabled = env === 'development' || debugLive === 'true'
+    if (debugLive !== undefined) {
+      this._enabled = debugLive === 'true'
+    } else {
+      this._enabled = env === 'development'
+    }
   }
 
   get enabled(): boolean {
