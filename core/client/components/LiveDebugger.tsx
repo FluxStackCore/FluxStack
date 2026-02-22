@@ -372,7 +372,7 @@ export function LiveDebugger({
 }: LiveDebuggerProps) {
   const dbg = useLiveDebugger({ maxEvents: 300 })
   const [open, setOpen] = useState(defaultOpen)
-  const [tab, setTab] = useState<'events' | 'state'>('events')
+  const [tab, setTab] = useState<'events' | 'state' | 'rooms'>('events')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
   const [activeGroups, setActiveGroups] = useState<Set<EventGroup>>(new Set(ALL_GROUPS))
@@ -447,6 +447,26 @@ export function LiveDebugger({
     }
     return counts
   }, [dbg.events, selectedId])
+
+  // Build rooms map: roomId -> list of components in that room
+  const roomsMap = useMemo(() => {
+    const map = new Map<string, ComponentSnapshot[]>()
+    for (const comp of dbg.components) {
+      for (const roomId of comp.rooms) {
+        if (!map.has(roomId)) map.set(roomId, [])
+        map.get(roomId)!.push(comp)
+      }
+    }
+    return map
+  }, [dbg.components])
+
+  // Room events (filtered to room-related types)
+  const roomEvents = useMemo(() => {
+    return dbg.events.filter(e =>
+      e.type === 'ROOM_JOIN' || e.type === 'ROOM_LEAVE' ||
+      e.type === 'ROOM_EMIT' || e.type === 'ROOM_EVENT_RECEIVED'
+    ).slice(-50)
+  }, [dbg.events])
 
   // Auto-scroll feed
   useEffect(() => {
@@ -565,7 +585,7 @@ export function LiveDebugger({
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 1, marginLeft: 4 }}>
-          {(['events', 'state'] as const).map(t => (
+          {(['events', 'state', 'rooms'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -667,9 +687,9 @@ export function LiveDebugger({
 
         {/* Main content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
-          {tab === 'events' ? (
+          {/* === Events Tab === */}
+          {tab === 'events' && (
             <>
-              {/* Filter bar */}
               <FilterBar
                 activeGroups={activeGroups}
                 toggleGroup={toggleGroup}
@@ -677,8 +697,6 @@ export function LiveDebugger({
                 setSearch={setSearch}
                 groupCounts={groupCounts}
               />
-
-              {/* Events feed */}
               <div
                 ref={feedRef}
                 onScroll={handleFeedScroll}
@@ -750,8 +768,6 @@ export function LiveDebugger({
                     )
                   })
                 )}
-
-                {/* Auto-scroll indicator */}
                 {!autoScroll && visibleEvents.length > 0 && (
                   <button
                     onClick={() => {
@@ -772,8 +788,10 @@ export function LiveDebugger({
                 )}
               </div>
             </>
-          ) : (
-            /* State inspector */
+          )}
+
+          {/* === State Tab === */}
+          {tab === 'state' && (
             <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
               {selectedComp ? (
                 <div>
@@ -792,7 +810,6 @@ export function LiveDebugger({
                     </div>
                   )}
 
-                  {/* Stats */}
                   <div style={{
                     display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap',
                     fontFamily: 'monospace', fontSize: 9,
@@ -872,6 +889,123 @@ export function LiveDebugger({
                     ))
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* === Rooms Tab === */}
+          {tab === 'rooms' && (
+            <div style={{ flex: 1, overflow: 'auto', padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {roomsMap.size === 0 ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: '100%', color: '#475569', fontFamily: 'monospace', fontSize: 11,
+                }}>
+                  No active rooms
+                </div>
+              ) : (
+                <>
+                  {/* Room cards */}
+                  {Array.from(roomsMap.entries()).map(([roomId, members]) => (
+                    <div key={roomId} style={{
+                      padding: 10, background: '#0f172a', borderRadius: 6,
+                      border: '1px solid #1e293b',
+                    }}>
+                      {/* Room header */}
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+                      }}>
+                        <span style={{
+                          width: 8, height: 8, borderRadius: '50%',
+                          background: '#10b981', flexShrink: 0,
+                        }} />
+                        <span style={{
+                          fontFamily: 'monospace', fontSize: 12, fontWeight: 700, color: '#f1f5f9',
+                        }}>
+                          {roomId}
+                        </span>
+                        <span style={{
+                          fontFamily: 'monospace', fontSize: 9, color: '#64748b',
+                          padding: '1px 6px', borderRadius: 3, background: '#1e293b',
+                        }}>
+                          {members.length} {members.length === 1 ? 'member' : 'members'}
+                        </span>
+                      </div>
+
+                      {/* Members list */}
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', gap: 4,
+                        paddingLeft: 16,
+                      }}>
+                        {members.map(comp => (
+                          <div key={comp.componentId} style={{
+                            display: 'flex', alignItems: 'center', gap: 6,
+                            fontFamily: 'monospace', fontSize: 10,
+                          }}>
+                            <span style={{ color: '#22c55e', fontSize: 5 }}>&#9679;</span>
+                            <span style={{ color: '#e2e8f0' }}>{displayName(comp)}</span>
+                            {comp.debugLabel && (
+                              <span style={{ color: '#475569', fontSize: 9 }}>({comp.componentName})</span>
+                            )}
+                            <span style={{ color: '#475569', fontSize: 9 }}>
+                              S:{comp.stateChangeCount} A:{comp.actionCount}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Recent room events */}
+                  {roomEvents.length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      <div style={{
+                        fontFamily: 'monospace', fontSize: 9, color: '#64748b',
+                        textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+                      }}>
+                        Recent Room Activity
+                      </div>
+                      <div style={{
+                        background: '#0f172a', borderRadius: 4, border: '1px solid #1e293b',
+                        overflow: 'auto', maxHeight: 160,
+                      }}>
+                        {roomEvents.map(event => {
+                          const color = COLORS[event.type] || '#6b7280'
+                          const label = LABELS[event.type] || event.type
+                          const summary = eventSummary(event)
+                          const time = new Date(event.timestamp)
+                          const ts = `${time.toLocaleTimeString('en-US', { hour12: false })}.${String(time.getMilliseconds()).padStart(3, '0')}`
+                          const comp = dbg.components.find(c => c.componentId === event.componentId)
+                          const name = comp?.debugLabel || event.componentName
+
+                          return (
+                            <div key={event.id} style={{
+                              display: 'flex', alignItems: 'center', gap: 5,
+                              padding: '2px 8px', fontSize: 10, fontFamily: 'monospace',
+                              borderBottom: '1px solid #020617',
+                            }}>
+                              <span style={{ color: '#4b5563', fontSize: 9, flexShrink: 0 }}>{ts}</span>
+                              <span style={{
+                                display: 'inline-block', padding: '0 4px', borderRadius: 2,
+                                fontSize: 8, fontWeight: 700, color: '#fff',
+                                background: color, flexShrink: 0, lineHeight: '14px',
+                              }}>
+                                {label}
+                              </span>
+                              {name && <span style={{ color: '#64748b', fontSize: 9 }}>{name}</span>}
+                              <span style={{
+                                color: '#94a3b8', fontSize: 9, overflow: 'hidden',
+                                textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                              }}>
+                                {summary}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
