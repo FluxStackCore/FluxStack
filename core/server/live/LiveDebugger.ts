@@ -35,6 +35,7 @@ export type DebugEventType =
   | 'WS_CONNECT'
   | 'WS_DISCONNECT'
   | 'ERROR'
+  | 'LOG'
 
 export interface DebugEvent {
   id: string

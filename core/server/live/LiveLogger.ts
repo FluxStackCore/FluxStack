@@ -14,10 +14,16 @@
 //   rooms        — room create/join/leave, emit, broadcast
 //   websocket    — connection open/close, auth
 //
-// Global (non-component) logs controlled by LIVE_LOGGING env var:
-//   LIVE_LOGGING=true                → all global logs
-//   LIVE_LOGGING=lifecycle,rooms     → only these categories globally
-//   (unset or 'false')              → silent (default)
+// Console output controlled by LIVE_LOGGING env var:
+//   LIVE_LOGGING=true                → all global logs to console
+//   LIVE_LOGGING=lifecycle,rooms     → only these categories to console
+//   (unset or 'false')              → silent console (default)
+//
+// Debug panel: All liveLog/liveWarn calls are always forwarded to the Live Debugger
+// (when DEBUG_LIVE is enabled) as LOG events, regardless of LIVE_LOGGING setting.
+// This way the console stays clean but all details are visible in the debug panel.
+
+import { liveDebugger } from './LiveDebugger'
 
 export type LiveLogCategory = 'lifecycle' | 'messages' | 'state' | 'performance' | 'rooms' | 'websocket'
 
@@ -80,7 +86,25 @@ function shouldLog(componentId: string | null, category: LiveLogCategory): boole
 }
 
 /**
+ * Forward a log entry to the Live Debugger as a LOG event.
+ * Always emits when the debugger is enabled, regardless of console logging config.
+ */
+function emitToDebugger(category: LiveLogCategory, level: 'info' | 'warn', componentId: string | null, message: string, args: unknown[]): void {
+  if (!liveDebugger.enabled) return
+
+  const data: Record<string, unknown> = { category, level, message }
+  if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+    data.details = args[0]
+  } else if (args.length > 0) {
+    data.details = args
+  }
+
+  liveDebugger.emit('LOG', componentId, null, data)
+}
+
+/**
  * Log a message gated by the component's logging config.
+ * Always forwarded to the Live Debugger when active (DEBUG_LIVE).
  *
  * @param category  - Log category
  * @param componentId - Component ID, or null for global logs
@@ -88,6 +112,10 @@ function shouldLog(componentId: string | null, category: LiveLogCategory): boole
  * @param args      - Extra arguments (objects, etc.)
  */
 export function liveLog(category: LiveLogCategory, componentId: string | null, message: string, ...args: unknown[]): void {
+  // Always forward to debug panel
+  emitToDebugger(category, 'info', componentId, message, args)
+
+  // Console output gated by config
   if (shouldLog(componentId, category)) {
     if (args.length > 0) {
       console.log(message, ...args)
@@ -98,9 +126,14 @@ export function liveLog(category: LiveLogCategory, componentId: string | null, m
 }
 
 /**
- * Warn-level log gated by config (for non-error informational warnings like perf alerts)
+ * Warn-level log gated by config (for non-error informational warnings like perf alerts).
+ * Always forwarded to the Live Debugger when active (DEBUG_LIVE).
  */
 export function liveWarn(category: LiveLogCategory, componentId: string | null, message: string, ...args: unknown[]): void {
+  // Always forward to debug panel
+  emitToDebugger(category, 'warn', componentId, message, args)
+
+  // Console output gated by config
   if (shouldLog(componentId, category)) {
     if (args.length > 0) {
       console.warn(message, ...args)
