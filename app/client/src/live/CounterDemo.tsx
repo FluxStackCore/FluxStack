@@ -47,7 +47,7 @@ export function CounterDemo() {
     }
 
     return (
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-md w-full">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-md w-full flex flex-col">
         <h2 className="text-2xl font-bold text-white mb-2 text-center">
           {title}
         </h2>
@@ -74,7 +74,7 @@ export function CounterDemo() {
           </div>
         </div>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex-1 flex flex-col justify-center">
           <div className="text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
             {counter.$state.count}
           </div>
@@ -139,7 +139,7 @@ export function CounterDemo() {
     }
 
     return (
-      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-md w-full">
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-md w-full flex flex-col">
         <h2 className="text-2xl font-bold text-white mb-2 text-center">
           Contador Local (sem Room)
         </h2>
@@ -147,7 +147,7 @@ export function CounterDemo() {
           Estado local do componente, sem eventos de sala.
         </p>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 flex-1 flex flex-col justify-center">
           <div className="text-8xl font-bold bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 bg-clip-text text-transparent">
             {localCounter.$state.count}
           </div>
@@ -189,7 +189,7 @@ export function CounterDemo() {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start justify-center">
+    <div className="flex flex-col lg:flex-row gap-6 items-stretch justify-center">
       {renderLocalCounter()}
       {renderCounter(
         'Contador Isolado',
