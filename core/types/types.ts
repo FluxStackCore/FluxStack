@@ -4,7 +4,24 @@ import { roomEvents } from '@core/server/live/RoomEventBus'
 import { liveRoomManager } from '@core/server/live/LiveRoomManager'
 import { ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
 import { liveLog, liveWarn } from '@core/server/live/LiveLogger'
-import { liveDebugger } from '@core/server/live/LiveDebugger'
+
+// ===== Debug Instrumentation (injectable to avoid client-side import) =====
+// The real debugger is injected by ComponentRegistry at server startup.
+// This avoids importing server-only LiveDebugger.ts from this shared types file.
+interface LiveDebuggerInterface {
+  trackStateChange(componentId: string, delta: Record<string, unknown>, fullState: Record<string, unknown>, source?: string): void
+  trackActionCall(componentId: string, action: string, payload: unknown): void
+  trackActionResult(componentId: string, action: string, result: unknown, duration: number): void
+  trackActionError(componentId: string, action: string, error: string, duration: number): void
+  trackRoomEmit(componentId: string, roomId: string, event: string, data: unknown): void
+}
+
+let _liveDebugger: LiveDebuggerInterface | null = null
+
+/** @internal Called by ComponentRegistry to inject the debugger instance */
+export function _setLiveDebugger(dbg: LiveDebuggerInterface): void {
+  _liveDebugger = dbg
+}
 import type { LiveAuthContext, LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
 import type { ServerWebSocket } from 'bun'
 
@@ -351,7 +368,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           // Delta sync - send only the changed property
           self.emit('STATE_DELTA', { delta: { [prop]: value } })
           // Debug: track proxy mutation
-          liveDebugger.trackStateChange(
+          _liveDebugger?.trackStateChange(
             self.id,
             { [prop]: value } as Record<string, unknown>,
             target as Record<string, unknown>,
@@ -553,7 +570,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     // Delta sync - send only the changed properties
     this.emit('STATE_DELTA', { delta: newUpdates })
     // Debug: track state change
-    liveDebugger.trackStateChange(
+    _liveDebugger?.trackStateChange(
       this.id,
       newUpdates as Record<string, unknown>,
       this._state as Record<string, unknown>,
@@ -633,18 +650,18 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
       }
 
       // Debug: track action call
-      liveDebugger.trackActionCall(this.id, action, payload)
+      _liveDebugger?.trackActionCall(this.id, action, payload)
 
       // Execute method
       const result = await method.call(this, payload)
 
       // Debug: track action result
-      liveDebugger.trackActionResult(this.id, action, result, Date.now() - actionStart)
+      _liveDebugger?.trackActionResult(this.id, action, result, Date.now() - actionStart)
 
       return result
     } catch (error: any) {
       // Debug: track action error
-      liveDebugger.trackActionError(this.id, action, error.message, Date.now() - actionStart)
+      _liveDebugger?.trackActionError(this.id, action, error.message, Date.now() - actionStart)
 
       this.emit('ERROR', {
         action,
@@ -714,7 +731,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     liveLog('rooms', this.id, `📡 [${this.id}] Room event '${event}' → ${notified} components`)
 
     // Debug: track room emit
-    liveDebugger.trackRoomEmit(this.id, this.room, event, data)
+    _liveDebugger?.trackRoomEmit(this.id, this.room, event, data)
 
     return notified
   }

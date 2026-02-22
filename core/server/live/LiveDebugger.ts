@@ -87,8 +87,8 @@ class LiveDebugger {
 
   constructor() {
     // Auto-enable in development or when DEBUG_LIVE env is set
-    const env = process.env.NODE_ENV || 'development'
-    const debugLive = process.env.DEBUG_LIVE
+    const env = typeof process !== 'undefined' ? (process.env.NODE_ENV || 'development') : 'development'
+    const debugLive = typeof process !== 'undefined' ? process.env.DEBUG_LIVE : undefined
     this._enabled = env === 'development' || debugLive === 'true'
   }
 

@@ -15,6 +15,11 @@ import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
 import type { LiveComponentAuth, LiveActionAuthMap } from './auth/types'
 import { liveLog, registerComponentLogging, unregisterComponentLogging } from './LiveLogger'
 import { liveDebugger } from './LiveDebugger'
+import { _setLiveDebugger } from '@core/types/types'
+
+// Inject debugger into types.ts (server-only) so LiveComponent class can use it
+// without importing the server-side LiveDebugger module directly
+_setLiveDebugger(liveDebugger)
 
 // Enhanced interfaces for registry improvements
 export interface ComponentMetadata {
