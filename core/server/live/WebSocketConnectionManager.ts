@@ -3,6 +3,7 @@
 
 import { EventEmitter } from 'events'
 import type { FluxStackWebSocket } from '@core/types/types'
+import { liveLog, liveWarn } from './LiveLogger'
 
 export interface ConnectionConfig {
   maxConnections: number
@@ -123,7 +124,7 @@ export class WebSocketConnectionManager extends EventEmitter {
     // Setup connection event handlers
     this.setupConnectionHandlers(ws, connectionId)
 
-    console.log(`🔌 Connection registered: ${connectionId} (Pool: ${poolId || 'default'})`)
+    liveLog('websocket', null, `🔌 Connection registered: ${connectionId} (Pool: ${poolId || 'default'})`)
     this.emit('connectionRegistered', { connectionId, poolId })
   }
 
@@ -193,7 +194,7 @@ export class WebSocketConnectionManager extends EventEmitter {
     }
     
     this.connectionPools.get(poolId)!.add(connectionId)
-    console.log(`🏊 Connection ${connectionId} added to pool ${poolId}`)
+    liveLog('websocket', null, `🏊 Connection ${connectionId} added to pool ${poolId}`)
   }
 
   /**
@@ -331,7 +332,7 @@ export class WebSocketConnectionManager extends EventEmitter {
       queue.splice(insertIndex, 0, queuedMessage)
     }
 
-    console.log(`📬 Message queued for ${connectionId}: ${queuedMessage.id}`)
+    liveLog('messages', null, `📬 Message queued for ${connectionId}: ${queuedMessage.id}`)
     return true
   }
 
@@ -361,10 +362,10 @@ export class WebSocketConnectionManager extends EventEmitter {
             // Re-queue for retry
             queue.push(queuedMessage)
           } else {
-            console.warn(`❌ Message ${queuedMessage.id} exceeded max retries`)
+            liveWarn('messages', null, `❌ Message ${queuedMessage.id} exceeded max retries`)
           }
         } else {
-          console.log(`✅ Queued message delivered: ${queuedMessage.id}`)
+          liveLog('messages', null, `✅ Queued message delivered: ${queuedMessage.id}`)
         }
       } catch (error) {
         console.error(`❌ Error processing queued message ${queuedMessage.id}:`, error)
@@ -445,7 +446,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Handle connection close
    */
   private handleConnectionClose(connectionId: string): void {
-    console.log(`🔌 Connection closed: ${connectionId}`)
+    liveLog('websocket', null, `🔌 Connection closed: ${connectionId}`)
     
     // Update metrics
     const metrics = this.connectionMetrics.get(connectionId)
@@ -573,7 +574,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Handle unhealthy connection
    */
   private async handleUnhealthyConnection(connectionId: string): Promise<void> {
-    console.warn(`⚠️ Handling unhealthy connection: ${connectionId}`)
+    liveWarn('websocket', null, `⚠️ Handling unhealthy connection: ${connectionId}`)
     
     const ws = this.connections.get(connectionId)
     if (ws) {
@@ -606,7 +607,7 @@ export class WebSocketConnectionManager extends EventEmitter {
       }
     }
 
-    console.log(`🧹 Connection cleaned up: ${connectionId}`)
+    liveLog('websocket', null, `🧹 Connection cleaned up: ${connectionId}`)
   }
 
   /**
@@ -679,7 +680,7 @@ export class WebSocketConnectionManager extends EventEmitter {
    * Shutdown connection manager
    */
   shutdown(): void {
-    console.log('🔌 Shutting down WebSocket Connection Manager...')
+    liveLog('websocket', null, '🔌 Shutting down WebSocket Connection Manager...')
     
     // Clear intervals
     if (this.healthCheckInterval) {
@@ -701,7 +702,7 @@ export class WebSocketConnectionManager extends EventEmitter {
     this.connectionPools.clear()
     this.messageQueues.clear()
 
-    console.log('✅ WebSocket Connection Manager shutdown complete')
+    liveLog('websocket', null, '✅ WebSocket Connection Manager shutdown complete')
   }
 }
 

@@ -1,6 +1,7 @@
 import { writeFile, mkdir, unlink } from 'fs/promises'
 import { existsSync } from 'fs'
 import { join, extname, basename } from 'path'
+import { liveLog, liveWarn } from './LiveLogger'
 import type {
   ActiveUpload,
   FileUploadStartMessage,
@@ -139,7 +140,7 @@ export class FileUploadManager {
         this.userUploadBytes.set(userId, currentUsage + fileSize)
       }
 
-      console.log('📤 Upload started:', {
+      liveLog('messages', componentId, '📤 Upload started:', {
         uploadId,
         componentId,
         filename,
@@ -173,7 +174,7 @@ export class FileUploadManager {
 
       // Check if chunk already received
       if (upload.receivedChunks.has(chunkIndex)) {
-        console.log(`📦 Chunk ${chunkIndex} already received for upload ${uploadId}`)
+        liveLog('messages', upload.componentId, `📦 Chunk ${chunkIndex} already received for upload ${uploadId}`)
       } else {
         // Store chunk data - use binary data if available, otherwise use base64 string
         let chunkBytes: number
@@ -191,7 +192,7 @@ export class FileUploadManager {
         upload.lastChunkTime = Date.now()
         upload.bytesReceived += chunkBytes
 
-        console.log(`📦 Received chunk ${chunkIndex + 1}/${totalChunks} for upload ${uploadId} (${chunkBytes} bytes, total: ${upload.bytesReceived}/${upload.fileSize})${binaryData ? ' [binary]' : ' [base64]'}`)
+        liveLog('messages', upload.componentId, `📦 Received chunk ${chunkIndex + 1}/${totalChunks} for upload ${uploadId} (${chunkBytes} bytes, total: ${upload.bytesReceived}/${upload.fileSize})${binaryData ? ' [binary]' : ' [base64]'}`)
       }
 
       // Calculate progress based on actual bytes received (supports adaptive chunking)
@@ -200,7 +201,7 @@ export class FileUploadManager {
 
       // Log completion status (but don't finalize until COMPLETE message)
       if (upload.bytesReceived >= upload.fileSize) {
-        console.log(`✅ All bytes received for upload ${uploadId} (${upload.bytesReceived}/${upload.fileSize}), waiting for COMPLETE message`)
+        liveLog('messages', upload.componentId, `✅ All bytes received for upload ${uploadId} (${upload.bytesReceived}/${upload.fileSize}), waiting for COMPLETE message`)
       }
 
       return {
@@ -223,7 +224,7 @@ export class FileUploadManager {
 
   private async finalizeUpload(upload: ActiveUpload): Promise<void> {
     try {
-      console.log(`✅ Upload completed: ${upload.uploadId}`)
+      liveLog('messages', upload.componentId, `✅ Upload completed: ${upload.uploadId}`)
       
       // Assemble file from chunks
       const fileUrl = await this.assembleFile(upload)
@@ -246,7 +247,7 @@ export class FileUploadManager {
         throw new Error(`Upload ${uploadId} not found`)
       }
 
-      console.log(`✅ Upload completion requested: ${uploadId}`)
+      liveLog('messages', upload.componentId, `✅ Upload completion requested: ${uploadId}`)
 
       // Validate bytes received (supports adaptive chunking)
       if (upload.bytesReceived !== upload.fileSize) {
@@ -257,7 +258,7 @@ export class FileUploadManager {
       // 🔒 Content validation: verify file magic bytes match claimed MIME type
       this.validateContentMagicBytes(upload)
 
-      console.log(`✅ Upload validation passed: ${uploadId} (${upload.bytesReceived} bytes)`)
+      liveLog('messages', upload.componentId, `✅ Upload validation passed: ${uploadId} (${upload.bytesReceived} bytes)`)
 
       // Assemble file from chunks
       const fileUrl = await this.assembleFile(upload)
@@ -320,7 +321,7 @@ export class FileUploadManager {
       const fileBuffer = Buffer.concat(chunks)
       await writeFile(filePath, fileBuffer)
 
-      console.log(`📁 File assembled: ${filePath}`)
+      liveLog('messages', upload.componentId, `📁 File assembled: ${filePath}`)
       return `/uploads/${safeFilename}`
 
     } catch (error) {
@@ -343,11 +344,11 @@ export class FileUploadManager {
 
     for (const uploadId of staleUploads) {
       this.activeUploads.delete(uploadId)
-      console.log(`🧹 Cleaned up stale upload: ${uploadId}`)
+      liveLog('messages', null, `🧹 Cleaned up stale upload: ${uploadId}`)
     }
 
     if (staleUploads.length > 0) {
-      console.log(`🧹 Cleaned up ${staleUploads.length} stale uploads`)
+      liveLog('messages', null, `🧹 Cleaned up ${staleUploads.length} stale uploads`)
     }
   }
 
@@ -396,7 +397,7 @@ export class FileUploadManager {
     }
 
     if (!matched) {
-      console.warn(`🔒 Content validation failed for upload ${upload.uploadId}: ` +
+      liveWarn('messages', upload.componentId, `🔒 Content validation failed for upload ${upload.uploadId}: ` +
         `claimed type ${upload.fileType} does not match file magic bytes`)
       throw new Error(
         `File content does not match claimed type '${upload.fileType}'. ` +
@@ -412,7 +413,7 @@ export class FileUploadManager {
     const userCount = this.userUploadBytes.size
     this.userUploadBytes.clear()
     if (userCount > 0) {
-      console.log(`🔒 Reset upload quotas for ${userCount} users`)
+      liveLog('messages', null, `🔒 Reset upload quotas for ${userCount} users`)
     }
   }
 
