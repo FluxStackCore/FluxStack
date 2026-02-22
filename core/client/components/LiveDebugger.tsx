@@ -440,12 +440,15 @@ export interface LiveDebuggerProps {
   defaultPosition?: { x: number; y: number }
   /** Initial size. Default: 680x420 */
   defaultSize?: { w: number; h: number }
+  /** Force enable even in production. Default: false */
+  force?: boolean
 }
 
 export function LiveDebugger({
   defaultOpen = false,
   defaultPosition,
   defaultSize = { w: 680, h: 420 },
+  force = false,
 }: LiveDebuggerProps) {
   const dbg = useLiveDebugger({ maxEvents: 300 })
   const [open, setOpen] = useState(defaultOpen)
@@ -577,6 +580,9 @@ export function LiveDebugger({
       return next
     })
   }, [])
+
+  // Server has debugging disabled — render nothing, no resources used
+  if (dbg.serverDisabled && !force) return null
 
   // Badge (when closed) - small floating circle in bottom-right
   if (!open) {

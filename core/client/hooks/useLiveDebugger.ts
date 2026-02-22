@@ -69,6 +69,8 @@ export interface UseLiveDebuggerReturn {
   // Connection
   connected: boolean
   connecting: boolean
+  /** Server reported that debugging is disabled */
+  serverDisabled: boolean
 
   // Data
   components: ComponentSnapshot[]
@@ -123,14 +125,17 @@ export function useLiveDebugger(options: UseLiveDebuggerOptions = {}): UseLiveDe
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null)
   const [filter, setFilterState] = useState<DebugFilter>({})
   const [paused, setPaused] = useState(false)
+  const [serverDisabled, setServerDisabled] = useState(false)
 
   // Refs
   const wsRef = useRef<WebSocket | null>(null)
   const pausedRef = useRef(false)
+  const serverDisabledRef = useRef(false)
   const reconnectTimeoutRef = useRef<number | null>(null)
 
-  // Keep pausedRef in sync
+  // Keep refs in sync
   pausedRef.current = paused
+  serverDisabledRef.current = serverDisabled
 
   // Build WebSocket URL
   const getWsUrl = useCallback(() => {
@@ -160,8 +165,15 @@ export function useLiveDebugger(options: UseLiveDebuggerOptions = {}): UseLiveDe
         try {
           const msg = JSON.parse(event.data)
 
+          if (msg.type === 'DEBUG_DISABLED') {
+            // Server has debugging disabled — stop reconnecting
+            setServerDisabled(true)
+            return
+          }
+
           if (msg.type === 'DEBUG_WELCOME') {
             // Initial snapshot
+            setServerDisabled(false)
             const snap = msg.snapshot as DebugSnapshot
             setSnapshot(snap)
             setComponents(snap.components)
@@ -192,6 +204,9 @@ export function useLiveDebugger(options: UseLiveDebuggerOptions = {}): UseLiveDe
         setConnected(false)
         setConnecting(false)
         wsRef.current = null
+
+        // Don't reconnect if server told us debug is disabled
+        if (serverDisabledRef.current) return
 
         // Auto-reconnect after 3 seconds
         reconnectTimeoutRef.current = window.setTimeout(() => {
@@ -357,6 +372,7 @@ export function useLiveDebugger(options: UseLiveDebuggerOptions = {}): UseLiveDe
   return {
     connected,
     connecting,
+    serverDisabled,
     components,
     events,
     filteredEvents,

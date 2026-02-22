@@ -68,9 +68,10 @@ export interface DebugSnapshot {
 // ===== Debug Message Types (sent to debug clients) =====
 
 export interface DebugWsMessage {
-  type: 'DEBUG_EVENT' | 'DEBUG_SNAPSHOT' | 'DEBUG_WELCOME'
+  type: 'DEBUG_EVENT' | 'DEBUG_SNAPSHOT' | 'DEBUG_WELCOME' | 'DEBUG_DISABLED'
   event?: DebugEvent
   snapshot?: DebugSnapshot
+  enabled?: boolean
   timestamp: number
 }
 
@@ -324,11 +325,24 @@ class LiveDebugger {
   // ===== Debug Client Management =====
 
   registerDebugClient(ws: FluxStackWebSocket): void {
+    // If debugging is disabled, tell the client and close
+    if (!this._enabled) {
+      const disabled: DebugWsMessage = {
+        type: 'DEBUG_DISABLED',
+        enabled: false,
+        timestamp: Date.now()
+      }
+      ws.send(JSON.stringify(disabled))
+      ws.close()
+      return
+    }
+
     this.debugClients.add(ws)
 
     // Send welcome with current snapshot
     const welcome: DebugWsMessage = {
       type: 'DEBUG_WELCOME',
+      enabled: true,
       snapshot: this.getSnapshot(),
       timestamp: Date.now()
     }
