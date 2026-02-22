@@ -17,11 +17,8 @@ export const appRuntimeConfig = defineReactiveConfig({
   enableDebugMode: config.boolean('DEBUG', false),
 
   // Live Component Debugger
-  // Defaults to true in development, false otherwise
-  debugLive: config.boolean(
-    'DEBUG_LIVE',
-    (process.env.NODE_ENV || 'development') === 'development'
-  ),
+  // Defaults to false — opt-in via DEBUG_LIVE=true
+  debugLive: config.boolean('DEBUG_LIVE', false),
 
   // Rate limiting
   rateLimitEnabled: config.boolean('RATE_LIMIT_ENABLED', true),

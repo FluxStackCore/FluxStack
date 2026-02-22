@@ -27,7 +27,7 @@ import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
   static publicActions = ['increment', 'decrement', 'reset'] as const  // 🔒 REQUIRED
-  static logging = ['lifecycle', 'messages'] as const  // Per-component logging (optional)
+  // static logging = ['lifecycle', 'messages'] as const  // Console logging (optional, prefer DEBUG_LIVE)
   static defaultState = {
     count: 0
   }
@@ -609,7 +609,7 @@ Each server file contains:
 - `static componentName` - Component identifier
 - `static publicActions` - **REQUIRED** whitelist of client-callable methods
 - `static defaultState` - Initial state object
-- `static logging` - Per-component log control (optional, see [Live Logging](./live-logging.md))
+- `static logging` - Per-component console log control (optional, prefer `DEBUG_LIVE=true` for debug panel — see [Live Logging](./live-logging.md))
 - Component class extending `LiveComponent`
 - Client link via `import type { Demo as _Client }`
 
