@@ -10,6 +10,47 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot } from '../hooks/useLiveDebugger'
 
+// ===== Debugger Settings =====
+
+export interface DebuggerSettings {
+  fontSize: 'xs' | 'sm' | 'md' | 'lg'
+  showTimestamps: boolean
+  compactMode: boolean
+  wordWrap: boolean
+  maxEvents: number
+}
+
+const FONT_SIZES: Record<DebuggerSettings['fontSize'], number> = {
+  xs: 9,
+  sm: 10,
+  md: 11,
+  lg: 13,
+}
+
+const DEFAULT_SETTINGS: DebuggerSettings = {
+  fontSize: 'sm',
+  showTimestamps: true,
+  compactMode: false,
+  wordWrap: false,
+  maxEvents: 300,
+}
+
+const SETTINGS_KEY = 'fluxstack-debugger-settings'
+
+function loadSettings(): DebuggerSettings {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY)
+    if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_SETTINGS }
+}
+
+function saveSettings(settings: DebuggerSettings) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  } catch { /* ignore */ }
+}
+
 // ===== Event Type Groups =====
 
 type EventGroup = 'lifecycle' | 'state' | 'actions' | 'rooms' | 'connection' | 'errors'
@@ -431,6 +472,149 @@ function FilterBar({
   )
 }
 
+// ===== Settings Panel =====
+
+function SettingsPanel({
+  settings,
+  onChange,
+}: {
+  settings: DebuggerSettings
+  onChange: (patch: Partial<DebuggerSettings>) => void
+}) {
+  const sectionStyle: React.CSSProperties = {
+    marginBottom: 14,
+  }
+  const labelStyle: React.CSSProperties = {
+    fontFamily: 'monospace', fontSize: 9, color: '#64748b',
+    textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6,
+    display: 'block',
+  }
+  const rowStyle: React.CSSProperties = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '5px 0',
+  }
+  const descStyle: React.CSSProperties = {
+    fontFamily: 'monospace', fontSize: 10, color: '#94a3b8',
+  }
+
+  return (
+    <div style={{ flex: 1, overflow: 'auto', padding: 10 }}>
+      {/* Font Size */}
+      <div style={sectionStyle}>
+        <span style={labelStyle}>Font Size</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {(['xs', 'sm', 'md', 'lg'] as const).map(size => (
+            <button
+              key={size}
+              onClick={() => onChange({ fontSize: size })}
+              style={{
+                flex: 1, padding: '5px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
+                fontFamily: 'monospace', fontSize: FONT_SIZES[size], fontWeight: 600,
+                background: settings.fontSize === size ? '#1e3a5f' : '#1e293b',
+                color: settings.fontSize === size ? '#60a5fa' : '#64748b',
+                transition: 'all 0.15s',
+              }}
+            >
+              {size.toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <div style={{
+          fontFamily: 'monospace', fontSize: 9, color: '#475569',
+          marginTop: 4, textAlign: 'center',
+        }}>
+          Preview: {FONT_SIZES[settings.fontSize]}px
+        </div>
+      </div>
+
+      {/* Max Events */}
+      <div style={sectionStyle}>
+        <span style={labelStyle}>Max Events in Buffer</span>
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[100, 300, 500, 1000].map(n => (
+            <button
+              key={n}
+              onClick={() => onChange({ maxEvents: n })}
+              style={{
+                flex: 1, padding: '5px 0', borderRadius: 4, border: 'none', cursor: 'pointer',
+                fontFamily: 'monospace', fontSize: 10, fontWeight: 600,
+                background: settings.maxEvents === n ? '#1e3a5f' : '#1e293b',
+                color: settings.maxEvents === n ? '#60a5fa' : '#64748b',
+                transition: 'all 0.15s',
+              }}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Toggles */}
+      <div style={sectionStyle}>
+        <span style={labelStyle}>Display</span>
+
+        <div style={rowStyle}>
+          <span style={descStyle}>Show timestamps</span>
+          <ToggleSwitch
+            checked={settings.showTimestamps}
+            onChange={v => onChange({ showTimestamps: v })}
+          />
+        </div>
+
+        <div style={rowStyle}>
+          <span style={descStyle}>Compact mode</span>
+          <ToggleSwitch
+            checked={settings.compactMode}
+            onChange={v => onChange({ compactMode: v })}
+          />
+        </div>
+
+        <div style={rowStyle}>
+          <span style={descStyle}>Word wrap in data</span>
+          <ToggleSwitch
+            checked={settings.wordWrap}
+            onChange={v => onChange({ wordWrap: v })}
+          />
+        </div>
+      </div>
+
+      {/* Reset */}
+      <button
+        onClick={() => onChange(DEFAULT_SETTINGS)}
+        style={{
+          width: '100%', padding: '6px 0', borderRadius: 4, border: '1px solid #1e293b',
+          cursor: 'pointer', fontFamily: 'monospace', fontSize: 10,
+          background: 'transparent', color: '#64748b',
+          transition: 'all 0.15s',
+        }}
+      >
+        Reset to defaults
+      </button>
+    </div>
+  )
+}
+
+function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      onClick={() => onChange(!checked)}
+      style={{
+        width: 32, height: 18, borderRadius: 9, border: 'none', cursor: 'pointer',
+        background: checked ? '#2563eb' : '#334155',
+        position: 'relative', padding: 0, transition: 'background 0.2s',
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: 2, left: checked ? 16 : 2,
+        width: 14, height: 14, borderRadius: '50%',
+        background: '#fff', transition: 'left 0.2s',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+      }} />
+    </button>
+  )
+}
+
 // ===== Main Component =====
 
 export interface LiveDebuggerProps {
@@ -450,9 +634,19 @@ export function LiveDebugger({
   defaultSize = { w: 680, h: 420 },
   force = false,
 }: LiveDebuggerProps) {
-  const dbg = useLiveDebugger({ maxEvents: 300 })
+  const [settings, setSettingsState] = useState<DebuggerSettings>(loadSettings)
+  const updateSettings = useCallback((patch: Partial<DebuggerSettings>) => {
+    setSettingsState(prev => {
+      const next = { ...prev, ...patch }
+      saveSettings(next)
+      return next
+    })
+  }, [])
+  const fs = FONT_SIZES[settings.fontSize]
+
+  const dbg = useLiveDebugger({ maxEvents: settings.maxEvents })
   const [open, setOpen] = useState(defaultOpen)
-  const [tab, setTab] = useState<'events' | 'state' | 'rooms'>('events')
+  const [tab, setTab] = useState<'events' | 'state' | 'rooms' | 'settings'>('events')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set())
   const [activeGroups, setActiveGroups] = useState<Set<EventGroup>>(new Set(ALL_GROUPS))
@@ -668,7 +862,7 @@ export function LiveDebugger({
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 1, marginLeft: 4 }}>
-          {(['events', 'state', 'rooms'] as const).map(t => (
+          {(['events', 'state', 'rooms', 'settings'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -676,10 +870,12 @@ export function LiveDebugger({
                 padding: '2px 8px', borderRadius: 3, border: 'none', cursor: 'pointer',
                 fontFamily: 'monospace', fontSize: 10, textTransform: 'uppercase',
                 background: tab === t ? '#1e293b' : 'transparent',
-                color: tab === t ? '#e2e8f0' : '#475569',
+                color: tab === t
+                  ? (t === 'settings' ? '#f59e0b' : '#e2e8f0')
+                  : '#475569',
               }}
             >
-              {t}
+              {t === 'settings' ? '\u2699' : t}
             </button>
           ))}
         </div>
@@ -802,6 +998,7 @@ export function LiveDebugger({
                     const isExpanded = expandedEvents.has(event.id)
                     const time = new Date(event.timestamp)
                     const ts = `${time.toLocaleTimeString('en-US', { hour12: false })}.${String(time.getMilliseconds()).padStart(3, '0')}`
+                    const py = settings.compactMode ? 1 : 3
 
                     return (
                       <div
@@ -811,14 +1008,16 @@ export function LiveDebugger({
                       >
                         <div style={{
                           display: 'flex', alignItems: 'center', gap: 5,
-                          padding: '3px 8px', fontSize: 11, fontFamily: 'monospace',
+                          padding: `${py}px 8px`, fontSize: fs, fontFamily: 'monospace',
                           background: isExpanded ? '#0f172a' : 'transparent',
                         }}>
-                          <span style={{ color: '#4b5563', fontSize: 10, flexShrink: 0 }}>{ts}</span>
+                          {settings.showTimestamps && (
+                            <span style={{ color: '#4b5563', fontSize: fs - 1, flexShrink: 0 }}>{ts}</span>
+                          )}
                           <span style={{
                             display: 'inline-block', padding: '0 4px', borderRadius: 2,
-                            fontSize: 9, fontWeight: 700, color: '#fff',
-                            background: color, flexShrink: 0, lineHeight: '15px',
+                            fontSize: Math.max(8, fs - 2), fontWeight: 700, color: '#fff',
+                            background: color, flexShrink: 0, lineHeight: `${fs + 4}px`,
                           }}>
                             {label}
                           </span>
@@ -826,14 +1025,16 @@ export function LiveDebugger({
                             const comp = dbg.components.find(c => c.componentId === event.componentId)
                             const name = comp?.debugLabel || event.componentName
                             return (
-                              <span style={{ color: '#64748b', flexShrink: 0, fontSize: 10 }}>
+                              <span style={{ color: '#64748b', flexShrink: 0, fontSize: fs - 1 }}>
                                 {name}
                               </span>
                             )
                           })()}
                           <span style={{
-                            color: '#94a3b8', fontSize: 10, overflow: 'hidden',
-                            textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                            color: '#94a3b8', fontSize: fs - 1, overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: settings.wordWrap ? 'normal' : 'nowrap',
+                            flex: 1,
                           }}>
                             {summary}
                           </span>
@@ -842,9 +1043,10 @@ export function LiveDebugger({
                           <div
                             onClick={e => e.stopPropagation()}
                             style={{
-                              padding: '3px 8px 6px 42px', fontSize: 10,
+                              padding: '3px 8px 6px 42px', fontSize: fs - 1,
                               fontFamily: 'monospace', color: '#cbd5e1',
                               background: '#0f172a',
+                              wordBreak: settings.wordWrap ? 'break-all' : undefined,
                             }}>
                             <Json data={event.data} />
                           </div>
@@ -934,8 +1136,9 @@ export function LiveDebugger({
                   </div>
                   <div style={{
                     padding: 8, background: '#0f172a', borderRadius: 4,
-                    fontFamily: 'monospace', fontSize: 10, color: '#e2e8f0',
+                    fontFamily: 'monospace', fontSize: fs, color: '#e2e8f0',
                     overflow: 'auto',
+                    wordBreak: settings.wordWrap ? 'break-all' : undefined,
                   }}>
                     <Json data={selectedComp.state} />
                   </div>
@@ -967,7 +1170,7 @@ export function LiveDebugger({
                             {comp.errorCount > 0 && <span style={{ color: '#f87171' }}> E:{comp.errorCount}</span>}
                           </span>
                         </div>
-                        <div style={{ fontFamily: 'monospace', fontSize: 10, color: '#e2e8f0' }}>
+                        <div style={{ fontFamily: 'monospace', fontSize: fs, color: '#e2e8f0' }}>
                           <Json data={comp.state} />
                         </div>
                       </div>
@@ -1093,6 +1296,11 @@ export function LiveDebugger({
                 </>
               )}
             </div>
+          )}
+
+          {/* === Settings Tab === */}
+          {tab === 'settings' && (
+            <SettingsPanel settings={settings} onChange={updateSettings} />
           )}
         </div>
       </div>
