@@ -9,7 +9,7 @@ export function FormDemo() {
   // Sucesso
   if (form.submitted) {
     return (
-      <div className="p-6 bg-green-500/20 border border-green-500/30 rounded-xl text-center">
+      <div className="p-4 sm:p-6 bg-green-500/20 border border-green-500/30 rounded-xl text-center w-full max-w-xl mx-auto">
         <div className="text-4xl mb-3">✅</div>
         <h2 className="text-xl font-bold text-white mb-2">Enviado!</h2>
         <p className="text-gray-300">Obrigado, <span className="text-green-400">{form.name}</span>!</p>
@@ -27,7 +27,7 @@ export function FormDemo() {
   }
 
   return (
-    <div className="p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl">
+    <div className="p-4 sm:p-6 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl w-full max-w-xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-white">Live Form</h2>
         <span className={`px-3 py-1 rounded-full text-xs ${

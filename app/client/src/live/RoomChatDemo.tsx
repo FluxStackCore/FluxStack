@@ -47,11 +47,11 @@ export function RoomChatDemo() {
   }
 
   return (
-    <div className="flex h-[600px] bg-gray-900 rounded-2xl overflow-hidden border border-white/10">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-200px)] md:h-[600px] w-full max-w-4xl mx-auto bg-gray-900 rounded-2xl overflow-hidden border border-white/10">
       {/* Sidebar */}
-      <div className="w-64 bg-gray-800/50 border-r border-white/10 flex flex-col">
+      <div className={`${activeRoom ? 'hidden md:flex' : 'flex'} w-full md:w-64 bg-gray-800/50 md:border-r border-white/10 flex-col ${!activeRoom ? 'flex-1 md:flex-initial' : ''}`}>
         <div className="p-4 border-b border-white/10">
-          <h2 className="text-lg font-bold text-white mb-2">💬 Room Chat</h2>
+          <h2 className="text-lg font-bold text-white mb-2">Room Chat</h2>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${chat.$connected ? 'bg-emerald-400' : 'bg-red-400'}`} />
             <span className="text-sm text-gray-400">{chat.$state.username}</span>
@@ -94,15 +94,23 @@ export function RoomChatDemo() {
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 flex flex-col">
+      <div className={`${!activeRoom ? 'hidden md:flex' : 'flex'} flex-1 flex-col`}>
         {activeRoom ? (
           <>
             <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-semibold">
-                  {chat.$state.rooms.find(r => r.id === activeRoom)?.name || activeRoom}
-                </h3>
-                <p className="text-xs text-gray-500">{activeMessages.length} mensagens</p>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => chat.switchRoom({ roomId: '' })}
+                  className="md:hidden px-2 py-1 text-sm text-gray-400 hover:text-white"
+                >
+                  ←
+                </button>
+                <div>
+                  <h3 className="text-white font-semibold">
+                    {chat.$state.rooms.find(r => r.id === activeRoom)?.name || activeRoom}
+                  </h3>
+                  <p className="text-xs text-gray-500">{activeMessages.length} mensagens</p>
+                </div>
               </div>
               <button
                 onClick={() => chat.leaveRoom({ roomId: activeRoom })}
@@ -110,7 +118,7 @@ export function RoomChatDemo() {
               >Sair</button>
             </div>
 
-            <div className="flex-1 overflow-auto p-4 space-y-3">
+            <div className="flex-1 overflow-auto p-3 sm:p-4 space-y-3">
               {activeMessages.length === 0 ? (
                 <div className="text-center text-gray-500 py-8">
                   <p>Nenhuma mensagem ainda</p>
@@ -119,9 +127,9 @@ export function RoomChatDemo() {
               ) : (
                 activeMessages.map(msg => (
                   <div key={msg.id} className={`flex flex-col ${msg.user === chat.$state.username ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${msg.user === chat.$state.username ? 'bg-purple-500/30 text-purple-100' : 'bg-white/10 text-gray-200'}`}>
+                    <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 ${msg.user === chat.$state.username ? 'bg-purple-500/30 text-purple-100' : 'bg-white/10 text-gray-200'}`}>
                       <p className="text-xs text-gray-400 mb-1">{msg.user}</p>
-                      <p>{msg.text}</p>
+                      <p className="text-sm sm:text-base">{msg.text}</p>
                     </div>
                     <span className="text-xs text-gray-600 mt-1">{new Date(msg.timestamp).toLocaleTimeString()}</span>
                   </div>
@@ -130,19 +138,19 @@ export function RoomChatDemo() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-4 border-t border-white/10">
+            <div className="p-3 sm:p-4 border-t border-white/10">
               <div className="flex gap-2">
                 <input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                   placeholder="Digite uma mensagem..."
-                  className="flex-1 px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  className="flex-1 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm sm:text-base"
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!text.trim()}
-                  className="px-6 py-2 rounded-xl bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50"
+                  className="px-4 sm:px-6 py-2 rounded-xl bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm sm:text-base"
                 >Enviar</button>
               </div>
             </div>
@@ -150,7 +158,7 @@ export function RoomChatDemo() {
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
             <div className="text-center">
-              <p className="text-4xl mb-4">👈</p>
+              <p className="text-4xl mb-4">←</p>
               <p>Selecione uma sala para começar</p>
             </div>
           </div>

@@ -15,10 +15,10 @@ export function ApiTestPage({
   onCreateUser: () => void
 }) {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="flex items-center gap-4 mb-8">
+    <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-4xl">
+      <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
         <BackButton />
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
           Eden Treaty API Test
         </h1>
       </div>
@@ -50,7 +50,7 @@ export function ApiTestPage({
         />
       </div>
 
-      <div className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+      <div className="bg-black/40 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-white">Response</h2>
           {isLoading && (
@@ -67,7 +67,7 @@ export function ApiTestPage({
         </pre>
       </div>
 
-      <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-6">
+      <div className="mt-6 sm:mt-8 bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-white mb-3">How it works</h3>
         <div className="text-gray-400 text-sm space-y-2">
           <p>OK <code className="text-purple-400">api.health.get()</code> - Full type inference from server</p>
@@ -98,7 +98,7 @@ function ActionCard({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-6 py-4 border rounded-xl font-medium transition-all disabled:opacity-50 ${className}`}
+      className={`px-4 sm:px-6 py-3 sm:py-4 border rounded-xl font-medium transition-all disabled:opacity-50 text-sm sm:text-base ${className}`}
     >
       <div className="text-2xl mb-2">{icon}</div>
       <div>{title}</div>

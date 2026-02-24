@@ -44,7 +44,7 @@ export function ChatDemo() {
   }
 
   return (
-    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 w-full mx-auto">
+    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-4 sm:p-6 md:p-8 w-full max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-white mb-2 text-center">Chat Compartilhado</h2>
       <p className="text-gray-400 text-sm text-center mb-4">
         Sala global em tempo real. Abra em várias abas para testar.
@@ -70,7 +70,7 @@ export function ChatDemo() {
       <div
         ref={containerRef}
         onScroll={handleScroll}
-        className="bg-black/40 border border-white/10 rounded-xl p-5 h-[28rem] overflow-auto space-y-3"
+        className="bg-black/40 border border-white/10 rounded-xl p-3 sm:p-5 h-72 sm:h-96 md:h-[28rem] overflow-auto space-y-3"
       >
         {chat.$state.messages.length === 0 && (
           <div className="text-gray-500 text-sm text-center">Nenhuma mensagem ainda</div>

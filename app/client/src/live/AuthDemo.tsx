@@ -27,7 +27,7 @@ function PublicSection() {
   })
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6">
       <h3 className="text-lg font-semibold text-white mb-1">Contador Público</h3>
       <p className="text-gray-400 text-xs mb-4">Sem autenticação necessária</p>
 
@@ -113,8 +113,8 @@ function AdminSection() {
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <div>
           <h3 className="text-lg font-semibold text-white">Painel Admin</h3>
           <p className="text-gray-400 text-xs">
@@ -227,7 +227,7 @@ function AuthControls() {
   }
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6 mb-6">
       <h3 className="text-lg font-semibold text-white mb-2">Autenticação</h3>
 
       <div className="flex items-center gap-3 mb-4">
@@ -237,7 +237,7 @@ function AuthControls() {
         </span>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <input
           value={token}
           onChange={e => setToken(e.target.value)}
@@ -245,26 +245,28 @@ function AuthControls() {
           placeholder="Token (JWT, API key, etc.)"
           className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
         />
-        <button
-          onClick={handleLogin}
-          disabled={isLoggingIn}
-          className="px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-sm hover:bg-emerald-500/30 disabled:opacity-50"
-        >
-          {isLoggingIn ? 'Autenticando...' : 'Login'}
-        </button>
-        {authenticated && (
+        <div className="flex gap-2">
           <button
-            onClick={handleLogout}
-            className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-200 text-sm hover:bg-red-500/30"
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="flex-1 sm:flex-initial px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-200 text-sm hover:bg-emerald-500/30 disabled:opacity-50"
           >
-            Logout
+            {isLoggingIn ? 'Autenticando...' : 'Login'}
           </button>
-        )}
+          {authenticated && (
+            <button
+              onClick={handleLogout}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-200 text-sm hover:bg-red-500/30"
+            >
+              Logout
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
         <p className="text-emerald-300 text-xs font-semibold mb-2">Tokens de teste (dev only):</p>
-        <div className="grid grid-cols-3 gap-2 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
           <button
             onClick={() => { setToken('admin-token'); }}
             className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
@@ -304,8 +306,8 @@ function AuthControls() {
 export function AuthDemo() {
   return (
     <div className="space-y-6 w-full max-w-2xl mx-auto">
-      <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-white mb-2">Live Components Auth</h2>
+      <div className="text-center mb-6 sm:mb-8">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Live Components Auth</h2>
         <p className="text-gray-400">
           Sistema de autenticação declarativo para componentes real-time
         </p>
@@ -318,7 +320,7 @@ export function AuthDemo() {
         <AdminSection />
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-xs text-gray-500 space-y-2">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6 text-xs text-gray-500 space-y-2 overflow-x-auto">
         <h4 className="text-sm font-semibold text-gray-300 mb-3">Como funciona</h4>
         <p><strong className="text-purple-300">Server:</strong> <code>static auth = &#123; required: true, roles: [&apos;admin&apos;] &#125;</code></p>
         <p><strong className="text-purple-300">Server:</strong> <code>static actionAuth = &#123; deleteUser: &#123; permissions: [&apos;users.delete&apos;] &#125; &#125;</code></p>
