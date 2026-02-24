@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
 import FluxStackLogo from '@client/src/assets/fluxstack.svg'
+import faviconSvg from '@client/src/assets/fluxstack-static.svg?raw'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -28,6 +29,29 @@ const routeFlameHue: Record<string, string> = {
 export function AppLayout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    const current = navItems.find(item => item.to === location.pathname)
+    document.title = current ? `${current.label} - FluxStack` : 'FluxStack'
+
+    // Dynamic favicon with hue-rotate
+    const hue = routeFlameHue[location.pathname] || '0deg'
+    const colored = faviconSvg.replace(
+      '<svg ',
+      `<svg style="filter: hue-rotate(${hue})" `
+    )
+    const blob = new Blob([colored], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.type = 'image/svg+xml'
+    link.href = url
+    return () => URL.revokeObjectURL(url)
+  }, [location.pathname])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
