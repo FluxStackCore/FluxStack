@@ -25,11 +25,14 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
         </h1>
 
         {/* Subtitle */}
-        <p className="text-sm sm:text-base md:text-lg text-gray-400 mb-6 max-w-md md:max-w-lg leading-relaxed">
-          Full-stack TypeScript framework powered by{' '}
-          <span className="text-purple-400 font-semibold">Bun</span>,{' '}
-          <span className="text-indigo-400 font-semibold">Elysia</span>, and{' '}
+        <p className="text-sm sm:text-base md:text-lg text-gray-400 mb-6 leading-relaxed">
+          <span className="text-purple-400 font-semibold">Bun</span>
+          {' + '}
+          <span className="text-indigo-400 font-semibold">Elysia</span>
+          {' + '}
           <span className="text-cyan-400 font-semibold">React</span>
+          {' = '}
+          <span className="text-white font-semibold">FluxStack</span>
         </p>
 
         {/* API Status */}
