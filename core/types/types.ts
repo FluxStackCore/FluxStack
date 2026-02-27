@@ -413,7 +413,9 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           // Lifecycle hook: onStateChange (with recursion guard)
           if (!self._inStateChange) {
             self._inStateChange = true
-            try { self.onStateChange(changes) } catch {} finally { self._inStateChange = false }
+            try { self.onStateChange(changes) } catch (err: any) {
+              console.error(`[${self.id}] onStateChange error:`, err?.message || err)
+            } finally { self._inStateChange = false }
           }
           // Debug: track proxy mutation
           _liveDebugger?.trackStateChange(
@@ -490,14 +492,18 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           if (self.joinedRooms.has(roomId)) return
           self.joinedRooms.add(roomId)
           liveRoomManager.joinRoom(self.id, roomId, self.ws, initialState)
-          try { self.onRoomJoin(roomId) } catch {}
+          try { self.onRoomJoin(roomId) } catch (err: any) {
+            console.error(`[${self.id}] onRoomJoin error:`, err?.message || err)
+          }
         },
 
         leave: () => {
           if (!self.joinedRooms.has(roomId)) return
           self.joinedRooms.delete(roomId)
           liveRoomManager.leaveRoom(self.id, roomId)
-          try { self.onRoomLeave(roomId) } catch {}
+          try { self.onRoomLeave(roomId) } catch (err: any) {
+            console.error(`[${self.id}] onRoomLeave error:`, err?.message || err)
+          }
         },
 
         emit: (event: string, data: any): number => {
@@ -755,21 +761,68 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
    */
   protected onAction(action: string, payload: any): void | false | Promise<void | false> {}
 
+  /**
+   * [Singleton only] Called when a new client connection joins the singleton.
+   * Fires for EVERY new client including the first.
+   * Use for visitor counting, presence tracking, etc.
+   *
+   * @param connectionId - The connection identifier of the new client
+   * @param connectionCount - Total number of active connections after join
+   *
+   * @example
+   * protected onClientJoin(connectionId: string, connectionCount: number) {
+   *   this.state.visitors = connectionCount
+   * }
+   */
+  protected onClientJoin(connectionId: string, connectionCount: number): void {}
+
+  /**
+   * [Singleton only] Called when a client disconnects from the singleton.
+   * Fires for EVERY leaving client. Use for presence tracking, cleanup.
+   *
+   * @param connectionId - The connection identifier of the leaving client
+   * @param connectionCount - Total number of active connections after leave
+   *
+   * @example
+   * protected onClientLeave(connectionId: string, connectionCount: number) {
+   *   this.state.visitors = connectionCount
+   *   if (connectionCount === 0) {
+   *     // Last client left — save state or cleanup
+   *   }
+   * }
+   */
+  protected onClientLeave(connectionId: string, connectionCount: number): void {}
+
   // State management (batch update - single emit with delta)
   public setState(updates: Partial<TState> | ((prev: TState) => Partial<TState>)) {
     const newUpdates = typeof updates === 'function' ? updates(this._state) : updates
-    Object.assign(this._state as object, newUpdates)
-    // Delta sync - send only the changed properties
-    this.emit('STATE_DELTA', { delta: newUpdates })
+
+    // Filter to only keys that actually changed (consistent with proxy behavior)
+    const actualChanges: Partial<TState> = {} as Partial<TState>
+    let hasChanges = false
+    for (const key of Object.keys(newUpdates as object) as Array<keyof TState>) {
+      if ((this._state as any)[key] !== (newUpdates as any)[key]) {
+        (actualChanges as any)[key] = (newUpdates as any)[key]
+        hasChanges = true
+      }
+    }
+
+    if (!hasChanges) return // No-op: nothing actually changed
+
+    Object.assign(this._state as object, actualChanges)
+    // Delta sync - send only the actually changed properties
+    this.emit('STATE_DELTA', { delta: actualChanges })
     // Lifecycle hook: onStateChange (with recursion guard)
     if (!this._inStateChange) {
       this._inStateChange = true
-      try { this.onStateChange(newUpdates) } catch {} finally { this._inStateChange = false }
+      try { this.onStateChange(actualChanges) } catch (err: any) {
+        console.error(`[${this.id}] onStateChange error:`, err?.message || err)
+      } finally { this._inStateChange = false }
     }
     // Debug: track state change
     _liveDebugger?.trackStateChange(
       this.id,
-      newUpdates as Record<string, unknown>,
+      actualChanges as Record<string, unknown>,
       this._state as Record<string, unknown>,
       'setState'
     )
@@ -800,6 +853,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     'onMount', 'onDestroy', 'onConnect', 'onDisconnect',
     'onStateChange', 'onRoomJoin', 'onRoomLeave',
     'onRehydrate', 'onAction',
+    'onClientJoin', 'onClientLeave',
     // State management internals
     'setState', 'emit', 'broadcast', 'broadcastToRoom',
     'createStateProxy', 'createDirectStateAccessors', 'generateId',
@@ -866,9 +920,23 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
       _liveDebugger?.trackActionCall(this.id, action, payload)
 
       // Lifecycle hook: onAction (return false to cancel)
-      const hookResult = await this.onAction(action, payload)
+      let hookResult: void | false | Promise<void | false>
+      try {
+        hookResult = await this.onAction(action, payload)
+      } catch (hookError: any) {
+        // If onAction itself threw, treat as action error
+        // but don't leak hook internals to the client
+        _liveDebugger?.trackActionError(this.id, action, hookError.message, Date.now() - actionStart)
+        this.emit('ERROR', {
+          action,
+          error: `Action '${action}' failed pre-validation`
+        })
+        throw hookError
+      }
       if (hookResult === false) {
-        throw new Error(`Action '${action}' cancelled by onAction hook`)
+        // Cancelled actions are NOT errors — do not emit ERROR to client
+        _liveDebugger?.trackActionError(this.id, action, 'Action cancelled', Date.now() - actionStart)
+        throw new Error(`Action '${action}' was cancelled`)
       }
 
       // Execute method
@@ -879,13 +947,15 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
       return result
     } catch (error: any) {
-      // Debug: track action error
-      _liveDebugger?.trackActionError(this.id, action, error.message, Date.now() - actionStart)
+      // Debug: track action error (avoid double-tracking for onAction errors)
+      if (!error.message?.includes('was cancelled') && !error.message?.includes('pre-validation')) {
+        _liveDebugger?.trackActionError(this.id, action, error.message, Date.now() - actionStart)
 
-      this.emit('ERROR', {
-        action,
-        error: error.message
-      })
+        this.emit('ERROR', {
+          action,
+          error: error.message
+        })
+      }
       throw error
     }
   }
