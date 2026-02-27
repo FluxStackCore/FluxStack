@@ -312,6 +312,11 @@ export class ComponentRegistry {
 
         liveLog('lifecycle', existing.instance.id, `🔗 Singleton '${componentName}' — new connection joined (${existing.connections.size} total)`)
 
+        // 🔄 Lifecycle: notify singleton about new client
+        try { (existing.instance as any).onClientJoin(connId, existing.connections.size) } catch (err: any) {
+          console.error(`[${componentName}] onClientJoin error:`, err?.message || err)
+        }
+
         return {
           componentId: existing.instance.id,
           initialState: existing.instance.getSerializableState(),
@@ -378,7 +383,9 @@ export class ComponentRegistry {
           type: type as any,
           componentId: component.id,
           payload,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          userId: component.userId,
+          room: component.room
         }
         const serialized = JSON.stringify(message)
         const singleton = this.singletons.get(componentName)
@@ -398,6 +405,11 @@ export class ComponentRegistry {
       }
 
       liveLog('lifecycle', component.id, `🔗 Singleton '${componentName}' created`)
+
+      // 🔄 Lifecycle: notify singleton about first client
+      try { (component as any).onClientJoin(connId, 1) } catch (err: any) {
+        console.error(`[${componentName}] onClientJoin error:`, err?.message || err)
+      }
     }
 
     // Update metadata state
@@ -649,6 +661,22 @@ export class ComponentRegistry {
     }
   }
 
+  /** Check if a component ID belongs to a singleton */
+  private isSingletonComponent(componentId: string): boolean {
+    for (const [, singleton] of this.singletons) {
+      if (singleton.instance.id === componentId) return true
+    }
+    return false
+  }
+
+  /** Get the singleton entry by component ID */
+  private getSingletonByComponentId(componentId: string): { instance: LiveComponent; connections: Map<string, FluxStackWebSocket> } | null {
+    for (const [, singleton] of this.singletons) {
+      if (singleton.instance.id === componentId) return singleton
+    }
+    return null
+  }
+
   /**
    * Remove a single connection from a singleton. If no connections remain, destroy it.
    * @returns true if the component was a singleton (handled), false otherwise
@@ -660,7 +688,10 @@ export class ComponentRegistry {
       if (connId) singleton.connections.delete(connId)
 
       if (singleton.connections.size === 0) {
-        // Last connection gone — destroy singleton fully
+        // Last connection gone — call onDisconnect then destroy singleton fully
+        try { (singleton.instance as any).onDisconnect() } catch (err: any) {
+          console.error(`[${componentId}] onDisconnect error:`, err?.message || err)
+        }
         this.cleanupComponent(componentId)
         this.singletons.delete(name)
         liveLog('lifecycle', componentId, `🗑️ Singleton '${name}' destroyed (${context}: no connections remaining)`)
@@ -681,6 +712,16 @@ export class ComponentRegistry {
     if (ws) {
       const connId = ws.data?.connectionId
       ws.data?.components?.delete(componentId)
+
+      // Notify singleton about client leaving (before connection removal)
+      if (this.isSingletonComponent(componentId)) {
+        const singleton = this.getSingletonByComponentId(componentId)
+        const remainingAfterRemoval = singleton ? singleton.connections.size - 1 : 0
+        try { (component as any).onClientLeave(connId || 'unknown', Math.max(0, remainingAfterRemoval)) } catch (err: any) {
+          console.error(`[${componentId}] onClientLeave error:`, err?.message || err)
+        }
+      }
+
       if (this.removeSingletonConnection(componentId, connId, 'unmount')) return
     } else {
       if (this.removeSingletonConnection(componentId, undefined, 'unmount')) return
@@ -918,9 +959,21 @@ export class ComponentRegistry {
     liveLog('lifecycle', null, `🧹 Cleaning up ${componentsToCleanup.length} components for disconnected WebSocket`)
 
     for (const componentId of componentsToCleanup) {
-      // Call onDisconnect lifecycle hook (only fires on connection loss, not intentional unmount)
       const component = this.components.get(componentId)
-      if (component) {
+
+      // Check if this is a singleton component
+      const isSingleton = this.isSingletonComponent(componentId)
+
+      if (component && isSingleton) {
+        // For singletons: call onClientLeave (per-connection) instead of onDisconnect
+        // onDisconnect only fires when the last client leaves (handled in removeSingletonConnection)
+        const singleton = this.getSingletonByComponentId(componentId)
+        const remainingAfterRemoval = singleton ? singleton.connections.size - 1 : 0
+        try { (component as any).onClientLeave(connId || 'unknown', Math.max(0, remainingAfterRemoval)) } catch (err: any) {
+          console.error(`[${componentId}] onClientLeave error:`, err?.message || err)
+        }
+      } else if (component) {
+        // Non-singleton: call onDisconnect as before
         try { (component as any).onDisconnect() } catch (err: any) {
           console.error(`[${componentId}] onDisconnect error:`, err?.message || err)
         }

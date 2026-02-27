@@ -846,7 +846,7 @@ describe('LiveComponent DX Enhancements', () => {
 
       const component = new CancelComponent({ count: 0, label: 'test' }, ws)
 
-      await expect(component.executeAction('increment', {})).rejects.toThrow('cancelled by onAction')
+      await expect(component.executeAction('increment', {})).rejects.toThrow('was cancelled')
       expect(executed).toBe(false)
     })
 
@@ -1013,7 +1013,7 @@ describe('LiveComponent DX — Extended Coverage', () => {
       }
 
       const component = new AsyncCancelComponent({}, ws)
-      await expect(component.executeAction('doStuff', {})).rejects.toThrow('cancelled by onAction')
+      await expect(component.executeAction('doStuff', {})).rejects.toThrow('was cancelled')
       expect(executed).toBe(false)
     })
 
@@ -1674,7 +1674,7 @@ describe('LiveComponent DX — Extended Coverage', () => {
       expect(r1).toEqual({ count: 1 })
 
       // reset cancelled
-      await expect(component.executeAction('reset', {})).rejects.toThrow('cancelled by onAction')
+      await expect(component.executeAction('reset', {})).rejects.toThrow('was cancelled')
       expect(component.state.count).toBe(1) // still 1, not reset
     })
   })
