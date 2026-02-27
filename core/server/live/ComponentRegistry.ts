@@ -85,6 +85,11 @@ export class ComponentRegistry {
   private services: ServiceContainer
   private healthCheckInterval!: NodeJS.Timeout
   private recoveryStrategies = new Map<string, () => Promise<void>>()
+  // Singleton components: componentName -> { instance, connections }
+  private singletons = new Map<string, {
+    instance: LiveComponent,
+    connections: Map<string, FluxStackWebSocket>
+  }>()
   
   constructor() {
     this.services = this.createServiceContainer()
@@ -279,6 +284,42 @@ export class ComponentRegistry {
       throw new Error(`AUTH_DENIED: ${authResult.reason}`)
     }
 
+    // 🔗 Singleton check: return existing instance if already created
+    const isSingleton = (ComponentClass as any).singleton === true
+    if (isSingleton) {
+      const existing = this.singletons.get(componentName)
+      if (existing) {
+        // Add this ws connection to the singleton
+        const connId = ws.data?.connectionId || `ws-${Date.now()}`
+        existing.connections.set(connId, ws)
+
+        // Initialize WebSocket data if needed
+        this.ensureWsData(ws, options?.userId)
+        ws.data.components.set(existing.instance.id, existing.instance)
+
+        // Send current state to the new client
+        const signedState = await stateSignature.signState(existing.instance.id, {
+          ...existing.instance.getSerializableState(),
+          __componentName: componentName
+        }, 1, { compress: true, backup: true })
+
+        ws.send(JSON.stringify({
+          type: 'STATE_UPDATE',
+          componentId: existing.instance.id,
+          payload: { state: existing.instance.getSerializableState(), signedState },
+          timestamp: Date.now()
+        }))
+
+        liveLog('lifecycle', existing.instance.id, `🔗 Singleton '${componentName}' — new connection joined (${existing.connections.size} total)`)
+
+        return {
+          componentId: existing.instance.id,
+          initialState: existing.instance.getSerializableState(),
+          signedState
+        }
+      }
+    }
+
     // Create component instance with registry methods
     const component = new ComponentClass(
       { ...initialState, ...props },
@@ -321,27 +362,35 @@ export class ComponentRegistry {
     }
 
     // Initialize WebSocket data if needed
-    if (!ws || typeof ws !== 'object') {
-      throw new Error('Invalid WebSocket object provided')
-    }
-
-    // Ensure data object exists with proper structure
-    if (!ws.data) {
-      (ws as { data: FluxStackWSData }).data = {
-        connectionId: `ws-${Date.now()}`,
-        components: new Map(),
-        subscriptions: new Set(),
-        connectedAt: new Date(),
-        userId: options?.userId
-      }
-    }
-
-    // Ensure components map exists
-    if (!ws.data.components) {
-      ws.data.components = new Map()
-    }
-
+    this.ensureWsData(ws, options?.userId)
     ws.data.components.set(component.id, component)
+
+    // 🔗 Register singleton with broadcast emit
+    if (isSingleton) {
+      const connId = ws.data.connectionId || `ws-${Date.now()}`
+      const connections = new Map<string, FluxStackWebSocket>()
+      connections.set(connId, ws)
+      this.singletons.set(componentName, { instance: component, connections })
+
+      // Override emit to broadcast to all connections
+      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+        const message: LiveMessage = {
+          type: type as any,
+          componentId: component.id,
+          payload,
+          timestamp: Date.now()
+        }
+        const serialized = JSON.stringify(message)
+        const singleton = this.singletons.get(componentName)
+        if (singleton) {
+          for (const [, connWs] of singleton.connections) {
+            try { connWs.send(serialized) } catch {}
+          }
+        }
+      })
+
+      liveLog('lifecycle', component.id, `🔗 Singleton '${componentName}' created`)
+    }
 
     // Update metadata state
     metadata.state = 'active'
@@ -357,7 +406,7 @@ export class ComponentRegistry {
     performanceMonitor.recordRenderTime(component.id, renderTime)
 
     liveLog('lifecycle', component.id, `🚀 Mounted component: ${componentName} (${component.id}) in ${renderTime}ms`)
-    
+
     // Send initial state to client with signature (include component name for rehydration validation)
     const signedState = await stateSignature.signState(component.id, {
       ...component.getSerializableState(),
@@ -366,10 +415,20 @@ export class ComponentRegistry {
       compress: true,
       backup: true
     })
-    ;(component as any).emit('STATE_UPDATE', { 
+    ;(component as any).emit('STATE_UPDATE', {
       state: component.getSerializableState(),
-      signedState 
+      signedState
     })
+
+    // 🔄 Lifecycle hooks
+    try { (component as any).onConnect() } catch (err: any) {
+      console.error(`[${componentName}] onConnect error:`, err?.message || err)
+    }
+    try {
+      await (component as any).onMount()
+    } catch (err: any) {
+      console.error(`[${componentName}] onMount error:`, err?.message || err)
+    }
 
     // Debug: track component mount
     liveDebugger.trackComponentMount(
@@ -498,20 +557,7 @@ export class ComponentRegistry {
       }
 
       // Initialize WebSocket data
-      if (!ws.data) {
-        (ws as { data: FluxStackWSData }).data = {
-          connectionId: `ws-${Date.now()}`,
-          components: new Map(),
-          subscriptions: new Set(),
-          connectedAt: new Date(),
-          userId: options?.userId
-        }
-      }
-
-      // Ensure components map exists
-      if (!ws.data.components) {
-        ws.data.components = new Map()
-      }
+      this.ensureWsData(ws, options?.userId)
       ws.data.components.set(component.id, component)
 
       // Register logging config for rehydrated component
@@ -540,6 +586,19 @@ export class ComponentRegistry {
         newComponentId: component.id
       })
 
+      // 🔄 Lifecycle hooks after rehydration
+      try { (component as any).onConnect() } catch (err: any) {
+        console.error(`[${componentName}] onConnect error (rehydration):`, err?.message || err)
+      }
+      try { (component as any).onRehydrate(clientState) } catch (err: any) {
+        console.error(`[${componentName}] onRehydrate error:`, err?.message || err)
+      }
+      try {
+        await (component as any).onMount()
+      } catch (err: any) {
+        console.error(`[${componentName}] onMount error (rehydration):`, err?.message || err)
+      }
+
       return {
         success: true,
         newComponentId: component.id
@@ -554,21 +613,62 @@ export class ComponentRegistry {
     }
   }
 
-  // Unmount component
-  async unmountComponent(componentId: string) {
+  // Ensure WebSocket data object exists with proper structure
+  private ensureWsData(ws: FluxStackWebSocket, userId?: string): void {
+    if (!ws || typeof ws !== 'object') {
+      throw new Error('Invalid WebSocket object provided')
+    }
+    if (!ws.data) {
+      (ws as { data: FluxStackWSData }).data = {
+        connectionId: `ws-${Date.now()}`,
+        components: new Map(),
+        subscriptions: new Set(),
+        connectedAt: new Date(),
+        userId
+      }
+    }
+    if (!ws.data.components) {
+      ws.data.components = new Map()
+    }
+  }
+
+  // Unmount component (with singleton awareness)
+  async unmountComponent(componentId: string, ws?: FluxStackWebSocket) {
     const component = this.components.get(componentId)
     if (!component) return
 
-    // Debug: track unmount
+    // 🔗 Singleton: remove connection, only destroy when last client leaves
+    for (const [name, singleton] of this.singletons) {
+      if (singleton.instance.id === componentId) {
+        if (ws) {
+          const connId = ws.data?.connectionId
+          if (connId) singleton.connections.delete(connId)
+          ws.data?.components?.delete(componentId)
+        }
+
+        if (singleton.connections.size === 0) {
+          // Last connection gone — destroy singleton
+          liveDebugger.trackComponentUnmount(componentId)
+          component.destroy?.()
+          this.unsubscribeFromAllRooms(componentId)
+          this.components.delete(componentId)
+          this.metadata.delete(componentId)
+          this.wsConnections.delete(componentId)
+          this.singletons.delete(name)
+          performanceMonitor.removeComponent(componentId)
+          unregisterComponentLogging(componentId)
+          liveLog('lifecycle', componentId, `🗑️ Singleton '${name}' destroyed (last connection unmounted)`)
+        } else {
+          liveLog('lifecycle', componentId, `🔗 Singleton '${name}' — connection removed (${singleton.connections.size} remaining)`)
+        }
+        return
+      }
+    }
+
+    // Non-singleton: normal unmount
     liveDebugger.trackComponentUnmount(componentId)
-
-    // Cleanup
     component.destroy?.()
-
-    // Remove from room subscriptions
     this.unsubscribeFromAllRooms(componentId)
-
-    // Remove from maps
     this.components.delete(componentId)
     this.wsConnections.delete(componentId)
 
@@ -719,7 +819,7 @@ export class ComponentRegistry {
           return { success: true, result: mountResult }
 
         case 'COMPONENT_UNMOUNT':
-          await this.unmountComponent(message.componentId)
+          await this.unmountComponent(message.componentId, ws)
           return { success: true }
 
         case 'CALL_ACTION':
@@ -787,16 +887,48 @@ export class ComponentRegistry {
     }
   }
 
-  // Cleanup when WebSocket disconnects
+  // Cleanup when WebSocket disconnects (singleton-aware)
   cleanupConnection(ws: FluxStackWebSocket) {
     if (!ws.data?.components) return
 
     const componentsToCleanup = Array.from(ws.data.components.keys()) as string[]
-    
+    const connId = ws.data.connectionId
+
     liveLog('lifecycle', null, `🧹 Cleaning up ${componentsToCleanup.length} components for disconnected WebSocket`)
-    
+
     for (const componentId of componentsToCleanup) {
-      this.cleanupComponent(componentId)
+      // Call onDisconnect lifecycle hook (only fires on connection loss, not intentional unmount)
+      const component = this.components.get(componentId)
+      if (component) {
+        try { (component as any).onDisconnect() } catch (err: any) {
+          console.error(`[${componentId}] onDisconnect error:`, err?.message || err)
+        }
+      }
+
+      // Check if this is a singleton
+      let isSingleton = false
+      for (const [name, singleton] of this.singletons) {
+        if (singleton.instance.id === componentId) {
+          // Remove this connection from the singleton
+          if (connId) singleton.connections.delete(connId)
+
+          if (singleton.connections.size === 0) {
+            // Last connection — destroy singleton
+            this.cleanupComponent(componentId)
+            this.singletons.delete(name)
+            liveLog('lifecycle', componentId, `🔗 Singleton '${name}' destroyed (no more connections)`)
+          } else {
+            liveLog('lifecycle', componentId, `🔗 Singleton '${name}' — connection left (${singleton.connections.size} remaining)`)
+          }
+
+          isSingleton = true
+          break
+        }
+      }
+
+      if (!isSingleton) {
+        this.cleanupComponent(componentId)
+      }
     }
 
     // Clear the WebSocket's component map
@@ -812,6 +944,12 @@ export class ComponentRegistry {
       definitions: this.definitions.size,
       rooms: this.rooms.size,
       connections: this.wsConnections.size,
+      singletons: Object.fromEntries(
+        Array.from(this.singletons.entries()).map(([name, s]) => [
+          name,
+          { componentId: s.instance.id, connections: s.connections.size }
+        ])
+      ),
       roomDetails: Object.fromEntries(
         Array.from(this.rooms.entries()).map(([roomId, components]) => [
           roomId,
@@ -1082,7 +1220,10 @@ export class ComponentRegistry {
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval)
     }
-    
+
+    // Cleanup all singletons
+    this.singletons.clear()
+
     // Cleanup all components
     for (const [componentId] of this.components) {
       this.cleanupComponent(componentId)
