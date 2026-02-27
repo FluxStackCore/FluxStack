@@ -868,3 +868,919 @@ describe('LiveComponent DX Enhancements', () => {
     })
   })
 })
+
+// =============================================
+// ADDITIONAL COMPREHENSIVE TESTS
+// =============================================
+
+describe('LiveComponent DX — Extended Coverage', () => {
+
+  // ===== onConnect Error Safety =====
+  describe('onConnect Error Safety', () => {
+    it('errors in onConnect do not prevent further lifecycle', async () => {
+      const ws = createMockWs()
+      const order: string[] = []
+
+      class ErrorConnectComponent extends LiveComponent<CounterState> {
+        static componentName = 'ErrorConnectComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onConnect() {
+          order.push('onConnect')
+          throw new Error('connect failed')
+        }
+
+        protected onMount() {
+          order.push('onMount')
+        }
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new ErrorConnectComponent({ count: 0, label: 'test' }, ws)
+
+      // Simulate registry behavior: catch onConnect errors and continue
+      try { (component as any).onConnect() } catch {}
+      ;(component as any).onMount()
+
+      expect(order).toContain('onConnect')
+      expect(order).toContain('onMount')
+
+      // Component still functional
+      const result = await component.executeAction('increment', {})
+      expect(result).toEqual({ count: 1 })
+    })
+  })
+
+  // ===== onDisconnect Error Safety =====
+  describe('onDisconnect Error Safety', () => {
+    it('errors in onDisconnect do not prevent cleanup', () => {
+      const ws = createMockWs()
+
+      class ErrorDisconnectComponent extends LiveComponent<CounterState> {
+        static componentName = 'ErrorDisconnectComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onDisconnect() {
+          throw new Error('disconnect boom')
+        }
+      }
+
+      const component = new ErrorDisconnectComponent({}, ws)
+
+      // Simulate registry: catch onDisconnect error, then destroy
+      try { (component as any).onDisconnect() } catch {}
+      expect(() => component.destroy()).not.toThrow()
+    })
+  })
+
+  // ===== Async onAction =====
+  describe('Async onAction', () => {
+    it('async onAction returning false cancels the action', async () => {
+      const ws = createMockWs()
+      let executed = false
+
+      class AsyncCancelComponent extends LiveComponent<CounterState> {
+        static componentName = 'AsyncCancelComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['doStuff'] as const
+
+        protected async onAction(_action: string, _payload: any): Promise<void | false> {
+          await new Promise(r => setTimeout(r, 5))
+          return false
+        }
+
+        async doStuff() {
+          executed = true
+          return { done: true }
+        }
+      }
+
+      const component = new AsyncCancelComponent({}, ws)
+      await expect(component.executeAction('doStuff', {})).rejects.toThrow('cancelled by onAction')
+      expect(executed).toBe(false)
+    })
+
+    it('async onAction returning void allows the action', async () => {
+      const ws = createMockWs()
+
+      class AsyncAllowComponent extends LiveComponent<CounterState> {
+        static componentName = 'AsyncAllowComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['doStuff'] as const
+
+        protected async onAction(): Promise<void> {
+          await new Promise(r => setTimeout(r, 5))
+          // no return = allow
+        }
+
+        async doStuff() {
+          this.state.count = 99
+          return { done: true }
+        }
+      }
+
+      const component = new AsyncAllowComponent({ count: 0, label: 'test' }, ws)
+      const result = await component.executeAction('doStuff', {})
+      expect(result).toEqual({ done: true })
+    })
+  })
+
+  // ===== onAction Receives Correct Payload =====
+  describe('onAction Payload', () => {
+    it('receives the action name and full payload', async () => {
+      const ws = createMockWs()
+      let receivedAction: string | null = null
+      let receivedPayload: any = null
+
+      class PayloadCheckComponent extends LiveComponent<CounterState> {
+        static componentName = 'PayloadCheckComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['submit'] as const
+
+        protected onAction(action: string, payload: any) {
+          receivedAction = action
+          receivedPayload = payload
+        }
+
+        async submit(payload: { name: string; value: number }) {
+          return { received: true, ...payload }
+        }
+      }
+
+      const component = new PayloadCheckComponent({}, ws)
+      await component.executeAction('submit', { name: 'test', value: 42 })
+
+      expect(receivedAction).toBe('submit')
+      expect(receivedPayload).toEqual({ name: 'test', value: 42 })
+    })
+  })
+
+  // ===== onStateChange — Multiple Rapid Changes =====
+  describe('onStateChange Multiple Changes', () => {
+    it('fires for each proxy mutation separately', () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class MultiChangeComponent extends LiveComponent<CounterState> {
+        static componentName = 'MultiChangeComponent'
+        static defaultState: CounterState = { count: 0, label: 'initial' }
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+      }
+
+      const component = new MultiChangeComponent({ count: 0, label: 'initial' }, ws)
+      component.state.count = 1
+      component.state.count = 2
+      component.state.label = 'updated'
+
+      expect(changes).toHaveLength(3)
+      expect(changes[0]).toEqual({ count: 1 })
+      expect(changes[1]).toEqual({ count: 2 })
+      expect(changes[2]).toEqual({ label: 'updated' })
+    })
+
+    it('setState with function updater triggers onStateChange', () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class FnUpdateComponent extends LiveComponent<CounterState> {
+        static componentName = 'FnUpdateComponent'
+        static defaultState: CounterState = { count: 10, label: 'test' }
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+      }
+
+      const component = new FnUpdateComponent({ count: 10, label: 'test' }, ws)
+      component.setState((prev) => ({ count: prev.count + 5 }))
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual({ count: 15 })
+    })
+  })
+
+  // ===== onStateChange During Action Execution =====
+  describe('onStateChange During Actions', () => {
+    it('fires when action modifies state via proxy', async () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class ActionStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'ActionStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new ActionStateComponent({ count: 0, label: 'test' }, ws)
+      await component.executeAction('increment', {})
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual({ count: 1 })
+    })
+
+    it('fires when action modifies state via setState', async () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class ActionSetStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'ActionSetStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['update'] as const
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+
+        async update() {
+          this.setState({ count: 42, label: 'updated' })
+          return { done: true }
+        }
+      }
+
+      const component = new ActionSetStateComponent({ count: 0, label: 'test' }, ws)
+      await component.executeAction('update', {})
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual({ count: 42, label: 'updated' })
+    })
+  })
+
+  // ===== onMount Can Modify State =====
+  describe('onMount State Modification', () => {
+    it('onMount can modify state and state is updated', async () => {
+      const ws = createMockWs()
+
+      class MountStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'MountStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'loading' }
+
+        protected onMount() {
+          this.state.label = 'ready'
+          this.state.count = 100
+        }
+      }
+
+      const component = new MountStateComponent({ count: 0, label: 'loading' }, ws)
+      ;(component as any).onMount()
+
+      expect(component.state.label).toBe('ready')
+      expect(component.state.count).toBe(100)
+    })
+  })
+
+  // ===== onRehydrate Can Modify State =====
+  describe('onRehydrate State Modification', () => {
+    it('onRehydrate can migrate/modify state after rehydration', () => {
+      const ws = createMockWs()
+
+      interface VersionedState {
+        count: number
+        label: string
+        version: number
+      }
+
+      class MigrateComponent extends LiveComponent<VersionedState> {
+        static componentName = 'MigrateComponent'
+        static defaultState: VersionedState = { count: 0, label: 'test', version: 2 }
+
+        protected onRehydrate(previousState: VersionedState) {
+          if (!previousState.version || previousState.version < 2) {
+            this.state.version = 2
+            this.state.label = 'migrated'
+          }
+        }
+      }
+
+      const component = new MigrateComponent({ count: 5, label: 'old', version: 0 }, ws)
+      ;(component as any).onRehydrate({ count: 5, label: 'old', version: 0 })
+
+      expect(component.state.version).toBe(2)
+      expect(component.state.label).toBe('migrated')
+      expect(component.state.count).toBe(5)
+    })
+  })
+
+  // ===== $persistent Deep Object Mutations =====
+  describe('$persistent Deep Mutations', () => {
+    afterEach(() => {
+      delete (globalThis as any).__fluxstack_persistent_DeepPersistentComponent
+    })
+
+    it('nested object mutations persist across instances', () => {
+      const ws = createMockWs()
+
+      class DeepPersistentComponent extends LiveComponent<CounterState> {
+        static componentName = 'DeepPersistentComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static persistent = {
+          nested: { items: [] as string[], meta: { version: 1 } }
+        }
+      }
+
+      const comp1 = new DeepPersistentComponent({}, ws)
+      comp1.$persistent.nested.items.push('item1')
+      comp1.$persistent.nested.items.push('item2')
+      comp1.$persistent.nested.meta.version = 2
+
+      // New instance (HMR)
+      const comp2 = new DeepPersistentComponent({}, ws)
+      expect(comp2.$persistent.nested.items).toEqual(['item1', 'item2'])
+      expect(comp2.$persistent.nested.meta.version).toBe(2)
+    })
+
+    it('$persistent allows adding new keys at runtime', () => {
+      const ws = createMockWs()
+
+      class DeepPersistentComponent extends LiveComponent<CounterState> {
+        static componentName = 'DeepPersistentComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static persistent = { initial: 'value' }
+      }
+
+      const comp = new DeepPersistentComponent({}, ws)
+      comp.$persistent.newKey = 'dynamically added'
+
+      const comp2 = new DeepPersistentComponent({}, ws)
+      expect(comp2.$persistent.newKey).toBe('dynamically added')
+      expect(comp2.$persistent.initial).toBe('value')
+    })
+  })
+
+  // ===== onRoomJoin / onRoomLeave Error Safety =====
+  describe('Room Hook Error Safety', () => {
+    it('errors in onRoomJoin do not prevent room join', () => {
+      const ws = createMockWs()
+
+      class ErrorRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'ErrorRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRoomJoin(_roomId: string) {
+          throw new Error('room join boom')
+        }
+      }
+
+      const component = new ErrorRoomComponent({}, ws, { room: 'default-room' })
+
+      // Should not throw — errors are caught inside $room.join()
+      expect(() => component.$room('error-room').join()).not.toThrow()
+      expect(component.$rooms).toContain('error-room')
+    })
+
+    it('errors in onRoomLeave do not prevent room leave', () => {
+      const ws = createMockWs()
+
+      class ErrorLeaveComponent extends LiveComponent<CounterState> {
+        static componentName = 'ErrorLeaveComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRoomLeave(_roomId: string) {
+          throw new Error('room leave boom')
+        }
+      }
+
+      const component = new ErrorLeaveComponent({}, ws, { room: 'default-room' })
+      component.$room('test-room').join()
+      expect(component.$rooms).toContain('test-room')
+
+      expect(() => component.$room('test-room').leave()).not.toThrow()
+      expect(component.$rooms).not.toContain('test-room')
+    })
+  })
+
+  // ===== Security: _ prefixed Methods Blocked =====
+  describe('Security: Private Method Blocking', () => {
+    it('blocks methods starting with _ even if in publicActions', async () => {
+      const ws = createMockWs()
+
+      class UnderscoreComponent extends LiveComponent<CounterState> {
+        static componentName = 'UnderscoreComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['_secretMethod', 'safeMethod'] as const
+
+        async _secretMethod() { return { secret: true } }
+        async safeMethod() { return { safe: true } }
+      }
+
+      const component = new UnderscoreComponent({}, ws)
+      await expect(component.executeAction('_secretMethod', {})).rejects.toThrow('not callable')
+
+      // But safe method works
+      const result = await component.executeAction('safeMethod', {})
+      expect(result).toEqual({ safe: true })
+    })
+
+    it('blocks methods starting with # (hash prefix)', async () => {
+      const ws = createMockWs()
+
+      class HashComponent extends LiveComponent<CounterState> {
+        static componentName = 'HashComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['#private', 'safeMethod'] as const
+
+        async safeMethod() { return { ok: true } }
+      }
+
+      const component = new HashComponent({}, ws)
+      await expect(component.executeAction('#private', {})).rejects.toThrow('not callable')
+    })
+  })
+
+  // ===== Security: No publicActions Defined =====
+  describe('Security: No publicActions', () => {
+    it('blocks ALL actions when publicActions is undefined', async () => {
+      const ws = createMockWs()
+
+      class NoActionsComponent extends LiveComponent<CounterState> {
+        static componentName = 'NoActionsComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        // No publicActions defined
+
+        async doSomething() { return { done: true } }
+      }
+
+      const component = new NoActionsComponent({}, ws)
+      await expect(component.executeAction('doSomething', {})).rejects.toThrow('no publicActions defined')
+    })
+  })
+
+  // ===== Singleton Emit Override — State Changes =====
+  describe('Singleton State Sync', () => {
+    it('setState broadcasts to all connections via emit override', () => {
+      const ws1 = createMockWs('conn-1')
+      const ws2 = createMockWs('conn-2')
+
+      const component = new SingletonComponent({ count: 0, label: 'shared' }, ws1)
+
+      const connections = new Map<string, FluxStackWebSocket>()
+      connections.set('conn-1', ws1)
+      connections.set('conn-2', ws2)
+
+      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+        const message = JSON.stringify({ type, componentId: component.id, payload, timestamp: Date.now() })
+        for (const [, ws] of connections) {
+          ws.send(message)
+        }
+      })
+
+      // Use setState (batch update)
+      component.setState({ count: 50, label: 'batch' })
+
+      // Both connections should receive STATE_DELTA
+      expect((ws1.send as any).mock.calls.length).toBeGreaterThan(0)
+      expect((ws2.send as any).mock.calls.length).toBeGreaterThan(0)
+
+      const msg1 = getLastSentMessage(ws1)
+      expect(msg1.type).toBe('STATE_DELTA')
+      expect(msg1.payload.delta).toEqual({ count: 50, label: 'batch' })
+
+      const msg2 = getLastSentMessage(ws2)
+      expect(msg2.type).toBe('STATE_DELTA')
+      expect(msg2.payload.delta).toEqual({ count: 50, label: 'batch' })
+    })
+  })
+
+  // ===== Singleton Actions Broadcast State =====
+  describe('Singleton Action Broadcasts', () => {
+    it('action that modifies state broadcasts to all clients', async () => {
+      const ws1 = createMockWs('conn-1')
+      const ws2 = createMockWs('conn-2')
+
+      const component = new SingletonComponent({ count: 0, label: 'shared' }, ws1)
+
+      const connections = new Map<string, FluxStackWebSocket>()
+      connections.set('conn-1', ws1)
+      connections.set('conn-2', ws2)
+
+      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+        const message = JSON.stringify({ type, componentId: component.id, payload, timestamp: Date.now() })
+        for (const [, ws] of connections) {
+          ws.send(message)
+        }
+      })
+
+      await component.executeAction('increment', {})
+
+      // Both connections received the delta from the action
+      const msg1 = getLastSentMessage(ws1)
+      expect(msg1.type).toBe('STATE_DELTA')
+      expect(msg1.payload.delta.count).toBe(1)
+
+      const msg2 = getLastSentMessage(ws2)
+      expect(msg2.type).toBe('STATE_DELTA')
+      expect(msg2.payload.delta.count).toBe(1)
+    })
+  })
+
+  // ===== Default Room Handle Operations =====
+  describe('$room Default Handle', () => {
+    it('$room methods use default room when room is set in constructor', () => {
+      const ws = createMockWs()
+      const events: string[] = []
+
+      class DefaultRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'DefaultRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRoomJoin(roomId: string) {
+          events.push(`join:${roomId}`)
+        }
+
+        protected onRoomLeave(roomId: string) {
+          events.push(`leave:${roomId}`)
+        }
+      }
+
+      const component = new DefaultRoomComponent({}, ws, { room: 'my-room' })
+
+      // Default room was auto-joined in constructor (but onRoomJoin is for $room.join() calls)
+      expect(component.$rooms).toContain('my-room')
+    })
+
+    it('throws error when calling $room methods without a default room', () => {
+      const ws = createMockWs()
+
+      class NoRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'NoRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new NoRoomComponent({}, ws)
+
+      // No default room — calling default methods should throw
+      expect(() => component.$room.join()).toThrow('No default room set')
+      expect(() => component.$room.leave()).toThrow('No default room set')
+      expect(() => component.$room.emit('test', {})).toThrow('No default room set')
+    })
+  })
+
+  // ===== $rooms List =====
+  describe('$rooms Array', () => {
+    it('tracks all joined rooms', () => {
+      const ws = createMockWs()
+
+      class MultiRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'MultiRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new MultiRoomComponent({}, ws, { room: 'default' })
+      component.$room('room-a').join()
+      component.$room('room-b').join()
+
+      expect(component.$rooms).toContain('default')
+      expect(component.$rooms).toContain('room-a')
+      expect(component.$rooms).toContain('room-b')
+      expect(component.$rooms).toHaveLength(3)
+    })
+
+    it('removes rooms when leaving', () => {
+      const ws = createMockWs()
+
+      class LeaveRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'LeaveRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new LeaveRoomComponent({}, ws, { room: 'default' })
+      component.$room('temp').join()
+      expect(component.$rooms).toHaveLength(2)
+
+      component.$room('temp').leave()
+      expect(component.$rooms).toHaveLength(1)
+      expect(component.$rooms).not.toContain('temp')
+    })
+
+    it('joining same room twice is idempotent', () => {
+      const ws = createMockWs()
+
+      class IdempotentRoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'IdempotentRoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new IdempotentRoomComponent({}, ws, { room: 'default' })
+      component.$room('room-x').join()
+      component.$room('room-x').join() // duplicate
+
+      expect(component.$rooms.filter(r => r === 'room-x')).toHaveLength(1)
+    })
+  })
+
+  // ===== State Proxy — Delta Emissions =====
+  describe('State Proxy Delta Emissions', () => {
+    it('each proxy mutation sends a STATE_DELTA message', () => {
+      const ws = createMockWs()
+
+      class DeltaComponent extends LiveComponent<CounterState> {
+        static componentName = 'DeltaComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new DeltaComponent({ count: 0, label: 'test' }, ws)
+      component.state.count = 10
+      component.state.label = 'changed'
+
+      const calls = (ws.send as any).mock.calls
+      expect(calls.length).toBe(2)
+
+      const msg1 = JSON.parse(calls[0][0])
+      expect(msg1.type).toBe('STATE_DELTA')
+      expect(msg1.payload.delta).toEqual({ count: 10 })
+
+      const msg2 = JSON.parse(calls[1][0])
+      expect(msg2.type).toBe('STATE_DELTA')
+      expect(msg2.payload.delta).toEqual({ label: 'changed' })
+    })
+
+    it('setState sends a single STATE_DELTA with all changes', () => {
+      const ws = createMockWs()
+
+      class BatchDeltaComponent extends LiveComponent<CounterState> {
+        static componentName = 'BatchDeltaComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new BatchDeltaComponent({ count: 0, label: 'test' }, ws)
+      component.setState({ count: 99, label: 'batch' })
+
+      const calls = (ws.send as any).mock.calls
+      expect(calls.length).toBe(1)
+
+      const msg = JSON.parse(calls[0][0])
+      expect(msg.type).toBe('STATE_DELTA')
+      expect(msg.payload.delta).toEqual({ count: 99, label: 'batch' })
+    })
+  })
+
+  // ===== Object.prototype Methods Blocked =====
+  describe('Security: Object.prototype Blocking', () => {
+    it('blocks Object.prototype methods even if in publicActions', async () => {
+      const ws = createMockWs()
+
+      class ProtoComponent extends LiveComponent<CounterState> {
+        static componentName = 'ProtoComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['toString', 'increment'] as const
+
+        async increment() { return { ok: true } }
+      }
+
+      const component = new ProtoComponent({}, ws)
+      await expect(component.executeAction('toString', {})).rejects.toThrow('not callable')
+
+      // Normal action works
+      const result = await component.executeAction('increment', {})
+      expect(result).toEqual({ ok: true })
+    })
+  })
+
+  // ===== Multiple executeAction Calls =====
+  describe('Concurrent Action Execution', () => {
+    it('multiple actions can run and onAction fires for each', async () => {
+      const ws = createMockWs()
+      const actionLog: string[] = []
+
+      class MultiActionComponent extends LiveComponent<CounterState> {
+        static componentName = 'MultiActionComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment', 'setLabel'] as const
+
+        protected onAction(action: string) {
+          actionLog.push(action)
+        }
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+
+        async setLabel(payload: { label: string }) {
+          this.state.label = payload.label
+          return { label: this.state.label }
+        }
+      }
+
+      const component = new MultiActionComponent({ count: 0, label: 'test' }, ws)
+
+      await component.executeAction('increment', {})
+      await component.executeAction('setLabel', { label: 'hello' })
+      await component.executeAction('increment', {})
+
+      expect(actionLog).toEqual(['increment', 'setLabel', 'increment'])
+      expect(component.state.count).toBe(2)
+      expect(component.state.label).toBe('hello')
+    })
+  })
+
+  // ===== onAction Selective Cancellation =====
+  describe('onAction Selective Cancel', () => {
+    it('can cancel specific actions while allowing others', async () => {
+      const ws = createMockWs()
+
+      class SelectiveCancelComponent extends LiveComponent<CounterState> {
+        static componentName = 'SelectiveCancelComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment', 'reset'] as const
+
+        protected onAction(action: string): void | false {
+          if (action === 'reset') return false
+        }
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+
+        async reset() {
+          this.state.count = 0
+          return { count: 0 }
+        }
+      }
+
+      const component = new SelectiveCancelComponent({ count: 0, label: 'test' }, ws)
+
+      // increment allowed
+      const r1 = await component.executeAction('increment', {})
+      expect(r1).toEqual({ count: 1 })
+
+      // reset cancelled
+      await expect(component.executeAction('reset', {})).rejects.toThrow('cancelled by onAction')
+      expect(component.state.count).toBe(1) // still 1, not reset
+    })
+  })
+
+  // ===== Complete Lifecycle Order with Rehydration =====
+  describe('Rehydration Lifecycle Order', () => {
+    it('follows onConnect → onRehydrate → onMount order', async () => {
+      const ws = createMockWs()
+      const order: string[] = []
+
+      class RehydrateLifecycleComponent extends LiveComponent<CounterState> {
+        static componentName = 'RehydrateLifecycleComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onConnect() { order.push('onConnect') }
+        protected onRehydrate(prev: CounterState) { order.push(`onRehydrate:count=${prev.count}`) }
+        protected onMount() { order.push('onMount') }
+        protected onDestroy() { order.push('onDestroy') }
+      }
+
+      const component = new RehydrateLifecycleComponent({ count: 42, label: 'old' }, ws)
+
+      // Simulate registry rehydration lifecycle
+      ;(component as any).onConnect()
+      ;(component as any).onRehydrate({ count: 42, label: 'old' })
+      await (component as any).onMount()
+
+      expect(order).toEqual([
+        'onConnect',
+        'onRehydrate:count=42',
+        'onMount'
+      ])
+
+      component.destroy()
+      expect(order).toContain('onDestroy')
+    })
+  })
+
+  // ===== defaultState Merge =====
+  describe('defaultState Merge with initialState', () => {
+    it('merges defaultState with partial initialState', () => {
+      const ws = createMockWs()
+
+      class MergeComponent extends LiveComponent<CounterState> {
+        static componentName = 'MergeComponent'
+        static defaultState: CounterState = { count: 0, label: 'default-label' }
+      }
+
+      // Only provide count, label should come from defaultState
+      const component = new MergeComponent({ count: 42 } as any, ws)
+      expect(component.state.count).toBe(42)
+      expect(component.state.label).toBe('default-label')
+    })
+
+    it('initialState overrides defaultState', () => {
+      const ws = createMockWs()
+
+      class OverrideComponent extends LiveComponent<CounterState> {
+        static componentName = 'OverrideComponent'
+        static defaultState: CounterState = { count: 0, label: 'default' }
+      }
+
+      const component = new OverrideComponent({ count: 100, label: 'custom' }, ws)
+      expect(component.state.count).toBe(100)
+      expect(component.state.label).toBe('custom')
+    })
+  })
+
+  // ===== All Hooks No-Op by Default =====
+  describe('Default Hook No-Ops', () => {
+    it('component with no hooks overridden works correctly', async () => {
+      const ws = createMockWs()
+
+      class PlainComponent extends LiveComponent<CounterState> {
+        static componentName = 'PlainComponent'
+        static defaultState: CounterState = { count: 0, label: 'plain' }
+        static publicActions = ['increment'] as const
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new PlainComponent({ count: 0, label: 'plain' }, ws)
+
+      // All lifecycle hooks should be no-ops
+      expect(() => (component as any).onConnect()).not.toThrow()
+      expect(() => (component as any).onDisconnect()).not.toThrow()
+      // onMount returns void (not a Promise) by default
+      expect((component as any).onMount()).toBeUndefined()
+      expect(() => (component as any).onStateChange({})).not.toThrow()
+      expect(() => (component as any).onRoomJoin('test')).not.toThrow()
+      expect(() => (component as any).onRoomLeave('test')).not.toThrow()
+      expect(() => (component as any).onRehydrate({})).not.toThrow()
+      expect(await (component as any).onAction('test', {})).toBeUndefined()
+
+      // Normal operations work
+      const result = await component.executeAction('increment', {})
+      expect(result).toEqual({ count: 1 })
+
+      expect(() => component.destroy()).not.toThrow()
+    })
+  })
+
+  // ===== getSerializableState =====
+  describe('getSerializableState', () => {
+    it('returns current state without internal fields', () => {
+      const ws = createMockWs()
+
+      class SerializableComponent extends LiveComponent<CounterState> {
+        static componentName = 'SerializableComponent'
+        static defaultState: CounterState = { count: 5, label: 'serialize-me' }
+      }
+
+      const component = new SerializableComponent({ count: 5, label: 'serialize-me' }, ws)
+      const state = component.getSerializableState()
+
+      expect(state).toEqual({ count: 5, label: 'serialize-me' })
+    })
+
+    it('reflects state changes via proxy', () => {
+      const ws = createMockWs()
+
+      class SerializableComponent extends LiveComponent<CounterState> {
+        static componentName = 'SerializableComponent2'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new SerializableComponent({ count: 0, label: 'test' }, ws)
+      component.state.count = 77
+      component.state.label = 'updated'
+
+      const state = component.getSerializableState()
+      expect(state).toEqual({ count: 77, label: 'updated' })
+    })
+  })
+
+  // ===== Emit Message Format =====
+  describe('Emit Message Format', () => {
+    it('emit sends correctly structured LiveMessage', () => {
+      const ws = createMockWs()
+
+      class EmitComponent extends LiveComponent<CounterState> {
+        static componentName = 'EmitComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+      }
+
+      const component = new EmitComponent({ count: 0, label: 'test' }, ws, { room: 'my-room', userId: 'user-123' })
+      component.state.count = 1
+
+      const msg = getLastSentMessage(ws)
+      expect(msg.type).toBe('STATE_DELTA')
+      expect(msg.componentId).toBe(component.id)
+      expect(msg.payload.delta).toEqual({ count: 1 })
+      expect(msg.timestamp).toBeDefined()
+      expect(msg.userId).toBe('user-123')
+      expect(msg.room).toBe('my-room')
+    })
+  })
+})
