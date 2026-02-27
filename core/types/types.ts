@@ -5,6 +5,9 @@ import { liveRoomManager } from '@core/server/live/LiveRoomManager'
 import { ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
 import { liveLog, liveWarn } from '@core/server/live/LiveLogger'
 
+/** @internal Symbol key for singleton emit override — prevents accidental access from userland code */
+export const EMIT_OVERRIDE_KEY = Symbol.for('fluxstack:emitOverride')
+
 // ===== Debug Instrumentation (injectable to avoid client-side import) =====
 // The real debugger is injected by ComponentRegistry at server startup.
 // This avoids importing server-only LiveDebugger.ts from this shared types file.
@@ -340,8 +343,11 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
   // Cached room handles
   private roomHandles: Map<string, ServerRoomHandle> = new Map()
 
-  // Internal: emit override for singleton broadcasting (injected by ComponentRegistry)
-  private _emitOverride: ((type: string, payload: any) => void) | null = null
+  // Guard against infinite recursion in onStateChange
+  private _inStateChange = false
+
+  // Guard: tracks whether we're inside onStateChange to prevent infinite recursion
+  // Internal: emit override for singleton broadcasting is stored via EMIT_OVERRIDE_KEY symbol
 
   constructor(initialState: Partial<TState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
@@ -404,8 +410,11 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           const changes = { [prop]: value } as Partial<TState>
           // Delta sync - send only the changed property
           self.emit('STATE_DELTA', { delta: changes })
-          // Lifecycle hook: onStateChange
-          try { self.onStateChange(changes) } catch {}
+          // Lifecycle hook: onStateChange (with recursion guard)
+          if (!self._inStateChange) {
+            self._inStateChange = true
+            try { self.onStateChange(changes) } catch {} finally { self._inStateChange = false }
+          }
           // Debug: track proxy mutation
           _liveDebugger?.trackStateChange(
             self.id,
@@ -633,10 +642,8 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
   // 🔗 Singleton Support (internal)
   // ========================================
 
-  /** @internal Used by ComponentRegistry to override emit for singleton broadcasting */
-  public _setEmitOverride(fn: ((type: string, payload: any) => void) | null): void {
-    this._emitOverride = fn
-  }
+  /** @internal Used by ComponentRegistry to override emit for singleton broadcasting (Symbol-keyed) */
+  public [EMIT_OVERRIDE_KEY]: ((type: string, payload: any) => void) | null = null
 
   // ========================================
   // 🔄 Lifecycle Hooks
@@ -754,8 +761,11 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     Object.assign(this._state as object, newUpdates)
     // Delta sync - send only the changed properties
     this.emit('STATE_DELTA', { delta: newUpdates })
-    // Lifecycle hook: onStateChange
-    try { this.onStateChange(newUpdates) } catch {}
+    // Lifecycle hook: onStateChange (with recursion guard)
+    if (!this._inStateChange) {
+      this._inStateChange = true
+      try { this.onStateChange(newUpdates) } catch {} finally { this._inStateChange = false }
+    }
     // Debug: track state change
     _liveDebugger?.trackStateChange(
       this.id,
@@ -799,8 +809,8 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     '$private', '_privateState',
     // HMR persistence
     '$persistent',
-    // Singleton internals
-    '_setEmitOverride', '_emitOverride',
+    // Singleton internals (Symbol-keyed, but block string equivalents too)
+    '_inStateChange',
     // Room internals
     '$room', '$rooms', 'subscribeToRoom', 'unsubscribeFromRoom',
     'emitRoomEvent', 'onRoomEvent', 'emitRoomEventWithState',
@@ -882,9 +892,10 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
   // Send message to client (or all clients for singletons)
   protected emit(type: string, payload: any) {
-    // Singleton override: broadcast to all connections
-    if (this._emitOverride) {
-      this._emitOverride(type, payload)
+    // Singleton override: broadcast to all connections (via Symbol key)
+    const override = this[EMIT_OVERRIDE_KEY]
+    if (override) {
+      override(type, payload)
       return
     }
 

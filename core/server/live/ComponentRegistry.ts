@@ -15,7 +15,7 @@ import { ANONYMOUS_CONTEXT } from './auth/LiveAuthContext'
 import type { LiveComponentAuth, LiveActionAuthMap } from './auth/types'
 import { liveLog, registerComponentLogging, unregisterComponentLogging } from './LiveLogger'
 import { liveDebugger } from './LiveDebugger'
-import { _setLiveDebugger } from '@core/types/types'
+import { _setLiveDebugger, EMIT_OVERRIDE_KEY } from '@core/types/types'
 
 // Inject debugger into types.ts (server-only) so LiveComponent class can use it
 // without importing the server-side LiveDebugger module directly
@@ -290,7 +290,7 @@ export class ComponentRegistry {
       const existing = this.singletons.get(componentName)
       if (existing) {
         // Add this ws connection to the singleton
-        const connId = ws.data?.connectionId || `ws-${Date.now()}`
+        const connId = ws.data?.connectionId || `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
         existing.connections.set(connId, ws)
 
         // Initialize WebSocket data if needed
@@ -367,13 +367,13 @@ export class ComponentRegistry {
 
     // 🔗 Register singleton with broadcast emit
     if (isSingleton) {
-      const connId = ws.data.connectionId || `ws-${Date.now()}`
+      const connId = ws.data.connectionId || `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       const connections = new Map<string, FluxStackWebSocket>()
       connections.set(connId, ws)
       this.singletons.set(componentName, { instance: component, connections })
 
-      // Override emit to broadcast to all connections
-      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+      // Override emit to broadcast to all connections (via Symbol key)
+      ;(component as any)[EMIT_OVERRIDE_KEY] = (type: string, payload: any) => {
         const message: LiveMessage = {
           type: type as any,
           componentId: component.id,
@@ -383,11 +383,19 @@ export class ComponentRegistry {
         const serialized = JSON.stringify(message)
         const singleton = this.singletons.get(componentName)
         if (singleton) {
-          for (const [, connWs] of singleton.connections) {
-            try { connWs.send(serialized) } catch {}
+          const deadConnections: string[] = []
+          for (const [connId, connWs] of singleton.connections) {
+            try { connWs.send(serialized) } catch {
+              deadConnections.push(connId)
+            }
+          }
+          // Remove dead connections
+          for (const connId of deadConnections) {
+            singleton.connections.delete(connId)
+            liveLog('lifecycle', component.id, `🔗 Singleton '${componentName}' — removed dead connection '${connId}'`)
           }
         }
-      })
+      }
 
       liveLog('lifecycle', component.id, `🔗 Singleton '${componentName}' created`)
     }
@@ -428,6 +436,11 @@ export class ComponentRegistry {
       await (component as any).onMount()
     } catch (err: any) {
       console.error(`[${componentName}] onMount error:`, err?.message || err)
+      // Notify client that mount initialization failed
+      ;(component as any).emit('ERROR', {
+        action: 'onMount',
+        error: `Mount initialization failed: ${err?.message || err}`
+      })
     }
 
     // Debug: track component mount
@@ -597,6 +610,10 @@ export class ComponentRegistry {
         await (component as any).onMount()
       } catch (err: any) {
         console.error(`[${componentName}] onMount error (rehydration):`, err?.message || err)
+        ;(component as any).emit('ERROR', {
+          action: 'onMount',
+          error: `Mount initialization failed (rehydration): ${err?.message || err}`
+        })
       }
 
       return {
@@ -620,7 +637,7 @@ export class ComponentRegistry {
     }
     if (!ws.data) {
       (ws as { data: FluxStackWSData }).data = {
-        connectionId: `ws-${Date.now()}`,
+        connectionId: `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         components: new Map(),
         subscriptions: new Set(),
         connectedAt: new Date(),
@@ -632,37 +649,41 @@ export class ComponentRegistry {
     }
   }
 
+  /**
+   * Remove a single connection from a singleton. If no connections remain, destroy it.
+   * @returns true if the component was a singleton (handled), false otherwise
+   */
+  private removeSingletonConnection(componentId: string, connId?: string, context = 'unmount'): boolean {
+    for (const [name, singleton] of this.singletons) {
+      if (singleton.instance.id !== componentId) continue
+
+      if (connId) singleton.connections.delete(connId)
+
+      if (singleton.connections.size === 0) {
+        // Last connection gone — destroy singleton fully
+        this.cleanupComponent(componentId)
+        this.singletons.delete(name)
+        liveLog('lifecycle', componentId, `🗑️ Singleton '${name}' destroyed (${context}: no connections remaining)`)
+      } else {
+        liveLog('lifecycle', componentId, `🔗 Singleton '${name}' — connection removed via ${context} (${singleton.connections.size} remaining)`)
+      }
+      return true
+    }
+    return false
+  }
+
   // Unmount component (with singleton awareness)
   async unmountComponent(componentId: string, ws?: FluxStackWebSocket) {
     const component = this.components.get(componentId)
     if (!component) return
 
     // 🔗 Singleton: remove connection, only destroy when last client leaves
-    for (const [name, singleton] of this.singletons) {
-      if (singleton.instance.id === componentId) {
-        if (ws) {
-          const connId = ws.data?.connectionId
-          if (connId) singleton.connections.delete(connId)
-          ws.data?.components?.delete(componentId)
-        }
-
-        if (singleton.connections.size === 0) {
-          // Last connection gone — destroy singleton
-          liveDebugger.trackComponentUnmount(componentId)
-          component.destroy?.()
-          this.unsubscribeFromAllRooms(componentId)
-          this.components.delete(componentId)
-          this.metadata.delete(componentId)
-          this.wsConnections.delete(componentId)
-          this.singletons.delete(name)
-          performanceMonitor.removeComponent(componentId)
-          unregisterComponentLogging(componentId)
-          liveLog('lifecycle', componentId, `🗑️ Singleton '${name}' destroyed (last connection unmounted)`)
-        } else {
-          liveLog('lifecycle', componentId, `🔗 Singleton '${name}' — connection removed (${singleton.connections.size} remaining)`)
-        }
-        return
-      }
+    if (ws) {
+      const connId = ws.data?.connectionId
+      ws.data?.components?.delete(componentId)
+      if (this.removeSingletonConnection(componentId, connId, 'unmount')) return
+    } else {
+      if (this.removeSingletonConnection(componentId, undefined, 'unmount')) return
     }
 
     // Non-singleton: normal unmount
@@ -905,28 +926,8 @@ export class ComponentRegistry {
         }
       }
 
-      // Check if this is a singleton
-      let isSingleton = false
-      for (const [name, singleton] of this.singletons) {
-        if (singleton.instance.id === componentId) {
-          // Remove this connection from the singleton
-          if (connId) singleton.connections.delete(connId)
-
-          if (singleton.connections.size === 0) {
-            // Last connection — destroy singleton
-            this.cleanupComponent(componentId)
-            this.singletons.delete(name)
-            liveLog('lifecycle', componentId, `🔗 Singleton '${name}' destroyed (no more connections)`)
-          } else {
-            liveLog('lifecycle', componentId, `🔗 Singleton '${name}' — connection left (${singleton.connections.size} remaining)`)
-          }
-
-          isSingleton = true
-          break
-        }
-      }
-
-      if (!isSingleton) {
+      // Singleton-aware cleanup via shared helper
+      if (!this.removeSingletonConnection(componentId, connId || undefined, 'disconnect')) {
         this.cleanupComponent(componentId)
       }
     }

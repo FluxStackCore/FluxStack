@@ -26,6 +26,9 @@ const routeFlameHue: Record<string, string> = {
   '/api-test': '90deg',     // lima
 }
 
+// Cache favicon blob URLs by hue to avoid recreating blobs on every navigation
+const faviconUrlCache = new Map<string, string>()
+
 export function AppLayout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -34,14 +37,18 @@ export function AppLayout() {
     const current = navItems.find(item => item.to === location.pathname)
     document.title = current ? `${current.label} - FluxStack` : 'FluxStack'
 
-    // Dynamic favicon with hue-rotate
+    // Dynamic favicon with hue-rotate (cached per hue value)
     const hue = routeFlameHue[location.pathname] || '0deg'
-    const colored = faviconSvg.replace(
-      '<svg ',
-      `<svg style="filter: hue-rotate(${hue})" `
-    )
-    const blob = new Blob([colored], { type: 'image/svg+xml' })
-    const url = URL.createObjectURL(blob)
+    let url = faviconUrlCache.get(hue)
+    if (!url) {
+      const colored = faviconSvg.replace(
+        '<svg ',
+        `<svg style="filter: hue-rotate(${hue})" `
+      )
+      const blob = new Blob([colored], { type: 'image/svg+xml' })
+      url = URL.createObjectURL(blob)
+      faviconUrlCache.set(hue, url)
+    }
     let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     if (!link) {
       link = document.createElement('link')
@@ -50,7 +57,6 @@ export function AppLayout() {
     }
     link.type = 'image/svg+xml'
     link.href = url
-    return () => URL.revokeObjectURL(url)
   }, [location.pathname])
 
   return (

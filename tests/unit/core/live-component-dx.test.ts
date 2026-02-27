@@ -30,7 +30,7 @@ vi.mock('@core/server/live/LiveRoomManager', () => ({
 }))
 
 // Import after mocks
-import { LiveComponent } from '@core/types/types'
+import { LiveComponent, EMIT_OVERRIDE_KEY } from '@core/types/types'
 import type { FluxStackWebSocket } from '@core/types/types'
 
 // ===== Test Helpers =====
@@ -395,7 +395,7 @@ describe('LiveComponent DX Enhancements', () => {
       connections.set('conn-2', ws2)
       connections.set('conn-3', ws3)
 
-      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+      ;(component as any)[EMIT_OVERRIDE_KEY] = (type: string, payload: any) => {
         const message = JSON.stringify({
           type,
           componentId: component.id,
@@ -405,7 +405,7 @@ describe('LiveComponent DX Enhancements', () => {
         for (const [, ws] of connections) {
           ws.send(message)
         }
-      })
+      }
 
       // Trigger state change (which calls emit via proxy)
       component.state.count = 42
@@ -446,12 +446,12 @@ describe('LiveComponent DX Enhancements', () => {
       const component = new SingletonComponent({ count: 0, label: 'test' }, ws1)
 
       // Set override
-      ;(component as any)._setEmitOverride((_type: string, _payload: any) => {
+      ;(component as any)[EMIT_OVERRIDE_KEY] = (_type: string, _payload: any) => {
         ws2.send('override')
-      })
+      }
 
       // Clear override
-      ;(component as any)._setEmitOverride(null)
+      ;(component as any)[EMIT_OVERRIDE_KEY] = null
 
       // Should go back to normal single-ws emit
       component.state.count = 5
@@ -508,19 +508,19 @@ describe('LiveComponent DX Enhancements', () => {
       await expect(component.executeAction('$persistent', {})).rejects.toThrow('not callable')
     })
 
-    it('blocks _setEmitOverride from client', async () => {
+    it('blocks _inStateChange from client', async () => {
       const ws = createMockWs()
 
       class SecureComponent extends LiveComponent<CounterState> {
         static componentName = 'SecureComponent4'
         static defaultState: CounterState = { count: 0, label: 'secure' }
-        static publicActions = ['increment', '_setEmitOverride'] as const
+        static publicActions = ['increment', '_inStateChange'] as const
 
         async increment() { return { success: true } }
       }
 
       const component = new SecureComponent({}, ws)
-      await expect(component.executeAction('_setEmitOverride', {})).rejects.toThrow('not callable')
+      await expect(component.executeAction('_inStateChange', {})).rejects.toThrow('not callable')
     })
 
     it('blocks all new lifecycle hooks from client', async () => {
@@ -668,6 +668,58 @@ describe('LiveComponent DX Enhancements', () => {
       expect(() => { component.state.count = 99 }).not.toThrow()
       // State should still be updated
       expect((component as any)._state.count).toBe(99)
+    })
+
+    it('does not cause infinite recursion when onStateChange modifies state', () => {
+      const ws = createMockWs()
+      let hookCallCount = 0
+
+      class RecursiveStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'RecursiveStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onStateChange(changes: Partial<CounterState>) {
+          hookCallCount++
+          // This would cause infinite recursion without the guard
+          if ('count' in changes) {
+            this.state.label = `count-${this.state.count}`
+          }
+        }
+      }
+
+      const component = new RecursiveStateComponent({ count: 0, label: 'test' }, ws)
+      component.state.count = 42
+
+      // Hook should be called exactly once (guard prevents recursion)
+      expect(hookCallCount).toBe(1)
+      // Both state changes should apply
+      expect((component as any)._state.count).toBe(42)
+      expect((component as any)._state.label).toBe('count-42')
+    })
+
+    it('recursion guard works with setState too', () => {
+      const ws = createMockWs()
+      let hookCallCount = 0
+
+      class RecursiveSetStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'RecursiveSetStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onStateChange(changes: Partial<CounterState>) {
+          hookCallCount++
+          if ('count' in changes) {
+            this.setState({ label: `count-${(changes as any).count}` })
+          }
+        }
+      }
+
+      const component = new RecursiveSetStateComponent({ count: 0, label: 'test' }, ws)
+      component.setState({ count: 10 })
+
+      // Hook should be called exactly once
+      expect(hookCallCount).toBe(1)
+      expect((component as any)._state.count).toBe(10)
+      expect((component as any)._state.label).toBe('count-10')
     })
   })
 
@@ -1333,12 +1385,12 @@ describe('LiveComponent DX — Extended Coverage', () => {
       connections.set('conn-1', ws1)
       connections.set('conn-2', ws2)
 
-      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+      ;(component as any)[EMIT_OVERRIDE_KEY] = (type: string, payload: any) => {
         const message = JSON.stringify({ type, componentId: component.id, payload, timestamp: Date.now() })
         for (const [, ws] of connections) {
           ws.send(message)
         }
-      })
+      }
 
       // Use setState (batch update)
       component.setState({ count: 50, label: 'batch' })
@@ -1369,12 +1421,12 @@ describe('LiveComponent DX — Extended Coverage', () => {
       connections.set('conn-1', ws1)
       connections.set('conn-2', ws2)
 
-      ;(component as any)._setEmitOverride((type: string, payload: any) => {
+      ;(component as any)[EMIT_OVERRIDE_KEY] = (type: string, payload: any) => {
         const message = JSON.stringify({ type, componentId: component.id, payload, timestamp: Date.now() })
         for (const [, ws] of connections) {
           ws.send(message)
         }
-      })
+      }
 
       await component.executeAction('increment', {})
 
