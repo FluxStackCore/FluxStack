@@ -283,6 +283,39 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
    */
   static actionAuth?: LiveActionAuthMap
 
+  /**
+   * Define data that survives HMR (Hot Module Replacement) reloads.
+   * Stored in globalThis and automatically restored across reloads.
+   * Access via `this.$persistent` at runtime.
+   *
+   * @example
+   * class LiveMigration extends LiveComponent<State> {
+   *   static persistent = {
+   *     cache: {} as Record<string, any>,
+   *     runCount: 0
+   *   }
+   *
+   *   protected async onMount() {
+   *     this.$persistent.runCount++
+   *     console.log(`Mount #${this.$persistent.runCount}`) // Survives HMR!
+   *   }
+   * }
+   */
+  static persistent?: Record<string, any>
+
+  /**
+   * When true, only ONE server-side instance exists for this component.
+   * All clients share the same state — updates broadcast to every connection.
+   *
+   * @example
+   * class LiveDashboard extends LiveComponent<DashboardState> {
+   *   static singleton = true
+   *   static componentName = 'LiveDashboard'
+   *   // All clients see the same dashboard data
+   * }
+   */
+  static singleton?: boolean
+
   public readonly id: string
   private _state: TState
   public state: TState // Proxy wrapper
@@ -306,6 +339,9 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
   // Cached room handles
   private roomHandles: Map<string, ServerRoomHandle> = new Map()
+
+  // Internal: emit override for singleton broadcasting (injected by ComponentRegistry)
+  private _emitOverride: ((type: string, payload: any) => void) | null = null
 
   constructor(initialState: Partial<TState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     this.id = this.generateId()
@@ -563,6 +599,72 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     }
   }
 
+  // ========================================
+  // 🔥 $persistent - HMR-Safe State
+  // ========================================
+
+  /**
+   * Access data that survives HMR (Hot Module Replacement) reloads.
+   * Shape and defaults are defined by `static persistent`.
+   * Stored in `globalThis` so data persists across Bun/Node module reloads.
+   *
+   * @example
+   * this.$persistent.cache[key] = result  // Still here after HMR!
+   * this.$persistent.runCount++            // Counter survives reloads
+   */
+  public get $persistent(): Record<string, any> {
+    const ctor = this.constructor as typeof LiveComponent
+    const name = ctor.componentName || ctor.name
+    const key = `__fluxstack_persistent_${name}`
+
+    if (!(globalThis as any)[key]) {
+      (globalThis as any)[key] = { ...(ctor as any).persistent || {} }
+    }
+
+    return (globalThis as any)[key]
+  }
+
+  // ========================================
+  // 🔗 Singleton Support (internal)
+  // ========================================
+
+  /** @internal Used by ComponentRegistry to override emit for singleton broadcasting */
+  public _setEmitOverride(fn: ((type: string, payload: any) => void) | null): void {
+    this._emitOverride = fn
+  }
+
+  // ========================================
+  // 🔄 Lifecycle Hooks
+  // ========================================
+
+  /**
+   * Called after component is fully mounted and ready.
+   * At this point rooms, auth context, and all injections are available.
+   * Override in subclass for initialization logic.
+   *
+   * @example
+   * protected async onMount() {
+   *   this.$room.join()
+   *   this.$room.on('message:new', (msg) => {
+   *     this.state.messages = [...this.state.messages, msg]
+   *   })
+   *   this.state.users = await this.fetchUsers()
+   * }
+   */
+  protected onMount(): void | Promise<void> {}
+
+  /**
+   * Called before component is destroyed (sync only).
+   * Override in subclass for cleanup: timers, intervals, external connections.
+   *
+   * @example
+   * protected onDestroy() {
+   *   clearInterval(this._pollTimer)
+   *   this.externalConnection?.close()
+   * }
+   */
+  protected onDestroy(): void {}
+
   // State management (batch update - single emit with delta)
   public setState(updates: Partial<TState> | ((prev: TState) => Partial<TState>)) {
     const newUpdates = typeof updates === 'function' ? updates(this._state) : updates
@@ -600,6 +702,7 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
   private static readonly BLOCKED_ACTIONS: ReadonlySet<string> = new Set([
     // Lifecycle & internal
     'constructor', 'destroy', 'executeAction', 'getSerializableState',
+    'onMount', 'onDestroy',
     // State management internals
     'setState', 'emit', 'broadcast', 'broadcastToRoom',
     'createStateProxy', 'createDirectStateAccessors', 'generateId',
@@ -607,6 +710,10 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     'setAuthContext', '$auth',
     // Private state internals
     '$private', '_privateState',
+    // HMR persistence
+    '$persistent',
+    // Singleton internals
+    '_setEmitOverride', '_emitOverride',
     // Room internals
     '$room', '$rooms', 'subscribeToRoom', 'unsubscribeFromRoom',
     'emitRoomEvent', 'onRoomEvent', 'emitRoomEventWithState',
@@ -635,6 +742,15 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
         throw new Error(`Action '${action}' is not callable - component has no publicActions defined`)
       }
       if (!publicActions.includes(action)) {
+        // Provide a helpful error if the method exists but isn't whitelisted
+        const methodExists = typeof (this as any)[action] === 'function'
+        if (methodExists) {
+          const name = componentClass.componentName || componentClass.name
+          throw new Error(
+            `Action '${action}' exists on '${name}' but is not listed in publicActions. ` +
+            `Add it to: static publicActions = [..., '${action}']`
+          )
+        }
         throw new Error(`Action '${action}' is not callable`)
       }
 
@@ -671,8 +787,14 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
     }
   }
 
-  // Send message to client
+  // Send message to client (or all clients for singletons)
   protected emit(type: string, payload: any) {
+    // Singleton override: broadcast to all connections
+    if (this._emitOverride) {
+      this._emitOverride(type, payload)
+      return
+    }
+
     const message: LiveMessage = {
       type: type as any,
       componentId: this.id,
@@ -802,6 +924,13 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
   // Cleanup when component is destroyed
   public destroy() {
+    // Call user lifecycle hook before internal cleanup
+    try {
+      this.onDestroy()
+    } catch (err: any) {
+      console.error(`[${this.id}] onDestroy error:`, err?.message || err)
+    }
+
     // Limpa todas as inscrições de room events
     for (const unsubscribe of this.roomEventUnsubscribers) {
       unsubscribe()

@@ -236,7 +236,7 @@ describe('🔒 Security: Arbitrary Method Execution (CWE-94)', () => {
     })
 
     it('ATTACK: should block calling non-whitelisted method', async () => {
-      await expect(secure.executeAction('resetDatabase', {})).rejects.toThrow("Action 'resetDatabase' is not callable")
+      await expect(secure.executeAction('resetDatabase', {})).rejects.toThrow("not listed in publicActions")
     })
 
     it('ATTACK: should block calling destroy even on secure component', async () => {
@@ -736,7 +736,7 @@ describe('🔒 Security: setValue Protection (CWE-306)', () => {
     await expect(component.executeAction('setValue', {
       key: 'isAdmin',
       value: true
-    })).rejects.toThrow("Action 'setValue' is not callable")
+    })).rejects.toThrow("not listed in publicActions")
   })
 
   it('should block setValue on legacy components (no publicActions = secure by default)', async () => {
@@ -785,7 +785,7 @@ describe('🔒 Security: Comprehensive Attack Scenario Simulation', () => {
     const component = new SecureComponent({}, ws)
 
     // resetDatabase exists but is not in publicActions
-    await expect(component.executeAction('resetDatabase', {})).rejects.toThrow("is not callable")
+    await expect(component.executeAction('resetDatabase', {})).rejects.toThrow("not listed in publicActions")
   })
 
   it('SCENARIO: Attacker tries to emit fake state updates to other clients', async () => {

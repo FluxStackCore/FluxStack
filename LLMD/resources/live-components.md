@@ -1,12 +1,16 @@
 # Live Components
 
-**Version:** 1.13.0 | **Updated:** 2025-02-09
+**Version:** 1.14.0 | **Updated:** 2025-02-27
 
 ## Quick Facts
 
 - Server-side state management with WebSocket sync
 - **Direct state access** - `this.count++` auto-syncs (v1.13.0)
+- **Lifecycle hooks** - `onMount()` / `onDestroy()` for proper initialization and cleanup (v1.14.0)
+- **HMR persistence** - `static persistent` + `this.$persistent` survives hot reloads (v1.14.0)
+- **Singleton components** - `static singleton = true` for shared server-side instances (v1.14.0)
 - **Mandatory `publicActions`** - Only whitelisted methods are callable from client (secure by default)
+- **Helpful error messages** - Forgotten `publicActions` entries show exactly what to fix (v1.14.0)
 - Automatic state persistence and re-hydration (with anti-replay nonces)
 - Room-based event system for multi-user sync
 - Type-safe client-server communication (FluxStackWebSocket)
@@ -52,6 +56,13 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
   }
 }
 ```
+
+### Key Changes in v1.14.0
+
+1. **Lifecycle hooks** - `onMount()` (async) and `onDestroy()` (sync) replace constructor/destroy workarounds
+2. **HMR persistence** - `static persistent` + `this.$persistent` for data that survives hot module reloads
+3. **Singleton components** - `static singleton = true` for shared state across all connected clients
+4. **Better publicActions errors** - Clear message when a method exists but is missing from `publicActions`
 
 ### Key Changes in v1.13.0
 
@@ -111,26 +122,135 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
 }
 ```
 
-## Lifecycle Methods
+## Lifecycle Hooks (v1.14.0)
+
+Use `onMount()` and `onDestroy()` instead of constructor workarounds:
 
 ```typescript
 export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> {
   static componentName = 'MyComponent'
-  static defaultState = {
-    // Define state here
+  static publicActions = ['doWork'] as const
+  static defaultState = { users: [] as string[], ready: false }
+
+  private _pollTimer?: NodeJS.Timeout
+
+  // Called AFTER component is fully mounted (rooms, auth, injections ready)
+  // Can be async!
+  protected async onMount() {
+    this.$room.join()
+    this.$room.on('user:joined', (user) => {
+      this.state.users = [...this.state.users, user]
+    })
+
+    // Async init is fine
+    const data = await fetchInitialData(this.$auth.user?.id)
+    this.state.ready = true
+
+    this._pollTimer = setInterval(() => this.poll(), 5000)
   }
 
-  // Constructor ONLY needed if:
-  // - Subscribing to room events
-  // - Custom initialization logic
-  // Otherwise, omit it entirely!
+  // Called BEFORE internal cleanup (sync only)
+  protected onDestroy() {
+    clearInterval(this._pollTimer)
+    this.externalConnection?.close()
+  }
 
-  destroy() {
-    // Cleanup subscriptions, timers, etc.
-    super.destroy()
+  async doWork() { /* ... */ }
+  private poll() { /* ... */ }
+}
+```
+
+**Rules:**
+- `onMount()` — can be async, called after rooms/auth/DI are ready
+- `onDestroy()` — sync only, called before internal cleanup in `destroy()`
+- Constructor is still needed ONLY for room event subscriptions (`this.onRoomEvent`)
+- `onDestroy` errors are caught and logged — they never prevent cleanup
+
+## HMR Persistence (v1.14.0)
+
+Data in `static persistent` survives Hot Module Replacement reloads via `globalThis`:
+
+```typescript
+export class LiveMigration extends LiveComponent<typeof LiveMigration.defaultState> {
+  static componentName = 'LiveMigration'
+  static publicActions = ['runMigration'] as const
+  static defaultState = { status: 'idle', lastResult: '' }
+
+  // Define shape and defaults for persistent data
+  static persistent = {
+    cache: {} as Record<string, any>,
+    runCount: 0
+  }
+
+  protected onMount() {
+    this.$persistent.runCount++
+    console.log(`Mount #${this.$persistent.runCount}`) // Survives HMR!
+  }
+
+  async runMigration(payload: { key: string }) {
+    // Check HMR-safe cache
+    if (this.$persistent.cache[payload.key]) {
+      return { cached: true, result: this.$persistent.cache[payload.key] }
+    }
+
+    const result = await expensiveComputation(payload.key)
+    this.$persistent.cache[payload.key] = result
+    this.state.lastResult = result
+    return { cached: false, result }
   }
 }
 ```
+
+**Key facts:**
+- `this.$persistent` reads from `globalThis.__fluxstack_persistent_{ComponentName}`
+- Each component class has its own namespace
+- Defaults come from `static persistent` — initialized once, then persisted
+- Not sent to client — server-only
+- `$persistent` is in BLOCKED_ACTIONS (can't be called from client)
+
+## Singleton Components (v1.14.0)
+
+When `static singleton = true`, only ONE server-side instance exists. All clients share the same state:
+
+```typescript
+export class LiveDashboard extends LiveComponent<typeof LiveDashboard.defaultState> {
+  static componentName = 'LiveDashboard'
+  static singleton = true  // All clients share this instance
+  static publicActions = ['refresh', 'addAlert'] as const
+  static defaultState = {
+    visitors: 0,
+    alerts: [] as string[],
+    lastRefresh: ''
+  }
+
+  protected async onMount() {
+    this.state.visitors++
+    this.state.lastRefresh = new Date().toISOString()
+  }
+
+  async refresh() {
+    const data = await fetchDashboardData()
+    this.setState(data) // Broadcasts to ALL connected clients
+    return { success: true }
+  }
+
+  async addAlert(payload: { message: string }) {
+    this.state.alerts = [...this.state.alerts, payload.message]
+    // All clients see the new alert instantly
+    return { success: true }
+  }
+}
+```
+
+**How it works:**
+- First client to mount creates the singleton instance
+- Subsequent clients join the existing instance and receive current state
+- `emit` / `setState` / `this.state.x = y` broadcast to ALL connected WebSockets
+- When a client disconnects, it's removed from the singleton's connections
+- When the LAST client disconnects, the singleton is destroyed
+- Stats visible at `/api/live/stats` (shows singleton connection counts)
+
+**Use cases:** Shared dashboards, global migration state, admin panels, live counters
 
 ## State Management
 
@@ -665,19 +785,23 @@ export class MyComponent extends LiveComponent<State> {
 - Define `static defaultState` inside the class
 - Use `typeof ClassName.defaultState` for type parameter
 - Use `declare` for each state property (TypeScript type hint)
-- Call `super.destroy()` in destroy method if overriding
+- Use `onMount()` for async initialization (rooms, auth, data fetching)
+- Use `onDestroy()` for cleanup (timers, connections) — sync only
 - Use `emitRoomEventWithState` for state changes in rooms
 - Handle errors in actions (throw Error)
 - Add client link: `import type { Demo as _Client } from '@client/...'`
+- Use `$persistent` for data that should survive HMR reloads
+- Use `static singleton = true` for shared cross-client state
 
 **NEVER:**
 - Omit `static publicActions` (component will deny ALL remote actions)
 - Export separate `defaultState` constant (use static)
 - Create constructor just to call super() (not needed)
 - Forget `static componentName` (breaks minification)
+- Override `destroy()` directly — use `onDestroy()` instead (v1.14.0)
 - Emit room events without subscribing first
 - Store non-serializable data in state
-- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, $private, broadcastToRoom, roomType)
+- Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, $private, $persistent, broadcastToRoom, roomType)
 - Include `setValue` in `publicActions` unless you trust clients to modify any state key
 - Store sensitive data (tokens, API keys, secrets) in `state` — use `$private` instead
 
