@@ -420,7 +420,10 @@ export class ComponentRegistry {
       signedState
     })
 
-    // 🔄 Call onMount lifecycle hook (after all setup is complete)
+    // 🔄 Lifecycle hooks
+    try { (component as any).onConnect() } catch (err: any) {
+      console.error(`[${componentName}] onConnect error:`, err?.message || err)
+    }
     try {
       await (component as any).onMount()
     } catch (err: any) {
@@ -583,7 +586,13 @@ export class ComponentRegistry {
         newComponentId: component.id
       })
 
-      // 🔄 Call onMount lifecycle hook after rehydration
+      // 🔄 Lifecycle hooks after rehydration
+      try { (component as any).onConnect() } catch (err: any) {
+        console.error(`[${componentName}] onConnect error (rehydration):`, err?.message || err)
+      }
+      try { (component as any).onRehydrate(clientState) } catch (err: any) {
+        console.error(`[${componentName}] onRehydrate error:`, err?.message || err)
+      }
       try {
         await (component as any).onMount()
       } catch (err: any) {
@@ -888,6 +897,14 @@ export class ComponentRegistry {
     liveLog('lifecycle', null, `🧹 Cleaning up ${componentsToCleanup.length} components for disconnected WebSocket`)
 
     for (const componentId of componentsToCleanup) {
+      // Call onDisconnect lifecycle hook (only fires on connection loss, not intentional unmount)
+      const component = this.components.get(componentId)
+      if (component) {
+        try { (component as any).onDisconnect() } catch (err: any) {
+          console.error(`[${componentId}] onDisconnect error:`, err?.message || err)
+        }
+      }
+
       // Check if this is a singleton
       let isSingleton = false
       for (const [name, singleton] of this.singletons) {

@@ -522,5 +522,349 @@ describe('LiveComponent DX Enhancements', () => {
       const component = new SecureComponent({}, ws)
       await expect(component.executeAction('_setEmitOverride', {})).rejects.toThrow('not callable')
     })
+
+    it('blocks all new lifecycle hooks from client', async () => {
+      const ws = createMockWs()
+
+      class TestComp extends LiveComponent<CounterState> {
+        static componentName = 'TestCompBlocked'
+        static defaultState: CounterState = { count: 0, label: 'x' }
+        static publicActions = ['increment', 'onConnect', 'onDisconnect', 'onStateChange', 'onRoomJoin', 'onRoomLeave', 'onRehydrate', 'onAction'] as const
+        async increment() { return { success: true } }
+      }
+
+      const component = new TestComp({}, ws)
+      for (const hook of ['onConnect', 'onDisconnect', 'onStateChange', 'onRoomJoin', 'onRoomLeave', 'onRehydrate', 'onAction']) {
+        await expect(component.executeAction(hook, {})).rejects.toThrow('not callable')
+      }
+    })
+  })
+
+  // ===== onConnect =====
+  describe('onConnect Hook', () => {
+    it('onConnect is callable on the component', () => {
+      const ws = createMockWs()
+      let connectCalled = false
+
+      class ConnectComponent extends LiveComponent<CounterState> {
+        static componentName = 'ConnectComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onConnect() {
+          connectCalled = true
+        }
+      }
+
+      const component = new ConnectComponent({}, ws)
+      ;(component as any).onConnect()
+      expect(connectCalled).toBe(true)
+    })
+  })
+
+  // ===== onDisconnect =====
+  describe('onDisconnect Hook', () => {
+    it('onDisconnect is callable and distinct from onDestroy', () => {
+      const ws = createMockWs()
+      const calls: string[] = []
+
+      class DisconnectComponent extends LiveComponent<CounterState> {
+        static componentName = 'DisconnectComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onDisconnect() {
+          calls.push('onDisconnect')
+        }
+
+        protected onDestroy() {
+          calls.push('onDestroy')
+        }
+      }
+
+      const component = new DisconnectComponent({}, ws)
+
+      // Simulate disconnect (registry calls onDisconnect before destroy)
+      ;(component as any).onDisconnect()
+      component.destroy()
+
+      expect(calls).toEqual(['onDisconnect', 'onDestroy'])
+    })
+  })
+
+  // ===== onStateChange =====
+  describe('onStateChange Hook', () => {
+    it('fires on proxy mutation', () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class StateChangeComponent extends LiveComponent<CounterState> {
+        static componentName = 'StateChangeComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+      }
+
+      const component = new StateChangeComponent({ count: 0, label: 'test' }, ws)
+      component.state.count = 42
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual({ count: 42 })
+    })
+
+    it('fires on setState batch', () => {
+      const ws = createMockWs()
+      const changes: any[] = []
+
+      class StateChangeComponent extends LiveComponent<CounterState> {
+        static componentName = 'StateChangeComponent2'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onStateChange(c: Partial<CounterState>) {
+          changes.push({ ...c })
+        }
+      }
+
+      const component = new StateChangeComponent({ count: 0, label: 'old' }, ws)
+      component.setState({ count: 10, label: 'new' })
+
+      expect(changes).toHaveLength(1)
+      expect(changes[0]).toEqual({ count: 10, label: 'new' })
+    })
+
+    it('does not fire if value is unchanged', () => {
+      const ws = createMockWs()
+      let callCount = 0
+
+      class StateChangeComponent extends LiveComponent<CounterState> {
+        static componentName = 'StateChangeComponent3'
+        static defaultState: CounterState = { count: 5, label: 'test' }
+
+        protected onStateChange() {
+          callCount++
+        }
+      }
+
+      const component = new StateChangeComponent({ count: 5, label: 'test' }, ws)
+      component.state.count = 5 // Same value
+
+      expect(callCount).toBe(0)
+    })
+
+    it('errors in onStateChange do not break state updates', () => {
+      const ws = createMockWs()
+
+      class ErrorStateComponent extends LiveComponent<CounterState> {
+        static componentName = 'ErrorStateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onStateChange() {
+          throw new Error('boom')
+        }
+      }
+
+      const component = new ErrorStateComponent({ count: 0, label: 'test' }, ws)
+      // Should not throw
+      expect(() => { component.state.count = 99 }).not.toThrow()
+      // State should still be updated
+      expect((component as any)._state.count).toBe(99)
+    })
+  })
+
+  // ===== onRoomJoin / onRoomLeave =====
+  describe('onRoomJoin / onRoomLeave Hooks', () => {
+    it('fires onRoomJoin when joining a room', () => {
+      const ws = createMockWs()
+      const roomEvents: string[] = []
+
+      class RoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'RoomComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRoomJoin(roomId: string) {
+          roomEvents.push(`join:${roomId}`)
+        }
+
+        protected onRoomLeave(roomId: string) {
+          roomEvents.push(`leave:${roomId}`)
+        }
+      }
+
+      const component = new RoomComponent({}, ws, { room: 'default-room' })
+      component.$room('test-room').join()
+
+      expect(roomEvents).toContain('join:test-room')
+    })
+
+    it('fires onRoomLeave when leaving a room', () => {
+      const ws = createMockWs()
+      const roomEvents: string[] = []
+
+      class RoomComponent extends LiveComponent<CounterState> {
+        static componentName = 'RoomComponent2'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRoomJoin(roomId: string) {
+          roomEvents.push(`join:${roomId}`)
+        }
+
+        protected onRoomLeave(roomId: string) {
+          roomEvents.push(`leave:${roomId}`)
+        }
+      }
+
+      const component = new RoomComponent({}, ws, { room: 'default-room' })
+      component.$room('test-room').join()
+      component.$room('test-room').leave()
+
+      expect(roomEvents).toEqual(['join:test-room', 'leave:test-room'])
+    })
+  })
+
+  // ===== onRehydrate =====
+  describe('onRehydrate Hook', () => {
+    it('onRehydrate receives previous state', () => {
+      const ws = createMockWs()
+      let receivedState: any = null
+
+      class RehydrateComponent extends LiveComponent<CounterState> {
+        static componentName = 'RehydrateComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+
+        protected onRehydrate(previousState: CounterState) {
+          receivedState = previousState
+        }
+      }
+
+      const component = new RehydrateComponent({}, ws)
+      const oldState = { count: 42, label: 'old' }
+      ;(component as any).onRehydrate(oldState)
+
+      expect(receivedState).toEqual({ count: 42, label: 'old' })
+    })
+  })
+
+  // ===== onAction =====
+  describe('onAction Hook', () => {
+    it('fires before action execution', async () => {
+      const ws = createMockWs()
+      const log: string[] = []
+
+      class ActionHookComponent extends LiveComponent<CounterState> {
+        static componentName = 'ActionHookComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onAction(action: string, _payload: any) {
+          log.push(`before:${action}`)
+        }
+
+        async increment() {
+          log.push('execute:increment')
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new ActionHookComponent({ count: 0, label: 'test' }, ws)
+      await component.executeAction('increment', {})
+
+      expect(log).toEqual(['before:increment', 'execute:increment'])
+    })
+
+    it('returning false cancels the action', async () => {
+      const ws = createMockWs()
+      let executed = false
+
+      class CancelComponent extends LiveComponent<CounterState> {
+        static componentName = 'CancelComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onAction(_action: string, _payload: any): false {
+          return false
+        }
+
+        async increment() {
+          executed = true
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new CancelComponent({ count: 0, label: 'test' }, ws)
+
+      await expect(component.executeAction('increment', {})).rejects.toThrow('cancelled by onAction')
+      expect(executed).toBe(false)
+    })
+
+    it('returning void allows the action', async () => {
+      const ws = createMockWs()
+
+      class AllowComponent extends LiveComponent<CounterState> {
+        static componentName = 'AllowComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onAction() {
+          // No return = allow
+        }
+
+        async increment() {
+          this.state.count++
+          return { count: this.state.count }
+        }
+      }
+
+      const component = new AllowComponent({ count: 0, label: 'test' }, ws)
+      const result = await component.executeAction('increment', {})
+      expect(result).toEqual({ count: 1 })
+    })
+  })
+
+  // ===== Full Lifecycle Order =====
+  describe('Lifecycle Order', () => {
+    it('hooks fire in correct order: onConnect → onMount → actions → onDestroy', async () => {
+      const ws = createMockWs()
+      const order: string[] = []
+
+      class FullLifecycleComponent extends LiveComponent<CounterState> {
+        static componentName = 'FullLifecycleComponent'
+        static defaultState: CounterState = { count: 0, label: 'test' }
+        static publicActions = ['increment'] as const
+
+        protected onConnect() { order.push('onConnect') }
+        protected onMount() { order.push('onMount') }
+        protected onAction(action: string) { order.push(`onAction:${action}`) }
+        protected onStateChange() { order.push('onStateChange') }
+        protected onDisconnect() { order.push('onDisconnect') }
+        protected onDestroy() { order.push('onDestroy') }
+
+        async increment() {
+          order.push('increment')
+          this.state.count++
+          return { success: true }
+        }
+      }
+
+      const component = new FullLifecycleComponent({ count: 0, label: 'test' }, ws)
+
+      // Simulate registry lifecycle
+      ;(component as any).onConnect()
+      await (component as any).onMount()
+      await component.executeAction('increment', {})
+      ;(component as any).onDisconnect()
+      component.destroy()
+
+      expect(order).toEqual([
+        'onConnect',
+        'onMount',
+        'onAction:increment',
+        'increment',
+        'onStateChange',
+        'onDisconnect',
+        'onDestroy'
+      ])
+    })
   })
 })

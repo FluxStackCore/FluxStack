@@ -124,35 +124,71 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
 
 ## Lifecycle Hooks (v1.14.0)
 
-Use `onMount()` and `onDestroy()` instead of constructor workarounds:
+Full lifecycle hook system — no more constructor workarounds:
 
 ```typescript
 export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> {
   static componentName = 'MyComponent'
   static publicActions = ['doWork'] as const
-  static defaultState = { users: [] as string[], ready: false }
+  static defaultState = { users: [] as string[], ready: false, currentRoom: '' }
 
   private _pollTimer?: NodeJS.Timeout
 
-  // Called AFTER component is fully mounted (rooms, auth, injections ready)
+  // 1️⃣ Called when WebSocket connection is established (before onMount)
+  protected onConnect() {
+    console.log('WebSocket connected for this component')
+  }
+
+  // 2️⃣ Called AFTER component is fully mounted (rooms, auth, injections ready)
   // Can be async!
   protected async onMount() {
     this.$room.join()
     this.$room.on('user:joined', (user) => {
       this.state.users = [...this.state.users, user]
     })
-
-    // Async init is fine
     const data = await fetchInitialData(this.$auth.user?.id)
     this.state.ready = true
-
     this._pollTimer = setInterval(() => this.poll(), 5000)
+  }
+
+  // Called after state is restored from localStorage (rehydration)
+  protected onRehydrate(previousState: typeof MyComponent.defaultState) {
+    if (!previousState.ready) {
+      this.state.ready = false // Re-validate stale state
+    }
+  }
+
+  // Called after any state mutation (proxy or setState)
+  protected onStateChange(changes: Partial<typeof MyComponent.defaultState>) {
+    if ('users' in changes) {
+      console.log(`User count: ${this.state.users.length}`)
+    }
+  }
+
+  // Called when joining a room
+  protected onRoomJoin(roomId: string) {
+    this.state.currentRoom = roomId
+  }
+
+  // Called when leaving a room
+  protected onRoomLeave(roomId: string) {
+    if (this.state.currentRoom === roomId) this.state.currentRoom = ''
+  }
+
+  // Called before each action — return false to cancel
+  protected onAction(action: string, payload: any) {
+    console.log(`[${this.id}] ${action}`, payload)
+    // return false  // ← would cancel the action
+  }
+
+  // Called when WebSocket drops (NOT on intentional unmount)
+  protected onDisconnect() {
+    console.log('Connection lost — saving recovery data')
   }
 
   // Called BEFORE internal cleanup (sync only)
   protected onDestroy() {
     clearInterval(this._pollTimer)
-    this.externalConnection?.close()
   }
 
   async doWork() { /* ... */ }
@@ -160,11 +196,46 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 }
 ```
 
-**Rules:**
-- `onMount()` — can be async, called after rooms/auth/DI are ready
-- `onDestroy()` — sync only, called before internal cleanup in `destroy()`
-- Constructor is still needed ONLY for room event subscriptions (`this.onRoomEvent`)
-- `onDestroy` errors are caught and logged — they never prevent cleanup
+### Lifecycle Order
+
+```
+WebSocket connects
+  └→ onConnect()
+       └→ onMount()          ← async, rooms/auth ready
+            └→ [component active]
+                 ├→ onAction(action, payload)  ← before each action (return false to cancel)
+                 ├→ onStateChange(changes)     ← after each state mutation
+                 ├→ onRoomJoin(roomId)         ← when joining a room
+                 └→ onRoomLeave(roomId)        ← when leaving a room
+
+Connection drops:
+  └→ onDisconnect()          ← only on unexpected disconnect
+       └→ onDestroy()        ← sync, before internal cleanup
+
+Rehydration (reconnect with saved state):
+  └→ onConnect()
+       └→ onRehydrate(previousState)
+            └→ onMount()
+```
+
+### Rules
+
+| Hook | Async? | When |
+|------|--------|------|
+| `onConnect()` | No | WebSocket established, before mount |
+| `onMount()` | **Yes** | After all setup (rooms, auth, DI) |
+| `onRehydrate(prevState)` | No | After state restored from localStorage |
+| `onStateChange(changes)` | No | After every state mutation |
+| `onRoomJoin(roomId)` | No | After `$room.join()` |
+| `onRoomLeave(roomId)` | No | After `$room.leave()` |
+| `onAction(action, payload)` | **Yes** | Before action execution (return `false` to cancel) |
+| `onDisconnect()` | No | Connection lost (NOT intentional unmount) |
+| `onDestroy()` | No | Before internal cleanup |
+
+- All hooks are optional — override only what you need
+- All hook errors are caught and logged — they never break the system
+- Constructor is still needed ONLY for `this.onRoomEvent()` subscriptions
+- All hooks are in BLOCKED_ACTIONS — clients cannot call them remotely
 
 ## HMR Persistence (v1.14.0)
 

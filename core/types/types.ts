@@ -401,12 +401,15 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
         const oldValue = (target as any)[prop]
         if (oldValue !== value) {
           (target as any)[prop] = value
+          const changes = { [prop]: value } as Partial<TState>
           // Delta sync - send only the changed property
-          self.emit('STATE_DELTA', { delta: { [prop]: value } })
+          self.emit('STATE_DELTA', { delta: changes })
+          // Lifecycle hook: onStateChange
+          try { self.onStateChange(changes) } catch {}
           // Debug: track proxy mutation
           _liveDebugger?.trackStateChange(
             self.id,
-            { [prop]: value } as Record<string, unknown>,
+            changes as Record<string, unknown>,
             target as Record<string, unknown>,
             'proxy'
           )
@@ -478,12 +481,14 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
           if (self.joinedRooms.has(roomId)) return
           self.joinedRooms.add(roomId)
           liveRoomManager.joinRoom(self.id, roomId, self.ws, initialState)
+          try { self.onRoomJoin(roomId) } catch {}
         },
 
         leave: () => {
           if (!self.joinedRooms.has(roomId)) return
           self.joinedRooms.delete(roomId)
           liveRoomManager.leaveRoom(self.id, roomId)
+          try { self.onRoomLeave(roomId) } catch {}
         },
 
         emit: (event: string, data: any): number => {
@@ -638,6 +643,12 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
   // ========================================
 
   /**
+   * Called when the WebSocket connection is established for this component.
+   * Fires BEFORE onMount. Useful for connection-level logging or setup.
+   */
+  protected onConnect(): void {}
+
+  /**
    * Called after component is fully mounted and ready.
    * At this point rooms, auth context, and all injections are available.
    * Override in subclass for initialization logic.
@@ -654,6 +665,13 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
   protected onMount(): void | Promise<void> {}
 
   /**
+   * Called when the WebSocket connection drops unexpectedly.
+   * Fires BEFORE onDestroy. NOT called on intentional unmount.
+   * Useful for notifying rooms, saving state, or triggering recovery.
+   */
+  protected onDisconnect(): void {}
+
+  /**
    * Called before component is destroyed (sync only).
    * Override in subclass for cleanup: timers, intervals, external connections.
    *
@@ -665,12 +683,79 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
    */
   protected onDestroy(): void {}
 
+  /**
+   * Called after any state change (proxy mutation or setState).
+   * Useful for computed properties, side effects, or validation.
+   *
+   * @param changes - Object with the changed keys and their new values
+   *
+   * @example
+   * protected onStateChange(changes: Partial<State>) {
+   *   if ('firstName' in changes || 'lastName' in changes) {
+   *     this.state.fullName = `${this.state.firstName} ${this.state.lastName}`
+   *   }
+   * }
+   */
+  protected onStateChange(changes: Partial<TState>): void {}
+
+  /**
+   * Called when the component joins a room.
+   * @param roomId - The room being joined
+   *
+   * @example
+   * protected onRoomJoin(roomId: string) {
+   *   console.log(`Joined room: ${roomId}`)
+   *   this.state.currentRoom = roomId
+   * }
+   */
+  protected onRoomJoin(roomId: string): void {}
+
+  /**
+   * Called when the component leaves a room.
+   * @param roomId - The room being left
+   */
+  protected onRoomLeave(roomId: string): void {}
+
+  /**
+   * Called after component state is rehydrated from a signed state.
+   * Useful for validating or migrating stale state.
+   *
+   * @param previousState - The restored state from localStorage
+   *
+   * @example
+   * protected onRehydrate(previousState: State) {
+   *   // Migrate old state format
+   *   if (!previousState.version) {
+   *     this.state.version = 2
+   *   }
+   * }
+   */
+  protected onRehydrate(previousState: TState): void {}
+
+  /**
+   * Called before an action is executed. Return false to cancel.
+   * Useful for logging, rate limiting, or pre-validation.
+   *
+   * @param action - The action name
+   * @param payload - The action payload
+   * @returns void (allow) or false (cancel)
+   *
+   * @example
+   * protected onAction(action: string, payload: any) {
+   *   console.log(`[${this.id}] ${action}`, payload)
+   *   if (this._rateLimited) return false
+   * }
+   */
+  protected onAction(action: string, payload: any): void | false | Promise<void | false> {}
+
   // State management (batch update - single emit with delta)
   public setState(updates: Partial<TState> | ((prev: TState) => Partial<TState>)) {
     const newUpdates = typeof updates === 'function' ? updates(this._state) : updates
     Object.assign(this._state as object, newUpdates)
     // Delta sync - send only the changed properties
     this.emit('STATE_DELTA', { delta: newUpdates })
+    // Lifecycle hook: onStateChange
+    try { this.onStateChange(newUpdates) } catch {}
     // Debug: track state change
     _liveDebugger?.trackStateChange(
       this.id,
@@ -700,9 +785,11 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
   // Internal methods that must NEVER be callable from the client
   private static readonly BLOCKED_ACTIONS: ReadonlySet<string> = new Set([
-    // Lifecycle & internal
+    // Lifecycle hooks (all of them)
     'constructor', 'destroy', 'executeAction', 'getSerializableState',
-    'onMount', 'onDestroy',
+    'onMount', 'onDestroy', 'onConnect', 'onDisconnect',
+    'onStateChange', 'onRoomJoin', 'onRoomLeave',
+    'onRehydrate', 'onAction',
     // State management internals
     'setState', 'emit', 'broadcast', 'broadcastToRoom',
     'createStateProxy', 'createDirectStateAccessors', 'generateId',
@@ -767,6 +854,12 @@ export abstract class LiveComponent<TState = ComponentState, TPrivate extends Re
 
       // Debug: track action call
       _liveDebugger?.trackActionCall(this.id, action, payload)
+
+      // Lifecycle hook: onAction (return false to cancel)
+      const hookResult = await this.onAction(action, payload)
+      if (hookResult === false) {
+        throw new Error(`Action '${action}' cancelled by onAction hook`)
+      }
 
       // Execute method
       const result = await method.call(this, payload)
