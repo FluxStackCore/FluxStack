@@ -305,6 +305,81 @@ export class LiveTest extends LiveComponent<typeof LiveTest.defaultState> {
     })
   })
 
+  describe('HMR: only triggers client update when metadata changes', () => {
+    it('same metadata should produce identical stubs (no unnecessary HMR)', () => {
+      const source = `
+export class LiveWidget extends LiveComponent<typeof LiveWidget.defaultState> {
+  static componentName = 'LiveWidget'
+  static publicActions = ['doStuff'] as const
+  static defaultState = { value: 0 }
+
+  async doStuff() {
+    console.log('v1')
+    return { ok: true }
+  }
+}
+`
+      const stub1 = generateClientStub(source)
+
+      // Change only the method body (server-side only)
+      const sourceV2 = source.replace("console.log('v1')", "console.log('v2 - refactored')")
+      const stub2 = generateClientStub(sourceV2)
+
+      // Stubs should be identical — no client HMR needed
+      expect(stub1).toBe(stub2)
+    })
+
+    it('changed defaultState should produce different stubs (triggers HMR)', () => {
+      const sourceV1 = `
+export class LiveWidget extends LiveComponent<typeof LiveWidget.defaultState> {
+  static componentName = 'LiveWidget'
+  static publicActions = ['doStuff'] as const
+  static defaultState = { value: 0 }
+  async doStuff() { return { ok: true } }
+}
+`
+      const sourceV2 = `
+export class LiveWidget extends LiveComponent<typeof LiveWidget.defaultState> {
+  static componentName = 'LiveWidget'
+  static publicActions = ['doStuff'] as const
+  static defaultState = { value: 0, label: 'new field' }
+  async doStuff() { return { ok: true } }
+}
+`
+      const stub1 = generateClientStub(sourceV1)
+      const stub2 = generateClientStub(sourceV2)
+
+      // Stubs should differ — client HMR is needed
+      expect(stub1).not.toBe(stub2)
+      expect(stub2).toContain('label')
+    })
+
+    it('changed publicActions should produce different stubs (triggers HMR)', () => {
+      const sourceV1 = `
+export class LiveWidget extends LiveComponent<typeof LiveWidget.defaultState> {
+  static componentName = 'LiveWidget'
+  static publicActions = ['doStuff'] as const
+  static defaultState = { value: 0 }
+  async doStuff() { return { ok: true } }
+}
+`
+      const sourceV2 = `
+export class LiveWidget extends LiveComponent<typeof LiveWidget.defaultState> {
+  static componentName = 'LiveWidget'
+  static publicActions = ['doStuff', 'doMore'] as const
+  static defaultState = { value: 0 }
+  async doStuff() { return { ok: true } }
+  async doMore() { return { ok: true } }
+}
+`
+      const stub1 = generateClientStub(sourceV1)
+      const stub2 = generateClientStub(sourceV2)
+
+      expect(stub1).not.toBe(stub2)
+      expect(stub2).toContain('doMore')
+    })
+  })
+
   describe('All server live components should produce valid stubs', () => {
     const { readdirSync } = require('fs')
     const liveDir = resolve(ROOT, 'app/server/live')

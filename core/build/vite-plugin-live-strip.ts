@@ -22,8 +22,8 @@
  */
 
 import { readFileSync } from 'fs'
-import { resolve, isAbsolute } from 'path'
-import type { Plugin } from 'vite'
+import { resolve } from 'path'
+import type { Plugin, ModuleNode } from 'vite'
 
 /**
  * Parse a server live component file and extract static metadata.
@@ -152,9 +152,20 @@ export class ${comp.className} {
 /**
  * Vite plugin that strips server-side code from live component imports
  * when building for the client.
+ *
+ * Works in both build and dev mode. In dev mode, it watches for changes
+ * to server live component files and triggers HMR updates on the client when
+ * static metadata (componentName, defaultState, publicActions) changes.
  */
 export function fluxstackLiveStripPlugin(): Plugin {
   let rootDir: string
+
+  // Track virtual module ID → real file path mapping for HMR
+  const virtualToReal = new Map<string, string>()
+  // Track real file path → virtual module IDs for reverse lookup
+  const realToVirtuals = new Map<string, Set<string>>()
+  // Cache previous stub content to detect meaningful changes
+  const stubCache = new Map<string, string>()
 
   return {
     name: 'fluxstack-live-strip',
@@ -186,7 +197,16 @@ export function fluxstackLiveStripPlugin(): Plugin {
       const tsPath = resolvedPath.endsWith('.ts') ? resolvedPath : resolvedPath + '.ts'
 
       // Return a virtual module ID to intercept the load
-      return `\0fluxstack-live-strip:${tsPath}`
+      const virtualId = `\0fluxstack-live-strip:${tsPath}`
+
+      // Track mapping for HMR
+      virtualToReal.set(virtualId, tsPath)
+      if (!realToVirtuals.has(tsPath)) {
+        realToVirtuals.set(tsPath, new Set())
+      }
+      realToVirtuals.get(tsPath)!.add(virtualId)
+
+      return virtualId
     },
 
     load(id) {
@@ -195,10 +215,60 @@ export function fluxstackLiveStripPlugin(): Plugin {
       const filePath = id.replace('\0fluxstack-live-strip:', '')
 
       try {
-        return generateClientStub(filePath)
+        const stub = generateClientStub(filePath)
+        stubCache.set(filePath, stub)
+        return stub
       } catch (err: any) {
         this.warn(`Failed to generate client stub for ${filePath}: ${err.message}`)
         return 'export {}'
+      }
+    },
+
+    /**
+     * HMR support: when a server live component file changes in dev mode,
+     * regenerate the client stub and trigger a hot update if the metadata
+     * (componentName, defaultState, publicActions) actually changed.
+     *
+     * If only server-side method bodies changed (no metadata change),
+     * returns an empty array to skip the client-side HMR update.
+     */
+    handleHotUpdate({ file, server }): ModuleNode[] | void {
+      // Check if the changed file is a server live component we're tracking
+      const virtualIds = realToVirtuals.get(file)
+      if (!virtualIds || virtualIds.size === 0) return
+
+      // Regenerate the stub and check if it actually changed
+      try {
+        const newStub = generateClientStub(file)
+        const oldStub = stubCache.get(file)
+
+        if (newStub === oldStub) {
+          // Metadata didn't change (only server-side method bodies changed)
+          // No need to update the client — return empty to skip HMR
+          return []
+        }
+
+        // Metadata changed — update cache and invalidate virtual modules
+        stubCache.set(file, newStub)
+
+        const affectedModules: ModuleNode[] = []
+        for (const virtualId of virtualIds) {
+          const mod = server.moduleGraph.getModuleById(virtualId)
+          if (mod) {
+            server.moduleGraph.invalidateModule(mod)
+            affectedModules.push(mod)
+          }
+        }
+
+        if (affectedModules.length > 0) {
+          server.config.logger.info(
+            `[fluxstack-live-strip] HMR: metadata changed in ${file.split('/').pop()}`,
+            { timestamp: true }
+          )
+          return affectedModules
+        }
+      } catch {
+        // If stub generation fails, let Vite handle normally
       }
     },
   }
