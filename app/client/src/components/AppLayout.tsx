@@ -12,6 +12,7 @@ const navItems = [
   { to: '/chat', label: 'Chat' },
   { to: '/room-chat', label: 'Room Chat' },
   { to: '/auth', label: 'Auth' },
+  { to: '/todo', label: 'Todo List' },
   { to: '/api-test', label: 'API Test' }
 ]
 
@@ -23,6 +24,7 @@ const routeFlameHue: Record<string, string> = {
   '/chat': '120deg',        // verde
   '/room-chat': '240deg',   // azul
   '/auth': '330deg',        // vermelho
+  '/todo': '45deg',          // laranja
   '/api-test': '90deg',     // lima
 }
 

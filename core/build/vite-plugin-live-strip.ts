@@ -1,275 +1,188 @@
 /**
- * FluxStack Vite Plugin - Live Component Server Code Stripping
+ * FluxStack Vite Plugin — strips server code from @server/live/* imports.
  *
- * Problem: Client components import server LiveComponent classes to get type inference
- * and static metadata (componentName, defaultState, publicActions). But these classes
- * extend LiveComponent from core/types/types.ts which has RUNTIME imports of server-only
- * modules (RoomEventBus, LiveRoomManager, etc.) that transitively import Node.js builtins
- * like 'fs'. Additionally, server components themselves may import 'fs', 'path', etc.
+ * Client components import server LiveComponent classes for type inference,
+ * but only need 3 static properties: componentName, defaultState, publicActions.
  *
- * Solution: This Vite plugin intercepts imports from `@server/live/*` and
- * `app/server/live/*` during the client build. Instead of loading the full server
- * module (with all its Node.js dependencies), it generates a lightweight client stub
- * that only exports the static metadata the client actually needs.
- *
- * The client only needs:
- * - componentName (string)
- * - defaultState (plain object)
- * - publicActions (string array)
- *
- * Everything else (the class methods, the LiveComponent base class, fs/path imports)
- * is stripped out.
+ * This plugin intercepts those imports and redirects them to tiny .js stubs
+ * inside app/client/.live-stubs/ that export only those 3 properties.
  */
 
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'fs'
+import { resolve, dirname, join } from 'path'
 import type { Plugin, ModuleNode } from 'vite'
 
-/**
- * Parse a server live component file and extract static metadata.
- * Uses regex-based parsing to avoid executing the file.
- */
-function extractComponentMetadata(source: string): {
+// Stubs are generated inside the Vite root (app/client/) so they're served normally
+const STUB_DIR_NAME = '.live-stubs'
+
+// ── Metadata extraction ──────────────────────────────────────────────
+
+interface ComponentMeta {
   className: string
-  componentName: string | null
-  defaultState: string | null
-  publicActions: string | null
-}[] {
-  const components: {
-    className: string
-    componentName: string | null
-    defaultState: string | null
-    publicActions: string | null
-  }[] = []
+  componentName: string
+  defaultState: string   // raw JS object literal (type casts stripped)
+  publicActions: string  // raw JS array literal
+}
 
-  // Find all exported classes that extend LiveComponent
-  const classRegex = /export\s+class\s+(\w+)\s+extends\s+LiveComponent/g
-  let classMatch
+/** Read a server .ts file and pull out the 3 static fields we need. */
+function extractMeta(filePath: string): ComponentMeta[] {
+  const src = readFileSync(filePath, 'utf-8')
+  const results: ComponentMeta[] = []
 
-  while ((classMatch = classRegex.exec(source)) !== null) {
-    const className = classMatch[1]
+  // Find each `export class Foo extends LiveComponent`
+  const re = /export\s+class\s+(\w+)\s+extends\s+LiveComponent/g
+  let m: RegExpExecArray | null
 
-    // Find the class body by counting braces from the match position
-    const classStartIndex = source.indexOf('{', classMatch.index)
-    if (classStartIndex === -1) continue
+  while ((m = re.exec(src)) !== null) {
+    const className = m[1]
+    const body = extractBlock(src, src.indexOf('{', m.index))
 
-    let braceCount = 1
-    let i = classStartIndex + 1
-    while (i < source.length && braceCount > 0) {
-      if (source[i] === '{') braceCount++
-      else if (source[i] === '}') braceCount--
-      i++
-    }
-    const classBody = source.substring(classStartIndex, i)
+    const name = body.match(/static\s+componentName\s*=\s*['"]([^'"]+)['"]/)?.[1] ?? className
+    const actions = body.match(/static\s+publicActions\s*=\s*(\[[^\]]*\])/)?.[1] ?? '[]'
+    const state = extractDefaultState(body)
 
-    // Extract static componentName
-    const componentNameMatch = classBody.match(
-      /static\s+componentName\s*=\s*['"]([^'"]+)['"]/
-    )
-    const componentName = componentNameMatch ? componentNameMatch[1] : null
-
-    // Extract static defaultState - capture the full object literal
-    let defaultState: string | null = null
-    const defaultStateStart = classBody.match(
-      /static\s+defaultState\s*=\s*/
-    )
-    if (defaultStateStart) {
-      const stateStartIdx = defaultStateStart.index! + defaultStateStart[0].length
-      // Find the start of the value
-      const valueStart = classBody.indexOf('{', stateStartIdx)
-      if (valueStart !== -1) {
-        // Count braces to find the full object
-        let bCount = 1
-        let j = valueStart + 1
-        while (j < classBody.length && bCount > 0) {
-          if (classBody[j] === '{') bCount++
-          else if (classBody[j] === '}') bCount--
-          j++
-        }
-        defaultState = classBody.substring(valueStart, j)
-      }
-    }
-
-    // Extract static publicActions
-    const publicActionsMatch = classBody.match(
-      /static\s+publicActions\s*=\s*(\[[^\]]*\])/
-    )
-    const publicActions = publicActionsMatch ? publicActionsMatch[1] : null
-
-    components.push({
-      className,
-      componentName,
-      defaultState,
-      publicActions,
-    })
+    results.push({ className, componentName: name, defaultState: state, publicActions: actions })
   }
 
-  return components
+  return results
+}
+
+/** Extract a brace-balanced block starting at position `start`. */
+function extractBlock(src: string, start: number): string {
+  let depth = 1, i = start + 1
+  while (i < src.length && depth > 0) {
+    if (src[i] === '{') depth++
+    else if (src[i] === '}') depth--
+    i++
+  }
+  return src.substring(start, i)
+}
+
+/** Pull out `static defaultState = { ... }` and strip TS type casts. */
+function extractDefaultState(classBody: string): string {
+  const m = classBody.match(/static\s+defaultState\s*=\s*/)
+  if (!m) return '{}'
+
+  const objStart = classBody.indexOf('{', m.index! + m[0].length)
+  if (objStart === -1) return '{}'
+
+  const raw = extractBlock(classBody, objStart)
+  return stripAsCasts(raw)
 }
 
 /**
- * Generate a client-safe stub module for a server live component file.
- * The stub only contains the static metadata (no server runtime dependencies).
+ * Remove `as <Type>` casts, handling nested generics/brackets.
+ * e.g. `null as string | null` → `null`
+ *      `[] as { id: string }[]` → `[]`
+ *      `{} as Record<string, Foo[]>` → `{}`
  */
-function generateClientStub(filePath: string): string {
-  const source = readFileSync(filePath, 'utf-8')
-  const components = extractComponentMetadata(source)
+function stripAsCasts(s: string): string {
+  const RE = /\s+as\s+/g
+  let out = '', last = 0, m: RegExpExecArray | null
 
-  if (components.length === 0) {
-    // No LiveComponent classes found, return empty module
-    return 'export {}'
+  while ((m = RE.exec(s)) !== null) {
+    out += s.slice(last, m.index)
+    let i = m.index + m[0].length
+    const stack: string[] = []
+
+    while (i < s.length) {
+      const c = s[i]
+      if (c === '{' || c === '<' || c === '(') { stack.push(c === '{' ? '}' : c === '<' ? '>' : ')'); i++ }
+      else if (c === '[' && s[i + 1] === ']') { i += 2 }
+      else if (c === '[') { stack.push(']'); i++ }
+      else if (stack.length && c === stack[stack.length - 1]) { stack.pop(); i++; while (s[i] === '[' && s[i + 1] === ']') i += 2 }
+      else if (!stack.length && (c === ',' || c === '\n' || c === '}')) break
+      else i++
+    }
+    last = i
   }
 
-  const stubs: string[] = []
-
-  for (const comp of components) {
-    // Build a minimal class stub with only static metadata
-    const componentName = comp.componentName || comp.className
-    const defaultState = comp.defaultState || '{}'
-    const publicActions = comp.publicActions || '[]'
-
-    // Clean up defaultState: remove TypeScript type casts like `as string | null`
-    // These cause syntax errors in plain JavaScript
-    const cleanDefaultState = defaultState
-      .replace(/\s+as\s+[^,}\n]+/g, '')
-
-    stubs.push(`
-export class ${comp.className} {
-  static componentName = '${componentName}'
-  static defaultState = ${cleanDefaultState}
-  static publicActions = ${publicActions}
-}
-`)
-  }
-
-  // Also re-export any non-class exports (like type/interface exports are erased,
-  // but exported constants or broadcast interfaces might exist)
-  // We only need the class stubs for Live.use()
-
-  return stubs.join('\n')
+  return out + s.slice(last)
 }
 
-/**
- * Vite plugin that strips server-side code from live component imports
- * when building for the client.
- *
- * Works in both build and dev mode. In dev mode, it watches for changes
- * to server live component files and triggers HMR updates on the client when
- * static metadata (componentName, defaultState, publicActions) changes.
- */
+// ── Stub generation ──────────────────────────────────────────────────
+
+function buildStub(metas: ComponentMeta[]): string {
+  if (!metas.length) return 'export {}'
+  return metas.map(m =>
+    `export class ${m.className} {\n` +
+    `  static componentName = '${m.componentName}'\n` +
+    `  static defaultState = ${m.defaultState}\n` +
+    `  static publicActions = ${m.publicActions}\n` +
+    `}`
+  ).join('\n\n')
+}
+
+// ── Plugin ───────────────────────────────────────────────────────────
+
+function norm(p: string) { return p.replace(/\\/g, '/') }
+
 export function fluxstackLiveStripPlugin(): Plugin {
-  let rootDir: string
+  let projectRoot: string
+  let stubDir: string
+  const nameToFile = new Map<string, string>()
+  const fileToName = new Map<string, string>()
+  const cache = new Map<string, string>()
 
-  // Track virtual module ID → real file path mapping for HMR
-  const virtualToReal = new Map<string, string>()
-  // Track real file path → virtual module IDs for reverse lookup
-  const realToVirtuals = new Map<string, Set<string>>()
-  // Cache previous stub content to detect meaningful changes
-  const stubCache = new Map<string, string>()
+  function writeStub(name: string, serverPath: string): string {
+    const stubPath = join(stubDir, `${name}.js`)
+    const content = buildStub(extractMeta(serverPath))
+    if (cache.get(name) !== content) {
+      writeFileSync(stubPath, content, 'utf-8')
+      cache.set(name, content)
+    }
+    return stubPath
+  }
 
   return {
     name: 'fluxstack-live-strip',
     enforce: 'pre',
 
     configResolved(config) {
-      rootDir = config.root
+      projectRoot = config.configFile ? dirname(config.configFile) : resolve(config.root, '../..')
+      stubDir = join(config.root, STUB_DIR_NAME)
+      if (!existsSync(stubDir)) mkdirSync(stubDir, { recursive: true })
     },
 
     resolveId(source, importer) {
-      // Only process @server/live/* imports from client code
-      if (!source.match(/^@server\/live\//)) return null
+      if (!source.startsWith('@server/live/') || !importer) return null
+      const imp = norm(importer)
+      if (!imp.includes('/app/client/') && !imp.includes('/core/client/')) return null
 
-      // Only strip when the importer is client-side code
-      if (!importer) return null
+      const name = source.replace('@server/live/', '')
+      const abs = resolve(projectRoot, source.replace('@server/', 'app/server/'))
+      const ts = abs.endsWith('.ts') ? abs : abs + '.ts'
 
-      // Check if the importer is client-side
-      const isClientImporter =
-        importer.includes('/app/client/') ||
-        importer.includes('/core/client/')
+      nameToFile.set(name, ts)
+      fileToName.set(norm(ts), name)
 
-      if (!isClientImporter) return null
-
-      // Resolve to the actual file path but mark it as needing transformation
-      const componentFile = source.replace('@server/', 'app/server/')
-      const resolvedPath = resolve(rootDir, componentFile)
-
-      // Add .ts extension if needed
-      const tsPath = resolvedPath.endsWith('.ts') ? resolvedPath : resolvedPath + '.ts'
-
-      // Return a virtual module ID to intercept the load
-      const virtualId = `\0fluxstack-live-strip:${tsPath}`
-
-      // Track mapping for HMR
-      virtualToReal.set(virtualId, tsPath)
-      if (!realToVirtuals.has(tsPath)) {
-        realToVirtuals.set(tsPath, new Set())
-      }
-      realToVirtuals.get(tsPath)!.add(virtualId)
-
-      return virtualId
+      return writeStub(name, ts)
     },
 
-    load(id) {
-      if (!id.startsWith('\0fluxstack-live-strip:')) return null
-
-      const filePath = id.replace('\0fluxstack-live-strip:', '')
-
-      try {
-        const stub = generateClientStub(filePath)
-        stubCache.set(filePath, stub)
-        return stub
-      } catch (err: any) {
-        this.warn(`Failed to generate client stub for ${filePath}: ${err.message}`)
-        return 'export {}'
-      }
-    },
-
-    /**
-     * HMR support: when a server live component file changes in dev mode,
-     * regenerate the client stub and trigger a hot update if the metadata
-     * (componentName, defaultState, publicActions) actually changed.
-     *
-     * If only server-side method bodies changed (no metadata change),
-     * returns an empty array to skip the client-side HMR update.
-     */
     handleHotUpdate({ file, server }): ModuleNode[] | void {
-      // Check if the changed file is a server live component we're tracking
-      const virtualIds = realToVirtuals.get(file)
-      if (!virtualIds || virtualIds.size === 0) return
+      const name = fileToName.get(norm(file))
+      if (!name) return
 
-      // Regenerate the stub and check if it actually changed
-      try {
-        const newStub = generateClientStub(file)
-        const oldStub = stubCache.get(file)
+      const serverPath = nameToFile.get(name)!
+      const oldContent = cache.get(name)
+      const newContent = buildStub(extractMeta(serverPath))
 
-        if (newStub === oldStub) {
-          // Metadata didn't change (only server-side method bodies changed)
-          // No need to update the client — return empty to skip HMR
-          return []
-        }
+      if (newContent === oldContent) return []
 
-        // Metadata changed — update cache and invalidate virtual modules
-        stubCache.set(file, newStub)
+      writeStub(name, serverPath)
 
-        const affectedModules: ModuleNode[] = []
-        for (const virtualId of virtualIds) {
-          const mod = server.moduleGraph.getModuleById(virtualId)
-          if (mod) {
-            server.moduleGraph.invalidateModule(mod)
-            affectedModules.push(mod)
-          }
-        }
-
-        if (affectedModules.length > 0) {
-          server.config.logger.info(
-            `[fluxstack-live-strip] HMR: metadata changed in ${file.split('/').pop()}`,
-            { timestamp: true }
-          )
-          return affectedModules
-        }
-      } catch {
-        // If stub generation fails, let Vite handle normally
+      const stubPath = norm(join(stubDir, `${name}.js`))
+      const mods = server.moduleGraph.getModulesByFile(stubPath)
+      if (mods?.size) {
+        const arr = [...mods]
+        arr.forEach(m => server.moduleGraph.invalidateModule(m))
+        server.config.logger.info(`[live-strip] HMR: ${name} metadata changed`, { timestamp: true })
+        return arr
       }
+    },
+
+    buildEnd() {
+      if (existsSync(stubDir)) rmSync(stubDir, { recursive: true, force: true })
     },
   }
 }

@@ -1,12 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import tsconfigPaths from 'vite-tsconfig-paths'
-import checker from 'vite-plugin-checker'
 import { resolve } from 'path'
 import { clientConfig } from './config/system/client.config'
-import { helpers } from './core/utils/env'
-import { fluxstackLiveStripPlugin } from './core/build/vite-plugin-live-strip'
+import { fluxstackVitePlugins } from './core/build/vite-plugins'
 
 // Root directory (vite.config.ts is in project root)
 const rootDir = import.meta.dirname
@@ -14,19 +11,11 @@ const rootDir = import.meta.dirname
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    // Strip server-side code from live component imports (prevents fs/path leaking to client)
-    fluxstackLiveStripPlugin(),
+    // FluxStack internal plugins (live-strip, tsconfig-paths, type-checker)
+    ...fluxstackVitePlugins(),
     react(),
     tailwindcss(),
-    tsconfigPaths({
-      projects: [resolve(rootDir, 'tsconfig.json')]
-    }),
-    // Only run type checker in development (saves ~5+ minutes in Docker builds)
-    helpers.isDevelopment() && checker({
-      typescript: true,
-      overlay: true
-    })
-  ].filter(Boolean),
+  ],
 
   root: resolve(rootDir, 'app/client'),
 

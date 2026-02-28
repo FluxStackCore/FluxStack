@@ -8,6 +8,7 @@ import { UploadDemo } from './live/UploadDemo'
 import { ChatDemo } from './live/ChatDemo'
 import { RoomChatDemo } from './live/RoomChatDemo'
 import { AuthDemo } from './live/AuthDemo'
+import { TodoListDemo } from './live/TodoListDemo'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -124,6 +125,16 @@ function AppContent() {
               note={<>🚀 Chat com múltiplas salas usando o novo sistema <code className="text-purple-400">$room</code>!</>}
             >
               <RoomChatDemo />
+            </DemoPage>
+          }
+        />
+        <Route
+          path="/todo"
+          element={
+            <DemoPage
+              note={<>Lista de tarefas colaborativa usando <code className="text-purple-400">Live.use()</code> + <code className="text-purple-400">Room Events</code>!</>}
+            >
+              <TodoListDemo />
             </DemoPage>
           }
         />
