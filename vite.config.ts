@@ -6,6 +6,7 @@ import checker from 'vite-plugin-checker'
 import { resolve } from 'path'
 import { clientConfig } from './config/system/client.config'
 import { helpers } from './core/utils/env'
+import { fluxstackLiveStripPlugin } from './core/build/vite-plugin-live-strip'
 
 // Root directory (vite.config.ts is in project root)
 const rootDir = import.meta.dirname
@@ -13,6 +14,8 @@ const rootDir = import.meta.dirname
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    // Strip server-side code from live component imports (prevents fs/path leaking to client)
+    fluxstackLiveStripPlugin(),
     react(),
     tailwindcss(),
     tsconfigPaths({
