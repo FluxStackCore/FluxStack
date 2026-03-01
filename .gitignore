@@ -139,5 +139,6 @@ dist
 chrome_data
 .chromium
 core/server/live/auto-generated-components.ts
+app/client/.live-stubs/
 Fluxstack-Desktop
 .claude/settings.local.json
