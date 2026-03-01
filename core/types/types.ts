@@ -4,6 +4,10 @@
 // LiveComponent base class
 export { LiveComponent } from '@fluxstack/live'
 
+// EMIT_OVERRIDE_KEY: uses Symbol.for() for cross-module compatibility
+// Not yet exported from @fluxstack/live runtime, so we define it here
+export const EMIT_OVERRIDE_KEY = Symbol.for('fluxstack:emitOverride')
+
 // WebSocket types — FluxStack aliases
 export type { GenericWebSocket as FluxStackWebSocket } from '@fluxstack/live'
 export type { LiveWSData as FluxStackWSData } from '@fluxstack/live'

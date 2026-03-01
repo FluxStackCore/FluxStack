@@ -312,8 +312,8 @@ describe('🔒 Security: File Upload Restrictions (CWE-434)', () => {
 
   beforeEach(async () => {
     // Dynamic import to get the actual instance
-    const mod = await import('@core/server/live/FileUploadManager')
-    fileUploadManager = new mod.FileUploadManager()
+    const { FileUploadManager } = await import('@fluxstack/live')
+    fileUploadManager = new FileUploadManager()
   })
 
   describe('MIME type validation', () => {

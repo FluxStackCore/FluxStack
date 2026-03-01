@@ -15,28 +15,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
  * 6. Singleton onMount not called for 2+ clients (needs onClientJoin/onClientLeave)
  */
 
-// Mock the room dependencies before importing
-vi.mock('@core/server/live/RoomEventBus', () => ({
-  roomEvents: {
-    on: vi.fn(),
-    emit: vi.fn(),
-    off: vi.fn()
-  }
-}))
+// Import from @fluxstack/live
+import { LiveComponent, setLiveComponentContext, RoomEventBus, LiveRoomManager } from '@fluxstack/live'
+import type { GenericWebSocket as FluxStackWebSocket } from '@fluxstack/live'
 
-vi.mock('@core/server/live/LiveRoomManager', () => ({
-  liveRoomManager: {
-    joinRoom: vi.fn(),
-    leaveRoom: vi.fn(),
-    emitToRoom: vi.fn(),
-    getRoomState: vi.fn(() => ({})),
-    setRoomState: vi.fn()
-  }
-}))
+// EMIT_OVERRIDE_KEY uses Symbol.for() so we can reference it directly
+const EMIT_OVERRIDE_KEY = Symbol.for('fluxstack:emitOverride')
 
-// Import after mocks
-import { LiveComponent, EMIT_OVERRIDE_KEY } from '@core/types/types'
-import type { FluxStackWebSocket } from '@core/types/types'
+// Set up DI context for LiveComponent
+const testRoomEvents = new RoomEventBus()
+const testRoomManager = new LiveRoomManager(testRoomEvents)
+setLiveComponentContext({
+  roomEvents: testRoomEvents,
+  roomManager: testRoomManager,
+  debugger: { enabled: false, trackStateChange: () => {}, trackAction: () => {}, trackError: () => {} } as any,
+})
 
 // ===== Test Helpers =====
 
