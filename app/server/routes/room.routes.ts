@@ -4,8 +4,7 @@
 // enviem mensagens para salas de chat via API REST
 
 import { Elysia, t } from 'elysia'
-import { liveRoomManager } from '@core/server/live/LiveRoomManager'
-import { roomEvents } from '@core/server/live/RoomEventBus'
+import { liveRoomManager, roomEvents } from '@core/server/live'
 
 export const roomRoutes = new Elysia({ prefix: '/rooms' })
 

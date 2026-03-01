@@ -116,7 +116,7 @@ export class LiveComponentsGenerator {
 // Generated at: ${new Date().toISOString()}
 
 ${imports}
-import { componentRegistry } from "@core/server/live/ComponentRegistry"
+import { componentRegistry } from "@core/server/live"
 
 // Register all components statically for production bundle
 function registerAllComponents() {

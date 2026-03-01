@@ -9,7 +9,7 @@
 //   import type { LiveProtectedChat as _Client } from '@client/src/live/ProtectedChat'
 
 import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
+import type { LiveComponentAuth, LiveActionAuthMap } from '@core/types/types'
 
 interface ChatMessage {
   id: number

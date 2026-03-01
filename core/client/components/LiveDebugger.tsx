@@ -8,7 +8,7 @@
 //   <LiveDebugger />
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot } from '../hooks/useLiveDebugger'
+import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot } from '@fluxstack/live-react'
 
 // ===== Debugger Settings =====
 

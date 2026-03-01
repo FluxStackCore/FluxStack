@@ -10,12 +10,12 @@ import type { Plugin } from 'vite'
 import { resolve } from 'path'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import checker from 'vite-plugin-checker'
-import { fluxstackLiveStripPlugin } from './vite-plugin-live-strip'
+import { liveStripPlugin } from '@fluxstack/live/build'
 import { helpers } from '../utils/env'
 
 export function fluxstackVitePlugins(): Plugin[] {
   return [
-    fluxstackLiveStripPlugin(),
+    liveStripPlugin({ verbose: false }),
     tsconfigPaths({
       projects: [resolve(import.meta.dirname, '..', '..', 'tsconfig.json')]
     }),

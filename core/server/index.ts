@@ -6,8 +6,7 @@ export { PluginRegistry } from "../plugins/registry"
 export * from "../types"
 
 // Live Components exports
-export { liveComponentsPlugin } from "./live/websocket-plugin"
-export { componentRegistry } from "./live/ComponentRegistry"
+export { liveComponentsPlugin, componentRegistry } from "./live"
 export { LiveComponent } from "../types/types"
 
 // Static Files Plugin

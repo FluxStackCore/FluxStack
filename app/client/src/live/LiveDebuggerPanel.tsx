@@ -7,7 +7,7 @@
 // - Filtering by component, event type, and search
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot, type DebugFilter } from '@/core/client/hooks/useLiveDebugger'
+import { useLiveDebugger, type DebugEvent, type DebugEventType, type ComponentSnapshot, type DebugFilter } from '@fluxstack/live-react'
 
 // ===== Debugger Settings (shared with floating widget) =====
 

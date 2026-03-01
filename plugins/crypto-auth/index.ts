@@ -9,7 +9,7 @@ type Plugin = FluxStack.Plugin
 import { Elysia, t } from "elysia"
 import { CryptoAuthService, AuthMiddleware } from "./server"
 import { CryptoAuthLiveProvider } from "./server/CryptoAuthLiveProvider"
-import { liveAuthManager } from "@core/server/live/auth"
+import { liveAuthManager } from "@core/server/live"
 import { makeProtectedRouteCommand } from "./cli/make-protected-route.command"
 
 // ✅ Plugin carrega sua própria configuração (da pasta config/ do plugin)

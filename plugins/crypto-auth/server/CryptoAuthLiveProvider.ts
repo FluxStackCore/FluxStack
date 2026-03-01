@@ -14,8 +14,8 @@ import type {
   LiveAuthProvider,
   LiveAuthCredentials,
   LiveAuthContext,
-} from '@core/server/live/auth/types'
-import { AuthenticatedContext, ANONYMOUS_CONTEXT } from '@core/server/live/auth/LiveAuthContext'
+} from '@fluxstack/live'
+import { AuthenticatedContext, ANONYMOUS_CONTEXT } from '@fluxstack/live'
 
 export class CryptoAuthLiveProvider implements LiveAuthProvider {
   readonly name = 'crypto-auth'

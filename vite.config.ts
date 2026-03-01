@@ -21,6 +21,23 @@ export default defineConfig({
 
   // Aliases são lidos do tsconfig.json pelo plugin vite-tsconfig-paths
 
+  // When using bun-linked @fluxstack/live-* packages, point Vite at the
+  // TypeScript source instead of pre-built dist. This ensures a single React
+  // context (no dual-instance problem) and gives us HMR for the library code.
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    alias: {
+      '@fluxstack/live-react': resolve(rootDir, '../fluxstack-live/packages/react/src/index.ts'),
+      '@fluxstack/live-client': resolve(rootDir, '../fluxstack-live/packages/client/src/index.ts'),
+      '@fluxstack/live': resolve(rootDir, '../fluxstack-live/packages/core/src/index.ts'),
+    },
+  },
+
+  // Exclude linked packages from dep optimization (they're aliased to source)
+  optimizeDeps: {
+    exclude: ['@fluxstack/live', '@fluxstack/live-client', '@fluxstack/live-react'],
+  },
+
   server: {
     port: clientConfig.vite.port,                    // ✅ From config
     host: clientConfig.vite.host,                    // ✅ From config
