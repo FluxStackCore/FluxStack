@@ -56,6 +56,14 @@ export default defineConfig({
     open: clientConfig.vite.open,                    // ✅ From config
     allowedHosts: clientConfig.vite.allowedHosts,    // ✅ From config (VITE_ALLOWED_HOSTS)
 
+    // Allow Vite to serve files outside the client root (needed for monorepo aliases)
+    fs: {
+      allow: [
+        rootDir,
+        ...(hasLocalLiveMonorepo ? [liveMonorepoRoot] : []),
+      ],
+    },
+
     hmr: {
       protocol: 'ws',
       host: clientConfig.vite.host,
