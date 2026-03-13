@@ -9,10 +9,10 @@ const navItems = [
   { to: '/counter', label: 'Counter' },
   { to: '/form', label: 'Form' },
   { to: '/upload', label: 'Upload' },
-  { to: '/chat', label: 'Chat' },
+  { to: '/shared-counter', label: 'Shared Counter' },
   { to: '/room-chat', label: 'Room Chat' },
   { to: '/auth', label: 'Auth' },
-  { to: '/todo', label: 'Todo List' },
+  { to: '/ping-pong', label: 'Ping Pong' },
   { to: '/api-test', label: 'API Test' }
 ]
 
@@ -21,10 +21,10 @@ const routeFlameHue: Record<string, string> = {
   '/counter': '180deg',     // ciano
   '/form': '300deg',        // rosa
   '/upload': '60deg',       // amarelo
-  '/chat': '120deg',        // verde
+  '/shared-counter': '120deg', // verde
   '/room-chat': '240deg',   // azul
   '/auth': '330deg',        // vermelho
-  '/todo': '45deg',          // laranja
+  '/ping-pong': '200deg',   // ciano-azul
   '/api-test': '90deg',     // lima
 }
 

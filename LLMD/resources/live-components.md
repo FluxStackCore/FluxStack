@@ -1035,6 +1035,7 @@ export function UploadDemo() {
 - [Live Logging](./live-logging.md) - Per-component logging control
 - [Live Rooms](./live-rooms.md) - Multi-room real-time communication
 - [Live Upload](./live-upload.md) - Chunked file upload
+- [Live Binary Delta](./live-binary-delta.md) - High-frequency binary state sync
 - [Project Structure](../patterns/project-structure.md)
 - [Type Safety Patterns](../patterns/type-safety.md)
 - [WebSocket Plugin](../core/plugin-system.md)
