@@ -20,18 +20,6 @@ export type { ChunkedUploadOptions, ChunkedUploadState } from '@fluxstack/live-r
 export { useLiveChunkedUpload } from '@fluxstack/live-react'
 export type { LiveChunkedUploadOptions } from '@fluxstack/live-react'
 
-// Debugger Hook
-export { useLiveDebugger } from '@fluxstack/live-react'
-export type {
-  DebugEvent,
-  DebugEventType,
-  ComponentSnapshot,
-  DebugSnapshot,
-  DebugFilter,
-  UseLiveDebuggerReturn,
-  UseLiveDebuggerOptions,
-} from '@fluxstack/live-react'
-
 // === FluxStack-specific (stays here) ===
 
 // Eden Treaty API client
@@ -42,10 +30,6 @@ export {
   treaty,
   type EdenClientOptions
 } from './api'
-
-// LiveDebugger UI component (React component, 1325 lines - not extracted to lib)
-export { LiveDebugger } from './components/LiveDebugger'
-export type { LiveDebuggerProps } from './components/LiveDebugger'
 
 // useLiveUpload (FluxStack-specific convenience wrapper)
 export { useLiveUpload } from './hooks/useLiveUpload'

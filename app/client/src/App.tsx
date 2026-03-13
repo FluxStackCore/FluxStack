@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router'
 import { api } from './lib/eden-api'
-import { LiveComponentsProvider, LiveDebugger } from '@/core/client'
+import { LiveComponentsProvider } from '@/core/client'
 import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
@@ -166,7 +166,6 @@ function App() {
       debug={false}
     >
       <AppContent />
-      {import.meta.env.DEV && <LiveDebugger />}
     </LiveComponentsProvider>
   )
 }

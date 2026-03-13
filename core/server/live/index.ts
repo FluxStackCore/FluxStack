@@ -93,11 +93,6 @@ export const stateSignature = new Proxy({} as any, {
   get(_, prop) { return (liveServer!.stateSignature as any)[prop] }
 })
 
-/** @deprecated Access via liveServer.debugger instead */
-export const liveDebugger = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.debugger as any)[prop] }
-})
-
 // Room state backward compat
 export const roomState = new Proxy({} as any, {
   get(_, prop) { return (liveServer!.roomManager as any)[prop] }
