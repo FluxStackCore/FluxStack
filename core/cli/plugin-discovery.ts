@@ -74,7 +74,7 @@ export class CliPluginDiscovery {
           try {
             const pluginModule = await import(pluginPath)
             const plugin = pluginModule.default || Object.values(pluginModule).find(
-              (exp: any) => exp && typeof exp === 'object' && exp.name && exp.commands
+              (exp: unknown) => exp && typeof exp === 'object' && (exp as Record<string, unknown>).name && (exp as Record<string, unknown>).commands
             ) as Plugin
 
             if (plugin && plugin.commands) {
@@ -93,7 +93,7 @@ export class CliPluginDiscovery {
             try {
               const pluginModule = await import(pluginIndexPath)
               const plugin = pluginModule.default || Object.values(pluginModule).find(
-                (exp: any) => exp && typeof exp === 'object' && exp.name && exp.commands
+                (exp: unknown) => exp && typeof exp === 'object' && (exp as Record<string, unknown>).name && (exp as Record<string, unknown>).commands
               ) as Plugin
 
               if (plugin && plugin.commands) {

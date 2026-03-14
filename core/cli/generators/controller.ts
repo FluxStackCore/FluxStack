@@ -121,10 +121,10 @@ export class {{pascalName}}Controller {
     }
   }
 
-  async create({ body }: { body: any }) {
+  async create({ body }: { body: Record<string, unknown> }) {
     try {
       const {{camelName}} = await this.service.create(body)
-      
+
       return {
         success: true,
         data: {{camelName}},
@@ -138,7 +138,7 @@ export class {{pascalName}}Controller {
     }
   }
 
-  async update({ params, body }: { params: { id: string }, body: any }) {
+  async update({ params, body }: { params: { id: string }, body: Record<string, unknown> }) {
     try {
       const {{camelName}} = await this.service.update(params.id, body)
       
@@ -265,7 +265,7 @@ export class {{pascalName}}Controller {
     }
   }
 
-  async create({ body }: { body: any }) {
+  async create({ body }: { body: Record<string, unknown> }) {
     // TODO: Implement create logic
     return {
       success: true,
@@ -274,7 +274,7 @@ export class {{pascalName}}Controller {
     }
   }
 
-  async update({ params, body }: { params: { id: string }, body: any }) {
+  async update({ params, body }: { params: { id: string }, body: Record<string, unknown> }) {
     // TODO: Implement update logic
     return {
       success: true,

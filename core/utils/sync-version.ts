@@ -10,7 +10,7 @@ import { join } from 'path'
 
 interface PackageJson {
   version: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 /**

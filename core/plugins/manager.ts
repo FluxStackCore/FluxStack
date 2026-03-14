@@ -3,11 +3,12 @@
  * Handles plugin lifecycle, execution, and context management
  */
 
-import type { 
+import type {
   FluxStack,
-  PluginContext, 
-  PluginHook, 
-  PluginHookResult, 
+  PluginContext,
+  PluginHook,
+  PluginHookResult,
+  PluginLoadResult,
   PluginMetrics,
   PluginExecutionContext,
   HookExecutionOptions,
@@ -43,14 +44,14 @@ function parseRequestURL(request: Request): URL {
 export interface PluginManagerConfig {
   config: FluxStackConfig
   logger: Logger
-  app?: any
+  app?: unknown
 }
 
 export class PluginManager extends EventEmitter {
   private registry: PluginRegistry
   private config: FluxStackConfig
   private logger: Logger
-  private app?: any
+  private app?: unknown
   private metrics: Map<string, PluginMetrics> = new Map()
   private contexts: Map<string, PluginContext> = new Map()
   private initialized = false
@@ -163,8 +164,8 @@ export class PluginManager extends EventEmitter {
    * Execute a hook on all plugins
    */
   async executeHook(
-    hook: PluginHook, 
-    context?: any, 
+    hook: PluginHook,
+    context?: unknown,
     options: HookExecutionOptions = {}
   ): Promise<PluginHookResult[]> {
     const {
@@ -259,7 +260,7 @@ export class PluginManager extends EventEmitter {
   async executePluginHook(
     plugin: Plugin,
     hook: PluginHook,
-    context?: any,
+    context?: unknown,
     options: { timeout?: number; retries?: number } = {}
   ): Promise<PluginHookResult> {
     const { timeout = 30000, retries = 0 } = options
@@ -305,7 +306,7 @@ export class PluginManager extends EventEmitter {
         })
 
         // Execute the hook with appropriate context
-        let hookPromise: Promise<any>
+        let hookPromise: Promise<unknown>
 
         switch (hook) {
           case 'setup':
@@ -408,8 +409,8 @@ export class PluginManager extends EventEmitter {
    */
   private getEnabledPlugins(): Plugin[] {
     const allPlugins = this.registry.getAll()
-    const enabledNames = this.config.plugins.enabled ?? []
-    const disabledNames = this.config.plugins.disabled ?? []
+    const enabledNames = (this.config.plugins.enabled ?? []) as string[]
+    const disabledNames = (this.config.plugins.disabled ?? []) as string[]
 
     return allPlugins.filter(plugin => {
       // If explicitly disabled, exclude
@@ -435,7 +436,7 @@ export class PluginManager extends EventEmitter {
       // ⚠️ Built-in plugins are now registered manually via .use()
       // No auto-discovery for core/plugins/built-in - developer chooses which to use
 
-      const results: any[] = []
+      const results: PluginLoadResult[] = []
 
       // 1. Discover project plugins (plugins/ directory)
       this.logger.debug('Discovering project plugins in directory: plugins')
@@ -566,7 +567,7 @@ export class PluginManager extends EventEmitter {
 /**
  * Create request context from HTTP request
  */
-export function createRequestContext(request: Request, additionalData: any = {}): RequestContext {
+export function createRequestContext(request: Request, additionalData: Record<string, unknown> = {}): RequestContext {
   const url = parseRequestURL(request)
   
   return {
@@ -593,7 +594,7 @@ export function createRequestContext(request: Request, additionalData: any = {})
 export function createResponseContext(
   requestContext: RequestContext,
   response: Response,
-  additionalData: any = {}
+  additionalData: Record<string, unknown> = {}
 ): ResponseContext {
   return {
     ...requestContext,
@@ -611,7 +612,7 @@ export function createResponseContext(
 export function createErrorContext(
   requestContext: RequestContext,
   error: Error,
-  additionalData: any = {}
+  additionalData: Record<string, unknown> = {}
 ): ErrorContext {
   return {
     ...requestContext,

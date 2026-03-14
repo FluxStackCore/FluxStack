@@ -43,7 +43,7 @@ describe('Code Generators', () => {
                     }
                     return result
                 },
-                validateSchema: (_data: any, _schema: any) => {
+                validateSchema: (_data: unknown, _schema: unknown) => {
                     try {
                         return { valid: true, errors: [] }
                     } catch (error) {

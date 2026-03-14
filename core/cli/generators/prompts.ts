@@ -1,7 +1,7 @@
 import type { PromptConfig } from "./types"
 
 export class PromptSystem {
-  async prompt(config: PromptConfig): Promise<any> {
+  async prompt(config: PromptConfig): Promise<unknown> {
     // Simple implementation using process.stdin
     // In a real implementation, you'd use a library like inquirer or prompts
     
@@ -62,7 +62,7 @@ export class PromptSystem {
     })
   }
 
-  async select(message: string, choices: Array<{ name: string; value: any; description?: string }>): Promise<any> {
+  async select(message: string, choices: Array<{ name: string; value: unknown; description?: string }>): Promise<unknown> {
     return this.prompt({
       type: 'select',
       message,
@@ -75,8 +75,8 @@ export class PromptSystem {
       type: 'input',
       message,
       default: defaultValue,
-      validate
-    })
+      validate: validate ? (value: unknown) => validate(String(value)) : undefined
+    }) as Promise<string>
   }
 }
 

@@ -476,7 +476,7 @@ import { UnauthorizedError } from '@core/utils/errors'
 import { logger } from '@core/utils/logger'
 
 // JWT verification function (implement based on your JWT library)
-async function verifyJWT(token: string): Promise<any> {
+async function verifyJWT(token: string): Promise<Record<string, unknown>> {
   // TODO: Implement JWT verification
   // This is a placeholder - replace with actual JWT verification
   if (!token || token === 'invalid') {

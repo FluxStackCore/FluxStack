@@ -101,7 +101,7 @@ export class ProjectCreator {
     await mkdir(dest, { recursive: true })
     
     const fs = await import("fs/promises")
-    let entries: any[] = []
+    let entries: Array<{ name: string; isDirectory(): boolean }> = []
     
     try {
       entries = await fs.readdir(src, { withFileTypes: true })

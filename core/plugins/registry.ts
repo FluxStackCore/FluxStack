@@ -292,12 +292,12 @@ export class PluginRegistry {
       return true
     }
 
-    if (allowedPlugins.length === 0) {
+    if ((allowedPlugins as string[]).length === 0) {
       this.logger?.warn(`NPM plugin '${pluginName}' blocked: No plugins in whitelist (PLUGINS_ALLOWED is empty)`)
       return false
     }
 
-    if (!allowedPlugins.includes(pluginName)) {
+    if (!(allowedPlugins as string[]).includes(pluginName)) {
       this.logger?.warn(`NPM plugin '${pluginName}' blocked: Not in whitelist (PLUGINS_ALLOWED)`, {
         pluginName,
         allowedPlugins
@@ -313,8 +313,8 @@ export class PluginRegistry {
   getStats() {
     return {
       totalPlugins: this.plugins.size,
-      enabledPlugins: this.config?.plugins.enabled?.length ?? 0,
-      disabledPlugins: this.config?.plugins.disabled?.length ?? 0,
+      enabledPlugins: (this.config?.plugins.enabled as string[] | undefined)?.length ?? 0,
+      disabledPlugins: (this.config?.plugins.disabled as string[] | undefined)?.length ?? 0,
       conflicts: this.conflicts.length,
       loadOrder: this.loadOrder.length
     }
@@ -672,7 +672,7 @@ export class PluginRegistry {
   /**
    * Validate plugin configuration against schema
    */
-  private validatePluginConfig(plugin: FluxStackPlugin, config: any): void {
+  private validatePluginConfig(plugin: FluxStackPlugin, config: unknown): void {
     if (!plugin.configSchema) {
       return
     }
@@ -680,7 +680,7 @@ export class PluginRegistry {
     // Basic validation - in a real implementation, you'd use a proper JSON schema validator
     if (plugin.configSchema.required) {
       for (const requiredField of plugin.configSchema.required) {
-        if (!(requiredField in config)) {
+        if (!(requiredField in (config as Record<string, unknown>))) {
           throw new FluxStackError(
             `Plugin '${plugin.name}' configuration missing required field: ${requiredField}`,
             'INVALID_PLUGIN_CONFIG',

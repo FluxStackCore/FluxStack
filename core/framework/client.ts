@@ -3,7 +3,7 @@
  * Provides client-side utilities and integrations
  */
 
-import type { FluxStackConfig } from "../types"
+import type { FluxStackConfig } from "@config"
 
 export interface ClientFrameworkOptions {
   config: FluxStackConfig
@@ -71,7 +71,7 @@ export class FluxStackClient {
         })
       },
       
-      post: async <T>(url: string, data: any): Promise<T> => {
+      post: async <T>(url: string, data: unknown): Promise<T> => {
         return this.withRetry(async () => {
           const response = await fetchClient(url, {
             method: 'POST',
@@ -81,7 +81,7 @@ export class FluxStackClient {
         })
       },
       
-      put: async <T>(url: string, data: any): Promise<T> => {
+      put: async <T>(url: string, data: unknown): Promise<T> => {
         return this.withRetry(async () => {
           const response = await fetchClient(url, {
             method: 'PUT',

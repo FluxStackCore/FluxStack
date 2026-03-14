@@ -197,8 +197,8 @@ function getPluginInfo(): PluginInfo {
     try {
       const entries = fs.readdirSync(pluginsDir, { withFileTypes: true })
       info.projectPlugins = entries
-        .filter((entry: any) => entry.isDirectory())
-        .map((entry: any) => entry.name)
+        .filter((entry: { isDirectory(): boolean; name: string }) => entry.isDirectory())
+        .map((entry: { isDirectory(): boolean; name: string }) => entry.name)
     } catch (error) {
       // Ignore errors reading directory
     }

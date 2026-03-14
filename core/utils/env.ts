@@ -27,7 +27,7 @@
  * Uses Bun.env (runtime) → process.env (fallback) → eval (last resort)
  */
 class EnvLoader {
-  private cache = new Map<string, any>()
+  private cache = new Map<string, unknown>()
   private accessor: () => Record<string, string | undefined>
 
   constructor() {
@@ -65,7 +65,7 @@ class EnvLoader {
     // Check cache first
     const cacheKey = `${key}:${typeof defaultValue}`
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)
+      return this.cache.get(cacheKey) as T
     }
 
     const env = this.accessor()
@@ -77,7 +77,7 @@ class EnvLoader {
     }
 
     // Auto-detect type from defaultValue
-    let result: any = value
+    let result: unknown = value
 
     if (typeof defaultValue === 'number') {
       const parsed = Number(value)

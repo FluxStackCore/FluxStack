@@ -368,12 +368,12 @@ export class {{pascalName}}Repository {
     return null
   }
 
-  async create(data: any) {
+  async create(data: Record<string, unknown>) {
     // TODO: Implement create logic
     return data
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: Record<string, unknown>) {
     // TODO: Implement update logic
     return { id, ...data }
   }
@@ -413,12 +413,12 @@ export class {{pascalName}}Service {
     return await this.repository.findById(id)
   }
 
-  async create(data: any) {
+  async create(data: Record<string, unknown>) {
     // Add business logic here
     return await this.repository.create(data)
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: Record<string, unknown>) {
     // Add business logic here
     return await this.repository.update(id, data)
   }
@@ -442,12 +442,12 @@ export class {{pascalName}}Service {
     return null
   }
 
-  async create(data: any) {
+  async create(data: Record<string, unknown>) {
     // TODO: Implement database insert
     return data
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: Record<string, unknown>) {
     // TODO: Implement database update
     return { id, ...data }
   }

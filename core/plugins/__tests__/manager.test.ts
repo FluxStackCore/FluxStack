@@ -21,7 +21,7 @@ const mockLogger: Logger = {
 }
 
 // Mock config (matching new fluxStackConfig structure)
-const mockConfig: any = {
+const mockConfig: FluxStackConfig = {
   app: {
     name: 'test-app',
     version: '1.0.0',
@@ -152,7 +152,7 @@ const mockConfig: any = {
 
 describe('PluginManager', () => {
   let manager: PluginManager
-  let mockApp: any
+  let mockApp: unknown
 
   beforeEach(() => {
     mockApp = { use: vi.fn(), get: vi.fn(), post: vi.fn() }
@@ -434,7 +434,7 @@ describe('PluginManager', () => {
       
       const allMetrics = manager.getPluginMetrics()
       expect(allMetrics instanceof Map).toBe(true)
-      expect((allMetrics as Map<string, any>).size).toBe(2)
+      expect((allMetrics as Map<string, unknown>).size).toBe(2)
     })
   })
 

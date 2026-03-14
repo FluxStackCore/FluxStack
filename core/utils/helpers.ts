@@ -54,13 +54,13 @@ export const retry = async <T>(
   throw lastError!
 }
 
-export const debounce = <T extends (...args: any[]) => any>(
-  func: T,
+export const debounce = <A extends unknown[]>(
+  func: (...args: A) => void,
   wait: number
-): ((...args: Parameters<T>) => void) => {
+): ((...args: A) => void) => {
   let timeout: NodeJS.Timeout | null = null
-  
-  return (...args: Parameters<T>) => {
+
+  return (...args: A) => {
     if (timeout) {
       clearTimeout(timeout)
     }
@@ -71,13 +71,13 @@ export const debounce = <T extends (...args: any[]) => any>(
   }
 }
 
-export const throttle = <T extends (...args: any[]) => any>(
-  func: T,
+export const throttle = <A extends unknown[]>(
+  func: (...args: A) => void,
   limit: number
-): ((...args: Parameters<T>) => void) => {
+): ((...args: A) => void) => {
   let inThrottle: boolean = false
-  
-  return (...args: Parameters<T>) => {
+
+  return (...args: A) => {
     if (!inThrottle) {
       func(...args)
       inThrottle = true
@@ -99,7 +99,7 @@ export const isDevelopment = (): boolean => getNodeEnv() === 'development'
 
 export const isTest = (): boolean => getNodeEnv() === 'test'
 
-export const deepMerge = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
+export const deepMerge = <T extends Record<string, unknown>>(target: T, source: Partial<T>): T => {
   const result = { ...target }
   
   for (const key in source) {
@@ -115,7 +115,10 @@ export const deepMerge = <T extends Record<string, any>>(target: T, source: Part
         typeof targetValue === 'object' &&
         !Array.isArray(targetValue)
       ) {
-        result[key] = deepMerge(targetValue, sourceValue)
+        result[key] = deepMerge(
+          targetValue as Record<string, unknown>,
+          sourceValue as Partial<Record<string, unknown>>
+        ) as T[Extract<keyof T, string>]
       } else {
         result[key] = sourceValue as T[Extract<keyof T, string>]
       }
@@ -125,7 +128,7 @@ export const deepMerge = <T extends Record<string, any>>(target: T, source: Part
   return result
 }
 
-export const pick = <T extends Record<string, any>, K extends keyof T>(
+export const pick = <T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[]
 ): Pick<T, K> => {
@@ -140,7 +143,7 @@ export const pick = <T extends Record<string, any>, K extends keyof T>(
   return result
 }
 
-export const omit = <T extends Record<string, any>, K extends keyof T>(
+export const omit = <T extends Record<string, unknown>, K extends keyof T>(
   obj: T,
   keys: K[]
 ): Omit<T, K> => {
@@ -164,7 +167,7 @@ export const generateId = (length: number = 8): string => {
   return result
 }
 
-export const safeJsonParse = <T = any>(json: string, fallback: T): T => {
+export const safeJsonParse = <T = unknown>(json: string, fallback: T): T => {
   try {
     return JSON.parse(json)
   } catch {
@@ -172,7 +175,7 @@ export const safeJsonParse = <T = any>(json: string, fallback: T): T => {
   }
 }
 
-export const safeJsonStringify = (obj: any, fallback: string = '{}'): string => {
+export const safeJsonStringify = (obj: unknown, fallback: string = '{}'): string => {
   try {
     return JSON.stringify(obj)
   } catch {

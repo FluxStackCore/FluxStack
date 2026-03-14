@@ -74,8 +74,8 @@ export const devCommand: CLICommand = {
       cwd: process.cwd(),
       env: {
         ...process.env,
-        FRONTEND_PORT: options['frontend-port'].toString(),
-        BACKEND_PORT: options.port.toString(),
+        FRONTEND_PORT: String(options['frontend-port']),
+        BACKEND_PORT: String(options.port),
         FLUXSTACK_MODE: fluxstackMode
       }
     })

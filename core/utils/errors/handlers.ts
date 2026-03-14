@@ -21,7 +21,7 @@ export interface ErrorMetricsCollector {
 
 export interface ErrorRecoveryStrategy {
   canRecover(error: FluxStackError): boolean
-  recover(error: FluxStackError, context: ErrorHandlerContext): Promise<unknown> | unknown
+  recover(error: FluxStackError, context: ErrorHandlerContext): Promise<ErrorSerializedResponse> | ErrorSerializedResponse
 }
 
 export interface ErrorHandlerOptions {
@@ -193,10 +193,10 @@ export class EnhancedErrorHandler {
     }
 
     // Skip logging for Vite internal routes (even if NOT_FOUND logging is enabled)
-    if (error.code === 'NOT_FOUND' && error.metadata?.path) {
+    if (error.code === 'NOT_FOUND' && typeof error.metadata?.path === 'string') {
       const path = error.metadata.path
-      if (path.startsWith('/@') || 
-          path.startsWith('/__vite') || 
+      if (path.startsWith('/@') ||
+          path.startsWith('/__vite') ||
           path.includes('/.vite/') ||
           path.endsWith('.js.map') ||
           path.endsWith('.css.map')) {
@@ -291,12 +291,14 @@ export class RetryRecoveryStrategy implements ErrorRecoveryStrategy {
   ) {}
 
   canRecover(error: FluxStackError): boolean {
-    return this.retryableCodes.includes(error.code) && 
-           (!error.context?.retryCount || error.context.retryCount < this.maxRetries)
+    const ctx = error.context as Record<string, unknown> | undefined
+    return this.retryableCodes.includes(error.code) &&
+           (!ctx?.retryCount || (ctx.retryCount as number) < this.maxRetries)
   }
 
-  async recover(error: FluxStackError, context: ErrorHandlerContext): Promise<unknown> {
-    const retryCount = (error.context?.retryCount || 0) + 1
+  async recover(error: FluxStackError, context: ErrorHandlerContext): Promise<ErrorSerializedResponse> {
+    const ctx = error.context as Record<string, unknown> | undefined
+    const retryCount = ((ctx?.retryCount as number) || 0) + 1
     
     context.logger.info('Attempting error recovery', {
       errorCode: error.code,
@@ -323,15 +325,21 @@ export class FallbackRecoveryStrategy implements ErrorRecoveryStrategy {
     return this.applicableCodes.includes(error.code)
   }
 
-  recover(error: FluxStackError, context: ErrorHandlerContext): unknown {
+  recover(error: FluxStackError, context: ErrorHandlerContext): ErrorSerializedResponse {
     context.logger.info('Using fallback recovery', {
       errorCode: error.code,
       correlationId: error.metadata.correlationId
     })
 
     return {
-      data: this.fallbackResponse,
-      warning: 'Fallback data provided due to service unavailability'
+      error: {
+        message: 'Fallback data provided due to service unavailability',
+        code: error.code,
+        statusCode: error.statusCode,
+        details: { fallback: this.fallbackResponse },
+        timestamp: new Date().toISOString(),
+        correlationId: error.metadata.correlationId as string | undefined
+      }
     }
   }
 }

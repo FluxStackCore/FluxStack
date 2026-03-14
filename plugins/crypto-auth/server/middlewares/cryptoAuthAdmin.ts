@@ -24,17 +24,18 @@ export const cryptoAuthAdmin = (options: CryptoAuthMiddlewareOptions = {}) => {
       return {}
     })
     .use(
-      createGuard({
+      createGuard<{ request: Request & { user?: CryptoAuthUser } }>({
         name: 'crypto-auth-admin-check',
         check: ({ request }) => {
-          const user = (request as any).user as CryptoAuthUser | undefined
+          const user = request.user
           return !!(user && user.isAdmin)
         },
         onFail: (set, { request }) => {
-          const user = (request as any).user as CryptoAuthUser | undefined
+          const user = request.user
+          const s = set as { status: number }
 
           if (!user) {
-            set.status = 401
+            s.status = 401
             return {
               error: {
                 message: 'Authentication required',
@@ -49,7 +50,7 @@ export const cryptoAuthAdmin = (options: CryptoAuthMiddlewareOptions = {}) => {
             permissions: user.permissions
           })
 
-          set.status = 403
+          s.status = 403
           return {
             error: {
               message: 'Admin privileges required',

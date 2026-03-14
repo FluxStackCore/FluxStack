@@ -19,12 +19,12 @@ interface BroadcastMessage {
   type: 'room:event' | 'room:state' | 'room:system'
   roomId: string
   event: string
-  data: any
+  data: unknown
   timestamp: number
   senderId?: string
 }
 
-export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
+export class RoomBroadcaster<TState, TEvents extends Record<string, unknown>> {
   private connections = new Map<string, RoomConnection>()
   private roomConnections = new Map<string, Set<string>>() // roomId -> connectionIds
   private roomSystem: RoomSystem<TState, TEvents>
@@ -156,7 +156,7 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
   broadcast(
     roomId: string,
     event: string,
-    data: any,
+    data: unknown,
     options?: { exclude?: string | string[] }
   ): number {
     const roomConns = this.roomConnections.get(roomId)
@@ -200,7 +200,7 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
   /**
    * Envia evento do sistema para todos na sala
    */
-  broadcastSystem(roomId: string, event: string, data: any): number {
+  broadcastSystem(roomId: string, event: string, data: unknown): number {
     const roomConns = this.roomConnections.get(roomId)
     if (!roomConns || roomConns.size === 0) return 0
 
@@ -246,7 +246,7 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
   /**
    * Envia para um usuário específico (todas as conexões do usuário)
    */
-  sendToUser(userId: string, roomId: string, event: string, data: any): number {
+  sendToUser(userId: string, roomId: string, event: string, data: unknown): number {
     let sent = 0
 
     for (const [connId, conn] of this.connections) {
@@ -277,15 +277,15 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
     roomId: string,
     initialState: TState,
     connectionId?: string
-  ): Room<TState, TEvents> & { broadcastEmit: (event: keyof TEvents, data: any) => void } {
+  ): Room<TState, TEvents> & { broadcastEmit: <K extends keyof TEvents>(event: K, data: TEvents[K]) => void } {
     const room = this.roomSystem.getOrCreate(roomId, initialState)
 
     // Adicionar método de broadcast
     const enhanced = room as Room<TState, TEvents> & {
-      broadcastEmit: (event: keyof TEvents, data: any) => void
+      broadcastEmit: <K extends keyof TEvents>(event: K, data: TEvents[K]) => void
     }
 
-    enhanced.broadcastEmit = (event: keyof TEvents, data: any) => {
+    enhanced.broadcastEmit = <K extends keyof TEvents>(event: K, data: TEvents[K]) => {
       // Emitir localmente
       room.emit(event, data)
       // Broadcast via WebSocket
@@ -347,7 +347,7 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, any>> {
 
 // Factory
 export function createRoomBroadcaster<
-  TDef extends { state: any; events: Record<string, any> }
+  TDef extends { state: unknown; events: Record<string, unknown> }
 >(
   roomSystem: RoomSystem<TDef['state'], TDef['events']>
 ): RoomBroadcaster<TDef['state'], TDef['events']> {

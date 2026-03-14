@@ -305,8 +305,14 @@ export class PluginDiscovery {
   /**
    * Validate if an object is a valid plugin
    */
-  private isValidPlugin(plugin: any): plugin is Plugin {
-    if (!plugin || typeof plugin !== 'object' || typeof plugin.name !== 'string' || plugin.name.length === 0) {
+  private isValidPlugin(plugin: unknown): plugin is Plugin {
+    if (!plugin || typeof plugin !== 'object') {
+      return false
+    }
+
+    const pluginObj = plugin as Record<string, unknown>
+
+    if (typeof pluginObj.name !== 'string' || pluginObj.name.length === 0) {
       return false
     }
 
@@ -317,8 +323,8 @@ export class PluginDiscovery {
     ]
 
     for (const hook of hookNames) {
-      if (hook in plugin && typeof plugin[hook] !== 'function') {
-        this.logger?.warn(`Plugin "${plugin.name}" has invalid hook "${hook}" (expected function, got ${typeof plugin[hook]})`)
+      if (hook in pluginObj && typeof pluginObj[hook] !== 'function') {
+        this.logger?.warn(`Plugin "${pluginObj.name}" has invalid hook "${hook}" (expected function, got ${typeof pluginObj[hook]})`)
         return false
       }
     }

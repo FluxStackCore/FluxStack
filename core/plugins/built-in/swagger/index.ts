@@ -33,7 +33,7 @@ export const swaggerPlugin: Plugin = {
     }
 
     // Build servers list
-    const servers = parseServers(pluginsConfig.swaggerServers ?? '')
+    const servers = parseServers((pluginsConfig.swaggerServers as string) ?? '')
     if (servers.length === 0) {
       servers.push({
         url: `http://${serverConfig.server.host}:${serverConfig.server.port}`,
@@ -43,16 +43,16 @@ export const swaggerPlugin: Plugin = {
 
     // Swagger configuration
     const config = {
-      path: pluginsConfig.swaggerPath ?? '/swagger',
+      path: (pluginsConfig.swaggerPath as string) ?? '/swagger',
       documentation: {
         info: {
-          title: pluginsConfig.swaggerTitle ?? appConfig.name ?? 'FluxStack API',
-          version: pluginsConfig.swaggerVersion ?? appConfig.version ?? '1.0.0',
-          description: pluginsConfig.swaggerDescription ?? 'API documentation'
+          title: (pluginsConfig.swaggerTitle as string) ?? (appConfig.name as string) ?? 'FluxStack API',
+          version: (pluginsConfig.swaggerVersion as string) ?? (appConfig.version as string) ?? '1.0.0',
+          description: (pluginsConfig.swaggerDescription as string) ?? 'API documentation'
         },
         servers
       },
-      exclude: pluginsConfig.swaggerExcludePaths ?? [],
+      exclude: (pluginsConfig.swaggerExcludePaths as string[]) ?? [],
       swaggerOptions: {
         persistAuthorization: pluginsConfig.swaggerPersistAuthorization,
         displayRequestDuration: pluginsConfig.swaggerDisplayRequestDuration,
@@ -64,8 +64,8 @@ export const swaggerPlugin: Plugin = {
 
     // Add Basic Auth if enabled
     if (pluginsConfig.swaggerAuthEnabled && pluginsConfig.swaggerAuthPassword) {
-      context.app.onBeforeHandle({ as: 'global' }, ({ request, set, path }: { request: Request; set: any; path: string }) => {
-        if (!path.startsWith(pluginsConfig.swaggerPath ?? '/swagger')) return
+      ;(context.app as Record<string, Function>).onBeforeHandle({ as: 'global' }, ({ request, set, path }: { request: Request; set: { status?: number; headers: Record<string, string> }; path: string }) => {
+        if (!path.startsWith((pluginsConfig.swaggerPath as string) ?? '/swagger')) return
 
         const authHeader = request.headers.get('authorization')
         if (!authHeader?.startsWith('Basic ')) {
@@ -89,7 +89,7 @@ export const swaggerPlugin: Plugin = {
       context.logger.debug(`Swagger auth enabled (user: ${pluginsConfig.swaggerAuthUsername})`)
     }
 
-    context.app.use(swagger(config))
+    ;(context.app as Record<string, Function>).use(swagger(config))
     context.logger.debug(`Swagger enabled at ${pluginsConfig.swaggerPath}`)
   },
 

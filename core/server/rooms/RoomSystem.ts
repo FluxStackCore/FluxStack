@@ -1,5 +1,6 @@
 // 🔥 FluxStack Room System - Pub/Sub tipado para comunicação entre componentes
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- default `any` needed for contravariant handler storage
 type EventHandler<T = any> = (data: T) => void
 type Unsubscribe = () => void
 
@@ -9,7 +10,7 @@ export type SystemEvents<TState> = {
   '$room:destroyed': { roomId: string; reason: 'manual' | 'empty' | 'ttl'; finalState: TState }
   '$sub:join': { subscriberId: string; event: string; count: number }
   '$sub:leave': { subscriberId: string; event: string; count: number }
-  '$state:change': { path?: string; oldValue: any; newValue: any }
+  '$state:change': { path?: string; oldValue: unknown; newValue: unknown }
   '$state:reset': { oldState: TState; newState: TState }
   '$error': { error: Error; context: string }
 }
@@ -25,7 +26,7 @@ interface Subscription {
 }
 
 // Room instance
-export class Room<TState, TEvents extends Record<string, any>> {
+export class Room<TState, TEvents extends Record<string, unknown>> {
   public readonly id: string
   public readonly createdAt: number
 
@@ -36,12 +37,12 @@ export class Room<TState, TEvents extends Record<string, any>> {
   private destroyed = false
 
   // Callback para notificar o sistema global
-  private onSystemEvent?: (event: string, data: any) => void
+  private onSystemEvent?: (event: string, data: unknown) => void
 
   constructor(
     id: string,
     initialState: TState,
-    onSystemEvent?: (event: string, data: any) => void
+    onSystemEvent?: (event: string, data: unknown) => void
   ) {
     this.id = id
     this.createdAt = Date.now()
@@ -167,7 +168,7 @@ export class Room<TState, TEvents extends Record<string, any>> {
     this.onSystemEvent?.(event as string, { roomId: this.id, ...data })
   }
 
-  private emitInternal(event: string, data: any): number {
+  private emitInternal(event: string, data: unknown): number {
     const subs = this.subscriptions.get(event)
     if (!subs || subs.size === 0) return 0
 
@@ -242,7 +243,7 @@ export interface RoomSystemOptions {
   defaultTTL?: number          // TTL padrão para salas
 }
 
-export class RoomSystem<TState, TEvents extends Record<string, any>> {
+export class RoomSystem<TState, TEvents extends Record<string, unknown>> {
   public readonly name: string
   private rooms = new Map<string, Room<TState, TEvents>>()
   private globalSubscriptions = new Map<string, Set<EventHandler>>()
@@ -383,11 +384,11 @@ export class RoomSystem<TState, TEvents extends Record<string, any>> {
     }
   }
 
-  private handleSystemEvent(event: string, data: any): void {
+  private handleSystemEvent(event: string, data: unknown): void {
     this.emitGlobal(event, data)
   }
 
-  private emitGlobal(event: string, data: any): void {
+  private emitGlobal(event: string, data: unknown): void {
     const handlers = this.globalSubscriptions.get(event)
     if (!handlers) return
 
@@ -448,7 +449,7 @@ export class RoomSystem<TState, TEvents extends Record<string, any>> {
 // ============================================
 
 export function createRoomSystem<
-  TDef extends { state: any; events: Record<string, any> }
+  TDef extends { state: unknown; events: Record<string, unknown> }
 >(
   name: string,
   options?: RoomSystemOptions

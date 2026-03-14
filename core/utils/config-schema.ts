@@ -56,8 +56,8 @@ export interface ConfigField<T = unknown> {
   /** Is field required? */
   required?: boolean
 
-  /** Custom validation function */
-  validate?: (value: T) => boolean | string
+  /** Custom validation function (method syntax for bivariant assignability) */
+  validate?(value: T): boolean | string
 
   /** For enum type: allowed values */
   values?: readonly T[]
@@ -411,7 +411,7 @@ export function defineNestedConfig<T extends Record<string, ConfigSchema>>(
     config[groupName] = defineConfig(schema)
   }
 
-  return config
+  return config as { [K in keyof T]: InferConfig<T[K]> }
 }
 
 /**

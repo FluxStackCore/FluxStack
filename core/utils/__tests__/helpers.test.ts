@@ -306,7 +306,7 @@ describe('Helper Utilities', () => {
       })
 
       it('should return fallback for circular references', () => {
-        const circular: any = { a: 1 }
+        const circular: Record<string, unknown> = { a: 1 }
         circular.self = circular
 
         const result = safeJsonStringify(circular, '{"error": true}')

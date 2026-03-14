@@ -72,8 +72,8 @@ export class PluginExecutor {
    */
   async executePlan(
     plan: PluginExecutionPlan,
-    context: any,
-    executor: (plugin: Plugin, hook: PluginHook, context: any) => Promise<PluginHookResult>
+    context: unknown,
+    executor: (plugin: Plugin, hook: PluginHook, context: unknown) => Promise<PluginHookResult>
   ): Promise<PluginHookResult[]> {
     const results: PluginHookResult[] = []
 

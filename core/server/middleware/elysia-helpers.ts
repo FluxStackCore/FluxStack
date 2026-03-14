@@ -8,7 +8,7 @@ import { Elysia } from 'elysia'
 /**
  * Options for creating middleware
  */
-export interface MiddlewareOptions<TContext = any> {
+export interface MiddlewareOptions<TContext = unknown> {
   /** Unique name for the middleware (required for Elysia) */
   name: string
 
@@ -16,7 +16,7 @@ export interface MiddlewareOptions<TContext = any> {
    * Handler function that runs before the route handler.
    * Return undefined to continue, or return a response to block execution.
    */
-  handler: (context: TContext) => void | Promise<void> | any | Promise<any>
+  handler: (context: TContext) => void | Promise<void> | unknown | Promise<unknown>
 
   /**
    * If true, uses derive() instead of onBeforeHandle().
@@ -44,7 +44,7 @@ export interface MiddlewareOptions<TContext = any> {
  * app.use(myAuth)
  * ```
  */
-export function createMiddleware<TContext = any>(
+export function createMiddleware<TContext = unknown>(
   options: MiddlewareOptions<TContext>
 ) {
   const { name, handler, nonBlocking = false } = options
@@ -72,9 +72,9 @@ export function createMiddleware<TContext = any>(
  * app.use(addTimestamp).get('/', ({ timestamp }) => ({ timestamp }))
  * ```
  */
-export function createDerive<TDerived extends Record<string, any>>(options: {
+export function createDerive<TDerived extends Record<string, unknown>>(options: {
   name: string
-  derive: (context: any) => TDerived | Promise<TDerived>
+  derive: (context: unknown) => TDerived | Promise<TDerived>
 }) {
   return new Elysia({ name: options.name }).derive(options.derive)
 }
@@ -98,10 +98,10 @@ export function createDerive<TDerived extends Record<string, any>>(options: {
  * app.use(requireAdmin).get('/admin', () => 'Admin panel')
  * ```
  */
-export function createGuard<TContext = any>(options: {
+export function createGuard<TContext = unknown>(options: {
   name: string
   check: (context: TContext) => boolean | Promise<boolean>
-  onFail: (set: any, context: TContext) => any
+  onFail: (set: unknown, context: TContext) => unknown
 }) {
   return new Elysia({ name: options.name })
     .onBeforeHandle(async (ctx) => {
@@ -129,14 +129,14 @@ export function createRateLimit(options: {
   name: string
   maxRequests: number
   windowMs: number
-  keyGenerator?: (context: any) => string
+  keyGenerator?: (context: unknown) => string
   message?: string
 }) {
   const {
     name,
     maxRequests,
     windowMs,
-    keyGenerator = ({ request }: any) =>
+    keyGenerator = ({ request }: { request: Request }) =>
       request.headers.get('x-forwarded-for') ||
       request.headers.get('x-real-ip') ||
       'unknown',

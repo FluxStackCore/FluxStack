@@ -40,6 +40,11 @@ export class FluxStackFramework {
     return this.pluginRegistry as unknown as PluginRegistryInternals
   }
 
+  /** Access typed config from context (config is stored as unknown to avoid circular deps) */
+  private get cfg(): import('@config').FluxStackConfig {
+    return this.context.config as import('@config').FluxStackConfig
+  }
+
   /**
    * Helper to safely parse request.url which might be relative or absolute
    */
@@ -208,7 +213,7 @@ export class FluxStackFramework {
 
       // Execute onConfigLoad hooks for all plugins
       const configLoadContext = {
-        config: this.context.config,
+        config: this.context.config as import('@config').FluxStackConfig,
         envVars: process.env as Record<string, string | undefined>,
         configPath: undefined
       }
@@ -239,13 +244,13 @@ export class FluxStackFramework {
   }
 
   private setupCors() {
-    const cors = this.context.config.cors
+    const cors = this.cfg.cors
 
     this.app
       .onRequest(({ set }) => {
-        set.headers["Access-Control-Allow-Origin"] = cors.origins.join(", ") || "*"
-        set.headers["Access-Control-Allow-Methods"] = cors.methods.join(", ") || "*"
-        set.headers["Access-Control-Allow-Headers"] = cors.headers.join(", ") || "*"
+        set.headers["Access-Control-Allow-Origin"] = (cors.origins ?? []).join(", ") || "*"
+        set.headers["Access-Control-Allow-Methods"] = (cors.methods ?? []).join(", ") || "*"
+        set.headers["Access-Control-Allow-Headers"] = (cors.headers ?? []).join(", ") || "*"
         if (cors.credentials) {
           set.headers["Access-Control-Allow-Credentials"] = "true"
         }
@@ -262,7 +267,7 @@ export class FluxStackFramework {
       const url = this.parseRequestURL(request)
 
       // Handle API routes
-      if (url.pathname.startsWith(this.context.config.server.apiPrefix)) {
+      if (url.pathname.startsWith(this.cfg.server.apiPrefix)) {
         set.status = 200
         set.headers['Content-Type'] = 'application/json'
         set.headers['Content-Length'] = '0'
@@ -467,7 +472,7 @@ export class FluxStackFramework {
       }
 
       // Log the request automatically (if not disabled in config)
-      if (this.context.config.server.enableRequestLogging !== false) {
+      if (this.cfg.server.enableRequestLogging !== false) {
         // Ensure status is always a number (HTTP status code)
         const status = typeof responseContext.statusCode === 'number'
           ? responseContext.statusCode
@@ -648,7 +653,7 @@ export class FluxStackFramework {
   }
 
   private async handleViteProxy(errorContext: { request: Request; method?: string; headers?: Record<string, string> }): Promise<Response> {
-    const vitePort = this.context.config.client?.port || 5173
+    const vitePort = this.cfg.client?.port || 5173
     const url = this.parseRequestURL(errorContext.request)
 
     try {
@@ -715,7 +720,7 @@ export class FluxStackFramework {
     }
   }
 
-  routes(routeModule: any) {
+  routes(routeModule: Elysia) {
     this.app.use(routeModule)
     return this
   }
@@ -853,21 +858,21 @@ export class FluxStackFramework {
     // Start the framework (load plugins)
     await this.start()
 
-    const port = this.context.config.server.port
-    const apiPrefix = this.context.config.server.apiPrefix
+    const port = this.cfg.server.port
+    const apiPrefix = this.cfg.server.apiPrefix
 
     this.app.listen(port, () => {
-      const showBanner = this.context.config.server.showBanner !== false // default: true
+      const showBanner = this.cfg.server.showBanner !== false // default: true
       const vitePluginActive = this.pluginRegistry.has('vite')
 
       // Prepare startup info for banner or callback
       const startupInfo: StartupInfo = {
         port,
-        host: this.context.config.server.host || 'localhost',
+        host: this.cfg.server.host || 'localhost',
         apiPrefix,
         environment: this.context.environment,
         pluginCount: this.pluginRegistry.getAll().length,
-        vitePort: this.context.config.client?.port,
+        vitePort: this.cfg.client?.port,
         viteEmbedded: vitePluginActive, // Vite is embedded when plugin is active
         swaggerPath: '/swagger', // TODO: Get from swagger plugin config
         liveComponents: componentRegistry.getRegisteredComponentNames()

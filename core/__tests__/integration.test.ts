@@ -14,7 +14,7 @@ process.env.NODE_ENV = 'test'
 
 describe('Core Framework Integration', () => {
   let framework: FluxStackFramework
-  let consoleSpy: any
+  let consoleSpy: Record<string, ReturnType<typeof vi.spyOn>>
 
   beforeEach(() => {
     framework = new FluxStackFramework()

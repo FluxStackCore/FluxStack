@@ -18,7 +18,7 @@ export interface StoreOptions<T> {
  * Create a Zustand store with FluxStack conventions
  */
 export function createFluxStore<T>(
-  storeFactory: (set: any, get: any) => T,
+  storeFactory: (set: (partial: Partial<T> | ((state: T) => Partial<T>)) => void, get: () => T) => T,
   options: StoreOptions<T> = {}
 ) {
   const { name, persist: shouldPersist = false, storage = 'localStorage', version = 1, migrate } = options

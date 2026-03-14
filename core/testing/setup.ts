@@ -59,7 +59,7 @@ export function createMockLogger() {
 /**
  * Create mock service context for testing
  */
-export function createMockServiceContext(overrides: any = {}) {
+export function createMockServiceContext(overrides: Record<string, unknown> = {}) {
   return {
     config: {},
     logger: createMockLogger(),

@@ -87,8 +87,8 @@ export const PluginUtils = {
         onBeforeRoute?: (context: RequestContext) => void | Promise<void>
         onResponse?: (context: ResponseContext) => void | Promise<void>
         onError?: (context: ErrorContext) => void | Promise<void>
-        configSchema?: any
-        defaultConfig?: any
+        configSchema?: PluginConfigSchema
+        defaultConfig?: unknown
     }): Plugin => {
         const plugin = {
             name: config.name,
@@ -104,7 +104,7 @@ export const PluginUtils = {
             ...(config.onResponse && { onResponse: config.onResponse }),
             ...(config.onError && { onError: config.onError }),
             ...(config.configSchema && { configSchema: config.configSchema }),
-            ...(config.defaultConfig && { defaultConfig: config.defaultConfig })
+            ...(config.defaultConfig !== undefined ? { defaultConfig: config.defaultConfig } : {})
         } as Plugin
         return plugin
     },
@@ -126,11 +126,11 @@ export const PluginUtils = {
         fluxstack: {
             version: string
             hooks: PluginHook[]
-            config?: any
+            config?: PluginConfigSchema
             category?: string
             tags?: string[]
         }
-    }): any => {
+    }): PluginManifest => {
         return {
             name: config.name,
             version: config.version || '1.0.0',
@@ -149,12 +149,13 @@ export const PluginUtils = {
     /**
      * Validate plugin structure
      */
-    validatePlugin: (plugin: any): plugin is Plugin => {
+    validatePlugin: (plugin: unknown): plugin is Plugin => {
         return (
-            plugin &&
+            !!plugin &&
             typeof plugin === 'object' &&
-            typeof plugin.name === 'string' &&
-            plugin.name.length > 0
+            'name' in plugin &&
+            typeof (plugin as Record<string, unknown>).name === 'string' &&
+            ((plugin as Record<string, unknown>).name as string).length > 0
         )
     },
 
@@ -195,7 +196,9 @@ export const PluginUtils = {
 // Re-export types for convenience
 import type {
     PluginContext,
+    PluginConfigSchema,
     PluginHook,
+    PluginManifest,
     PluginPriority,
     RequestContext,
     ResponseContext,

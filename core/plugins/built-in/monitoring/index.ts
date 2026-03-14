@@ -275,7 +275,7 @@ export const monitoringPlugin: Plugin = {
       const metricsRegistry = (context as MonitoringPluginContext).metricsRegistry
       if (metricsRegistry) {
         recordCounter(metricsRegistry, 'server_starts_total', 1, {
-          version: appConfig.version ?? '1.0.0'
+          version: (appConfig.version as string) ?? '1.0.0'
         })
       }
     }
@@ -529,7 +529,7 @@ function startSystemMetricsCollection(context: PluginContext, collector: Metrics
 
   // Collect metrics immediately and then at intervals
   collectSystemMetrics()
-  const interval = setInterval(collectSystemMetrics, options.collectInterval)
+  const interval = setInterval(collectSystemMetrics, options.collectInterval as number)
   intervals.push(interval)
 
   // Store intervals for cleanup
@@ -543,8 +543,9 @@ function setupMetricsEndpoint(context: PluginContext, _registry: MetricsRegistry
   const endpoint = prometheusExporter.endpoint || '/metrics'
   
   // Add metrics endpoint to the app
-  if (context.app && typeof context.app.get === 'function') {
-    context.app.get(endpoint, () => {
+  const app = context.app as Record<string, unknown>
+  if (app && typeof app.get === 'function') {
+    (app.get as Function)(endpoint, () => {
       const prometheusData = collector.exportPrometheus()
       return new Response(prometheusData, {
         headers: {
@@ -655,7 +656,7 @@ function setupMetricsCleanup(context: PluginContext, registry: MetricsRegistry, 
 
   const cleanup = () => {
     const now = Date.now()
-    const cutoff = now - (options.retentionPeriod ?? 3600000)
+    const cutoff = now - ((options.retentionPeriod as number) ?? 3600000)
 
     // Clean up old metrics
     for (const [key, metric] of registry.counters.entries()) {
@@ -815,7 +816,7 @@ function evaluateThreshold(value: number, operator: string, threshold: number): 
 }
 
 // Enhanced Exporters
-function exportToConsole(registry: MetricsRegistry, collector: MetricsCollector, logger: any) {
+function exportToConsole(registry: MetricsRegistry, collector: MetricsCollector, logger: { info: (message: string, meta?: unknown) => void }) {
   const metrics = {
     counters: Array.from(registry.counters.values()),
     gauges: Array.from(registry.gauges.values()),
@@ -836,7 +837,7 @@ function exportToConsole(registry: MetricsRegistry, collector: MetricsCollector,
   })
 }
 
-function exportToPrometheus(_registry: MetricsRegistry, collector: MetricsCollector, config: any, logger: any) {
+function exportToPrometheus(_registry: MetricsRegistry, collector: MetricsCollector, config: MetricsExporter, logger: { debug: (message: string, meta?: unknown) => void; error: (message: string, meta?: unknown) => void }) {
   const prometheusData = collector.exportPrometheus()
   
   if (config.endpoint && config.endpoint !== '/metrics') {
@@ -855,7 +856,7 @@ function exportToPrometheus(_registry: MetricsRegistry, collector: MetricsCollec
   }
 }
 
-function exportToJson(registry: MetricsRegistry, collector: MetricsCollector, config: any, logger: any) {
+function exportToJson(registry: MetricsRegistry, collector: MetricsCollector, config: MetricsExporter, logger: { info: (message: string, meta?: unknown) => void; error: (message: string, meta?: unknown) => void }) {
   const data = {
     timestamp: new Date().toISOString(),
     system: collector.getSystemMetrics(),
@@ -881,7 +882,7 @@ function exportToJson(registry: MetricsRegistry, collector: MetricsCollector, co
   }
 }
 
-function exportToFile(registry: MetricsRegistry, collector: MetricsCollector, config: any, logger: any) {
+function exportToFile(registry: MetricsRegistry, collector: MetricsCollector, config: MetricsExporter, logger: { debug: (message: string, meta?: unknown) => void; warn: (message: string, meta?: unknown) => void; error: (message: string, meta?: unknown) => void }) {
   if (!config.filePath) {
     logger.warn('File exporter configured but no filePath specified')
     return

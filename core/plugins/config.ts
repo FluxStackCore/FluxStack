@@ -143,13 +143,13 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     // Type-specific validations
     switch (schema.type) {
       case 'string':
-        this.validateStringProperty(value, schema, path, result)
+        this.validateStringProperty(value as string, schema, path, result)
         break
       case 'number':
-        this.validateNumberProperty(value, schema, path, result)
+        this.validateNumberProperty(value as number, schema, path, result)
         break
       case 'array':
-        this.validateArrayProperty(value, schema, path, result)
+        this.validateArrayProperty(value as unknown[], schema, path, result)
         break
       case 'object':
         if (schema.properties) {
@@ -159,9 +159,9 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     }
 
     // Enum validation
-    if (schema.enum && !schema.enum.includes(value)) {
+    if (schema.enum && !(schema.enum as unknown[]).includes(value)) {
       result.valid = false
-      result.errors.push(`Property '${path}' must be one of: ${schema.enum.join(', ')}`)
+      result.errors.push(`Property '${path}' must be one of: ${(schema.enum as unknown[]).join(', ')}`)
     }
   }
 
@@ -169,18 +169,18 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
    * Validate string property
    */
   private validateStringProperty(value: string, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
-    if (schema.minLength && value.length < schema.minLength) {
+    if (schema.minLength && value.length < (schema.minLength as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at least ${schema.minLength} characters long`)
     }
 
-    if (schema.maxLength && value.length > schema.maxLength) {
+    if (schema.maxLength && value.length > (schema.maxLength as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at most ${schema.maxLength} characters long`)
     }
 
     if (schema.pattern) {
-      const regex = new RegExp(schema.pattern)
+      const regex = new RegExp(schema.pattern as string)
       if (!regex.test(value)) {
         result.valid = false
         result.errors.push(`Property '${path}' does not match required pattern: ${schema.pattern}`)
@@ -192,17 +192,17 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
    * Validate number property
    */
   private validateNumberProperty(value: number, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
-    if (schema.minimum !== undefined && value < schema.minimum) {
+    if (schema.minimum !== undefined && value < (schema.minimum as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at least ${schema.minimum}`)
     }
 
-    if (schema.maximum !== undefined && value > schema.maximum) {
+    if (schema.maximum !== undefined && value > (schema.maximum as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at most ${schema.maximum}`)
     }
 
-    if (schema.multipleOf && value % schema.multipleOf !== 0) {
+    if (schema.multipleOf && value % (schema.multipleOf as number) !== 0) {
       result.valid = false
       result.errors.push(`Property '${path}' must be a multiple of ${schema.multipleOf}`)
     }
@@ -212,19 +212,19 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
    * Validate array property
    */
   private validateArrayProperty(value: unknown[], schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
-    if (schema.minItems && value.length < schema.minItems) {
+    if (schema.minItems && value.length < (schema.minItems as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must have at least ${schema.minItems} items`)
     }
 
-    if (schema.maxItems && value.length > schema.maxItems) {
+    if (schema.maxItems && value.length > (schema.maxItems as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must have at most ${schema.maxItems} items`)
     }
 
     if (schema.items) {
       value.forEach((item, index) => {
-        this.validateProperty(item, schema.items, `${path}[${index}]`, result)
+        this.validateProperty(item, schema.items as Record<string, unknown>, `${path}[${index}]`, result)
       })
     }
   }
@@ -269,7 +269,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     }
 
     if (Array.isArray(source)) {
-      return [...source]
+      return [...source] as unknown as Record<string, unknown>
     }
 
     const result = { ...target }

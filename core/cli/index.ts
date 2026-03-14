@@ -51,7 +51,7 @@ async function registerBuiltInCommands() {
     handler: async (args, options, context) => {
       const { createPluginAddCommand } = await import('./commands/plugin-add')
       const cmd = createPluginAddCommand()
-      await cmd.parseAsync(['node', 'cli', ...args], { from: 'user' })
+      await cmd.parseAsync(['node', 'cli', ...args.map(String)], { from: 'user' })
     }
   })
 
@@ -80,7 +80,7 @@ async function registerBuiltInCommands() {
     handler: async (args, options, context) => {
       const { createPluginRemoveCommand } = await import('./commands/plugin-remove')
       const cmd = createPluginRemoveCommand()
-      await cmd.parseAsync(['node', 'cli', ...args], { from: 'user' })
+      await cmd.parseAsync(['node', 'cli', ...args.map(String)], { from: 'user' })
     }
   })
 
@@ -106,7 +106,7 @@ async function registerBuiltInCommands() {
     handler: async (args, options, context) => {
       const { createPluginListCommand } = await import('./commands/plugin-list')
       const cmd = createPluginListCommand()
-      await cmd.parseAsync(['node', 'cli', ...args], { from: 'user' })
+      await cmd.parseAsync(['node', 'cli', ...args.map(String)], { from: 'user' })
     }
   })
 
@@ -134,7 +134,7 @@ Examples:
       }
 
       const subcommand = args[0]
-      const subArgs = args.slice(1)
+      const subArgs = args.slice(1).map(String)
 
       const { createPluginDepsCommand } = await import('./commands/plugin-deps')
       const cmd = createPluginDepsCommand()

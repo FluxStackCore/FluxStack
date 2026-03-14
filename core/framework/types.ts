@@ -42,7 +42,7 @@ export interface RouteDefinition {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
   path: string
   handler: Function
-  schema?: any
+  schema?: unknown
   middleware?: Function[]
   description?: string
   tags?: string[]
@@ -57,7 +57,7 @@ export interface MiddlewareDefinition {
 
 export interface ServiceDefinition {
   name: string
-  instance: any
+  instance: unknown
   dependencies?: string[]
   singleton?: boolean
 }

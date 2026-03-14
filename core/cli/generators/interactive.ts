@@ -26,8 +26,8 @@ export const interactiveGenerateCommand: CliCommand = {
     const selectedType = await promptSystem.select(
       'What would you like to generate?',
       generatorChoices
-    )
-    
+    ) as string
+
     const generator = generatorRegistry.get(selectedType)
     if (!generator) {
       console.error(`❌ Generator not found: ${selectedType}`)
@@ -58,7 +58,7 @@ export const interactiveGenerateCommand: CliCommand = {
           { name: 'CRUD - Full CRUD operations with validation', value: 'crud' },
           { name: 'Minimal - Basic structure only', value: 'minimal' }
         ]
-      )
+      ) as string | undefined
     } else if (selectedType === 'component') {
       template = await promptSystem.select(
         'Choose component template:',
@@ -69,7 +69,7 @@ export const interactiveGenerateCommand: CliCommand = {
           { name: 'Form - Form component with validation', value: 'form' },
           { name: 'Full - Complete with tests and stories', value: 'full' }
         ]
-      )
+      ) as string | undefined
     } else if (selectedType === 'service') {
       template = await promptSystem.select(
         'Choose service template:',
@@ -78,7 +78,7 @@ export const interactiveGenerateCommand: CliCommand = {
           { name: 'Repository - Service with repository pattern', value: 'repository' },
           { name: 'Minimal - Basic structure only', value: 'minimal' }
         ]
-      )
+      ) as string | undefined
     } else if (selectedType === 'route') {
       template = await promptSystem.select(
         'Choose route template:',
@@ -87,7 +87,7 @@ export const interactiveGenerateCommand: CliCommand = {
           { name: 'Auth - Authentication routes', value: 'auth' },
           { name: 'Minimal - Basic routes only', value: 'minimal' }
         ]
-      )
+      ) as string | undefined
     }
     
     // Get custom path (optional)
