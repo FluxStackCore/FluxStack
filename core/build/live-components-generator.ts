@@ -116,7 +116,7 @@ export class LiveComponentsGenerator {
 // Generated at: ${new Date().toISOString()}
 
 ${imports}
-import { componentRegistry } from "@core/server/live/ComponentRegistry"
+import { componentRegistry } from "@core/server/live"
 
 // Register all components statically for production bundle
 function registerAllComponents() {
@@ -285,10 +285,19 @@ ${components.map(comp => `  ${comp.className}`).join(',\n')}
 
     const components = this.discoverComponents()
     const currentContent = readFileSync(this.registrationFilePath, 'utf-8')
-    
+
     // Check if all discovered components are in the current file
     for (const comp of components) {
       if (!currentContent.includes(`'${comp.componentName}', ${comp.className}`)) {
+        return true
+      }
+    }
+
+    // Check if the file references components that no longer exist (deleted files)
+    const registeredMatches = currentContent.matchAll(/registerComponentClass\('(\w+)',\s*(\w+)\)/g)
+    const discoveredNames = new Set(components.map(c => c.componentName))
+    for (const match of registeredMatches) {
+      if (!discoveredNames.has(match[1])) {
         return true
       }
     }

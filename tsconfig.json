@@ -28,7 +28,10 @@
       "@config/*": ["./config/*"],
       "@app/*": ["./app/*"],
       "@shared/*": ["./app/shared/*"],
-      "@plugins/*": ["./plugins/*"]
+      "@plugins/*": ["./plugins/*"],
+      "@fluxstack/live": ["../fluxstack-live/packages/core/src/index.ts"],
+      "@fluxstack/live-client": ["../fluxstack-live/packages/client/src/index.ts"],
+      "@fluxstack/live-react": ["../fluxstack-live/packages/react/src/index.ts"]
     },
 
     // Best practices

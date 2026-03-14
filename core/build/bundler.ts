@@ -54,12 +54,15 @@ export class Bundler {
           assets: await this.getClientAssets()
         }
       } else {
+        const stdout = await new Response(buildProcess.stdout).text()
         const stderr = await new Response(buildProcess.stderr).text()
         buildLogger.error("Client bundle failed")
+        if (stdout.trim()) buildLogger.error(`stdout:\n${stdout.trim()}`)
+        if (stderr.trim()) buildLogger.error(`stderr:\n${stderr.trim()}`)
         return {
           success: false,
           duration,
-          error: stderr || "Client build failed"
+          error: stderr || stdout || "Client build failed"
         }
       }
     } catch (error) {
@@ -129,16 +132,20 @@ export class Bundler {
           entryPoint: join(this.config.outDir, "index.js")
         }
       } else {
+        const stdout = await new Response(buildProcess.stdout).text()
+        const stderr = await new Response(buildProcess.stderr).text()
+
         buildLogger.error("Server bundle failed")
+        if (stdout.trim()) buildLogger.error(`stdout:\n${stdout.trim()}`)
+        if (stderr.trim()) buildLogger.error(`stderr:\n${stderr.trim()}`)
 
         // Run post-build cleanup
         await this.runPostBuildCleanup(liveComponentsGenerator)
 
-        const stderr = await new Response(buildProcess.stderr).text()
         return {
           success: false,
           duration,
-          error: stderr || "Server build failed"
+          error: stderr || stdout || "Server build failed"
         }
       }
     } catch (error) {

@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { Live } from '../components/Live'
-import { useLiveChunkedUpload } from './useLiveChunkedUpload'
-import type { LiveChunkedUploadOptions } from './useLiveChunkedUpload'
-import type { FileUploadCompleteResponse } from '@core/types/types'
+import { Live, useLiveChunkedUpload } from '@fluxstack/live-react'
+import type { LiveChunkedUploadOptions } from '@fluxstack/live-react'
+import type { FileUploadCompleteResponse } from '@fluxstack/live'
 import { LiveUpload } from '@server/live/LiveUpload'
 
 export interface UseLiveUploadOptions {

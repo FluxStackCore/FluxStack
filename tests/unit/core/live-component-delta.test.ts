@@ -5,30 +5,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
  *
  * Validates that state mutations emit STATE_DELTA (partial) instead of
  * STATE_UPDATE (full state), reducing WebSocket payload size.
+ *
+ * Note: @fluxstack/live v0.3.0 uses WsSendBatcher with queueMicrotask,
+ * so we must await a microtask tick for ws.send() to be called.
  */
 
-// Mock the room dependencies before importing the module
-vi.mock('@core/server/live/RoomEventBus', () => ({
-  roomEvents: {
-    on: vi.fn(),
-    emit: vi.fn(),
-    off: vi.fn()
-  }
-}))
+// Import from @fluxstack/live with DI context
+import { LiveComponent, setLiveComponentContext, RoomEventBus, LiveRoomManager } from '@fluxstack/live'
+import type { GenericWebSocket as FluxStackWebSocket } from '@fluxstack/live'
 
-vi.mock('@core/server/live/LiveRoomManager', () => ({
-  liveRoomManager: {
-    joinRoom: vi.fn(),
-    leaveRoom: vi.fn(),
-    emitToRoom: vi.fn(),
-    getRoomState: vi.fn(() => ({})),
-    setRoomState: vi.fn()
-  }
-}))
+// Set up DI context for LiveComponent
+const testRoomEvents = new RoomEventBus()
+const testRoomManager = new LiveRoomManager(testRoomEvents)
+setLiveComponentContext({
+  roomEvents: testRoomEvents,
+  roomManager: testRoomManager,
+  debugger: { enabled: false, trackStateChange: () => {}, trackAction: () => {}, trackError: () => {} } as any,
+})
 
-// Import after mocks
-import { LiveComponent } from '@core/types/types'
-import type { FluxStackWebSocket } from '@core/types/types'
+/** Flush pending queueMicrotask callbacks (WsSendBatcher) */
+const flush = () => new Promise<void>(r => queueMicrotask(r))
 
 // Concrete test component
 interface TestState {
@@ -38,7 +34,7 @@ interface TestState {
 }
 
 class TestComponent extends LiveComponent<TestState> {
-  static componentName = 'TestComponent'
+  static componentName = 'TestDeltaComponent'
   static defaultState: TestState = { count: 0, name: 'default', items: [] }
 
   async increment() {
@@ -87,24 +83,27 @@ describe('LiveComponent Delta State Updates', () => {
   let ws: FluxStackWebSocket
   let component: TestComponent
 
-  beforeEach(() => {
+  beforeEach(async () => {
     ws = createMockWs()
     component = new TestComponent({}, ws)
+    await flush()
     // Clear constructor-related sends
     ;(ws.send as ReturnType<typeof vi.fn>).mockClear()
   })
 
   describe('Proxy set (this.state.prop = value)', () => {
-    it('should emit STATE_DELTA with only the changed property', () => {
+    it('should emit STATE_DELTA with only the changed property', async () => {
       component.state.count = 42
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
       expect(msg.payload).toEqual({ delta: { count: 42 } })
     })
 
-    it('should not include unchanged properties in delta', () => {
+    it('should not include unchanged properties in delta', async () => {
       component.state.name = 'updated'
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
@@ -114,15 +113,18 @@ describe('LiveComponent Delta State Updates', () => {
       expect(msg.payload.delta.items).toBeUndefined()
     })
 
-    it('should not emit if value is the same', () => {
+    it('should not emit if value is the same', async () => {
       component.state.count = 0 // same as default
+      await flush()
 
       expect(ws.send).not.toHaveBeenCalled()
     })
 
-    it('should emit separate deltas for sequential property changes', () => {
+    it('should emit deltas for sequential property changes', async () => {
       component.state.count = 1
+      await flush()
       component.state.name = 'hello'
+      await flush()
 
       const messages = getAllSentMessages(ws)
       expect(messages).toHaveLength(2)
@@ -132,33 +134,37 @@ describe('LiveComponent Delta State Updates', () => {
   })
 
   describe('setState (batch update)', () => {
-    it('should emit STATE_DELTA with partial updates', () => {
+    it('should emit STATE_DELTA with partial updates', async () => {
       component.setState({ count: 10, name: 'batch' })
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
       expect(msg.payload).toEqual({ delta: { count: 10, name: 'batch' } })
     })
 
-    it('should emit single STATE_DELTA for multiple properties', () => {
+    it('should emit single STATE_DELTA for multiple properties', async () => {
       component.setState({ count: 5, name: 'multi' })
+      await flush()
 
       const messages = getAllSentMessages(ws)
-      // setState emits a single message (not one per property)
-      expect(messages).toHaveLength(1)
-      expect(messages[0].payload.delta).toEqual({ count: 5, name: 'multi' })
+      const deltas = messages.filter((m: any) => m.type === 'STATE_DELTA')
+      expect(deltas).toHaveLength(1)
+      expect(deltas[0].payload.delta).toEqual({ count: 5, name: 'multi' })
     })
 
-    it('should support function updater form', () => {
+    it('should support function updater form', async () => {
       component.setState(prev => ({ count: prev.count + 1 }))
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
       expect(msg.payload).toEqual({ delta: { count: 1 } })
     })
 
-    it('should not include unchanged properties from function updater', () => {
+    it('should not include unchanged properties from function updater', async () => {
       component.setState(prev => ({ count: prev.count + 5 }))
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.payload.delta).toEqual({ count: 5 })
@@ -195,6 +201,7 @@ describe('LiveComponent Delta State Updates', () => {
   describe('Action-driven state changes', () => {
     it('should emit delta when action modifies state via proxy', async () => {
       await component.increment()
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
@@ -203,6 +210,7 @@ describe('LiveComponent Delta State Updates', () => {
 
     it('should emit delta when action modifies state via setState', async () => {
       await component.batchUpdate({ count: 100, name: 'action-batch' })
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.type).toBe('STATE_DELTA')
@@ -211,15 +219,17 @@ describe('LiveComponent Delta State Updates', () => {
   })
 
   describe('Message format', () => {
-    it('should include componentId in delta messages', () => {
+    it('should include componentId in delta messages', async () => {
       component.state.count = 1
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.componentId).toBe(component.id)
     })
 
-    it('should include timestamp in delta messages', () => {
+    it('should include timestamp in delta messages', async () => {
       component.state.count = 1
+      await flush()
 
       const msg = getLastSentMessage(ws)
       expect(msg.timestamp).toBeDefined()

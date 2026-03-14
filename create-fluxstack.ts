@@ -344,7 +344,7 @@ bun.lockb
       
       // Customize package.json with project name
       const packageJsonPath = join(projectPath, 'package.json')
-      const actualProjectName = isCurrentDir ? basename(projectPath) : normalizedName
+      const actualProjectName = basename(projectPath)
 
       if (existsSync(packageJsonPath)) {
         const packageContent = readFileSync(packageJsonPath, 'utf-8')

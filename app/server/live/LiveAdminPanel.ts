@@ -11,7 +11,7 @@
 // Client link: import type { AdminPanelDemo as _Client } from '@client/src/live/AdminPanelDemo'
 
 import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
+import type { LiveComponentAuth, LiveActionAuthMap } from '@core/types/types'
 
 // ===== State =====
 

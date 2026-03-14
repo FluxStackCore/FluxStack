@@ -13,8 +13,8 @@ import type {
   LiveAuthProvider,
   LiveAuthCredentials,
   LiveAuthContext,
-} from '@core/server/live/auth/types'
-import { AuthenticatedContext } from '@core/server/live/auth/LiveAuthContext'
+} from '@fluxstack/live'
+import { AuthenticatedContext } from '@fluxstack/live'
 
 /**
  * Exemplo de provider JWT para Live Components.

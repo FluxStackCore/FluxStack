@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router'
 import { api } from './lib/eden-api'
-import { LiveComponentsProvider, LiveDebugger } from '@/core/client'
+import { LiveComponentsProvider } from '@/core/client'
 import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
-import { ChatDemo } from './live/ChatDemo'
 import { RoomChatDemo } from './live/RoomChatDemo'
+import { SharedCounterDemo } from './live/SharedCounterDemo'
 import { AuthDemo } from './live/AuthDemo'
-import { TodoListDemo } from './live/TodoListDemo'
+import { PingPongDemo } from './live/PingPongDemo'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
@@ -111,10 +111,12 @@ function AppContent() {
           }
         />
         <Route
-          path="/chat"
+          path="/shared-counter"
           element={
-            <DemoPage>
-              <ChatDemo />
+            <DemoPage
+              note={<>Contador compartilhado usando <code className="text-purple-400">LiveRoom</code> - abra em varias abas!</>}
+            >
+              <SharedCounterDemo />
             </DemoPage>
           }
         />
@@ -122,19 +124,9 @@ function AppContent() {
           path="/room-chat"
           element={
             <DemoPage
-              note={<>🚀 Chat com múltiplas salas usando o novo sistema <code className="text-purple-400">$room</code>!</>}
+              note={<>Chat com múltiplas salas usando o sistema <code className="text-purple-400">$room</code>.</>}
             >
               <RoomChatDemo />
-            </DemoPage>
-          }
-        />
-        <Route
-          path="/todo"
-          element={
-            <DemoPage
-              note={<>Lista de tarefas colaborativa usando <code className="text-purple-400">Live.use()</code> + <code className="text-purple-400">Room Events</code>!</>}
-            >
-              <TodoListDemo />
             </DemoPage>
           }
         />
@@ -145,6 +137,16 @@ function AppContent() {
               note={<>🔒 Sistema de autenticação declarativo para Live Components com <code className="text-purple-400">$auth</code>!</>}
             >
               <AuthDemo />
+            </DemoPage>
+          }
+        />
+        <Route
+          path="/ping-pong"
+          element={
+            <DemoPage
+              note={<>Latency demo com <code className="text-cyan-400">msgpack</code> binary codec - mensagens binárias no WebSocket!</>}
+            >
+              <PingPongDemo />
             </DemoPage>
           }
         />
@@ -164,7 +166,6 @@ function App() {
       debug={false}
     >
       <AppContent />
-      {import.meta.env.DEV && <LiveDebugger />}
     </LiveComponentsProvider>
   )
 }

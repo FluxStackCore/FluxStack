@@ -1,6 +1,6 @@
 # FluxStack LLM Documentation
 
-**Version:** 1.12.1 | **Framework:** Bun + Elysia + React + Eden Treaty
+**Version:** 2.0.0 | **Framework:** Bun + Elysia + React + Eden Treaty
 
 ## Quick Navigation
 
@@ -9,7 +9,7 @@
 **Creating Routes?** → [resources/routes-eden.md](resources/routes-eden.md)
 **REST API Auth?** → [resources/rest-auth.md](resources/rest-auth.md)
 **Live Components Auth?** → [resources/live-auth.md](resources/live-auth.md)
-**Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md)
+**Real-time Rooms?** → [resources/live-rooms.md](resources/live-rooms.md) (Typed LiveRoom + untyped, password rooms, directory)
 **Debugging Logs?** → [resources/live-logging.md](resources/live-logging.md)
 **Config Issues?** → [config/declarative-system.md](config/declarative-system.md)
 **Plugin Development?** → [resources/plugins-external.md](resources/plugins-external.md)
@@ -34,9 +34,10 @@
 - [Live Components](resources/live-components.md) - WebSocket components
 - [REST Auth](resources/rest-auth.md) - Session & Token guards, middleware, rate limiting
 - [Live Auth](resources/live-auth.md) - Authentication for Live Components
-- [Live Rooms](resources/live-rooms.md) - Multi-room real-time communication
+- [Live Rooms](resources/live-rooms.md) - Typed rooms (LiveRoom), password protection, room directory, untyped rooms
 - [Live Logging](resources/live-logging.md) - Per-component logging control
 - [Live Upload](resources/live-upload.md) - Chunked upload via Live Components
+- [Live Binary Delta](resources/live-binary-delta.md) - High-frequency binary state sync
 - [External Plugins](resources/plugins-external.md) - Plugin development
 - [Routing (React Router v7)](reference/routing.md) - Frontend routing setup
 

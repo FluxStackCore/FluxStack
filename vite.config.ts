@@ -2,11 +2,27 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { resolve } from 'path'
+import { existsSync } from 'fs'
 import { clientConfig } from './config/system/client.config'
 import { fluxstackVitePlugins } from './core/build/vite-plugins'
 
 // Root directory (vite.config.ts is in project root)
 const rootDir = import.meta.dirname
+
+// When using bun-linked @fluxstack/live-* packages locally, point Vite at the
+// TypeScript source instead of pre-built dist. This ensures a single React
+// context (no dual-instance problem) and gives us HMR for the library code.
+// In CI or when the sibling repo doesn't exist, resolve from node_modules.
+const liveMonorepoRoot = resolve(rootDir, '../fluxstack-live/packages')
+const hasLocalLiveMonorepo = existsSync(resolve(liveMonorepoRoot, 'core/src/index.ts'))
+
+const liveAliases: Record<string, string> = hasLocalLiveMonorepo
+  ? {
+      '@fluxstack/live-react': resolve(liveMonorepoRoot, 'react/src/index.ts'),
+      '@fluxstack/live-client': resolve(liveMonorepoRoot, 'client/src/index.ts'),
+      '@fluxstack/live': resolve(liveMonorepoRoot, 'core/src/index.ts'),
+    }
+  : {}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -21,12 +37,32 @@ export default defineConfig({
 
   // Aliases são lidos do tsconfig.json pelo plugin vite-tsconfig-paths
 
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+    alias: liveAliases,
+  },
+
+  // Exclude linked packages from dep optimization when aliased to source
+  optimizeDeps: {
+    exclude: hasLocalLiveMonorepo
+      ? ['@fluxstack/live', '@fluxstack/live-client', '@fluxstack/live-react']
+      : [],
+  },
+
   server: {
     port: clientConfig.vite.port,                    // ✅ From config
     host: clientConfig.vite.host,                    // ✅ From config
     strictPort: clientConfig.vite.strictPort,        // ✅ From config
     open: clientConfig.vite.open,                    // ✅ From config
     allowedHosts: clientConfig.vite.allowedHosts,    // ✅ From config (VITE_ALLOWED_HOSTS)
+
+    // Allow Vite to serve files outside the client root (needed for monorepo aliases)
+    fs: {
+      allow: [
+        rootDir,
+        ...(hasLocalLiveMonorepo ? [liveMonorepoRoot] : []),
+      ],
+    },
 
     hmr: {
       protocol: 'ws',

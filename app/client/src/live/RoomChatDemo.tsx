@@ -1,18 +1,22 @@
-// 🔥 RoomChatDemo - Chat multi-salas simplificado
+// RoomChatDemo - Chat multi-salas with password-protected rooms
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { Live } from '@/core/client'
 import { LiveRoomChat } from '@server/live/LiveRoomChat'
 
-const AVAILABLE_ROOMS = [
-  { id: 'geral', name: '💬 Geral' },
-  { id: 'tech', name: '💻 Tecnologia' },
-  { id: 'random', name: '🎲 Random' },
-  { id: 'vip', name: '⭐ VIP' }
+const DEFAULT_ROOMS = [
+  { id: 'geral', name: 'Geral' },
+  { id: 'tech', name: 'Tecnologia' },
+  { id: 'random', name: 'Random' },
 ]
 
 export function RoomChatDemo() {
   const [text, setText] = useState('')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [passwordPrompt, setPasswordPrompt] = useState<{ roomId: string; roomName: string } | null>(null)
+  const [passwordInput, setPasswordInput] = useState('')
+  const [createForm, setCreateForm] = useState({ name: '', password: '' })
+  const [error, setError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const defaultUsername = useMemo(() => {
@@ -32,11 +36,69 @@ export function RoomChatDemo() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeMessages.length])
 
-  const handleJoinRoom = async (roomId: string, roomName: string) => {
-    if (chat.$rooms.includes(roomId)) {
+  useEffect(() => {
+    if (error) {
+      const t = setTimeout(() => setError(''), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [error])
+
+  const joinedRoomIds = chat.$state.rooms.map(r => r.id)
+  const joinedRoomsMap = new Map(chat.$state.rooms.map(r => [r.id, r]))
+
+  const handleJoinRoom = async (roomId: string, roomName: string, isPrivate?: boolean) => {
+    if (joinedRoomIds.includes(roomId)) {
       await chat.switchRoom({ roomId })
+      return
+    }
+
+    // If the room is known to be private, prompt for password
+    if (isPrivate) {
+      setPasswordPrompt({ roomId, roomName })
+      setPasswordInput('')
+      return
+    }
+
+    // Try joining without password
+    const result = await chat.joinRoom({ roomId, roomName })
+    if (result && !result.success) {
+      // If rejected, might be password-protected — prompt
+      setPasswordPrompt({ roomId, roomName })
+      setPasswordInput('')
+    }
+  }
+
+  const handlePasswordSubmit = async () => {
+    if (!passwordPrompt) return
+    const result = await chat.joinRoom({
+      roomId: passwordPrompt.roomId,
+      roomName: passwordPrompt.roomName,
+      password: passwordInput
+    })
+    if (result && !result.success) {
+      setError(result.error || 'Senha incorreta')
     } else {
-      await chat.joinRoom({ roomId, roomName })
+      setPasswordPrompt(null)
+      setPasswordInput('')
+    }
+  }
+
+  const handleCreateRoom = async () => {
+    const name = createForm.name.trim()
+    if (!name) return
+    const roomId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+    if (!roomId) return
+
+    const result = await chat.createRoom({
+      roomId,
+      roomName: name,
+      password: createForm.password || undefined
+    })
+    if (result && !result.success) {
+      setError(result.error || 'Falha ao criar sala')
+    } else {
+      setShowCreateModal(false)
+      setCreateForm({ name: '', password: '' })
     }
   }
 
@@ -45,6 +107,15 @@ export function RoomChatDemo() {
     await chat.sendMessage({ text })
     setText('')
   }
+
+  // Combine default rooms + custom rooms from shared directory (visible to all users)
+  const customRooms = chat.$state.customRooms || []
+  const allRooms = [
+    ...DEFAULT_ROOMS.map(r => ({ ...r, isPrivate: joinedRoomsMap.get(r.id)?.isPrivate ?? false, createdBy: '' })),
+    ...customRooms
+      .filter(r => !DEFAULT_ROOMS.some(d => d.id === r.id))
+      .map(r => ({ id: r.id, name: r.name, isPrivate: r.isPrivate, createdBy: r.createdBy }))
+  ]
 
   return (
     <div className="flex flex-col md:flex-row h-[calc(100vh-200px)] md:h-[600px] w-full max-w-4xl mx-auto bg-gray-900 rounded-2xl overflow-hidden border border-white/10">
@@ -59,29 +130,39 @@ export function RoomChatDemo() {
         </div>
 
         <div className="flex-1 overflow-auto p-2">
-          <p className="text-xs text-gray-500 px-2 py-1">SALAS</p>
-          {AVAILABLE_ROOMS.map(room => {
-            const isJoined = chat.$rooms.includes(room.id)
+          <div className="flex items-center justify-between px-2 py-1">
+            <p className="text-xs text-gray-500">SALAS</p>
+            <button
+              onClick={() => { setShowCreateModal(true); setCreateForm({ name: '', password: '' }) }}
+              className="text-xs text-purple-400 hover:text-purple-300"
+            >+ Criar</button>
+          </div>
+          {allRooms.map(room => {
+            const isJoined = joinedRoomIds.includes(room.id)
             const isActive = activeRoom === room.id
 
             return (
               <div
                 key={room.id}
-                onClick={() => handleJoinRoom(room.id, room.name)}
+                onClick={() => handleJoinRoom(room.id, room.name, room.isPrivate && !isJoined ? true : undefined)}
                 className={`
                   flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer mb-1 transition-all group
                   ${isActive ? 'bg-purple-500/20 text-purple-300' : isJoined ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'text-gray-500 hover:bg-white/5'}
                 `}
               >
-                <span className="flex items-center gap-2">
-                  {room.name}
-                  {isJoined && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />}
+                <span className="flex items-center gap-2 min-w-0">
+                  {room.isPrivate && <span className="text-xs shrink-0">&#128274;</span>}
+                  <span className="truncate">
+                    {room.name}
+                    {room.createdBy && <span className="text-xs text-gray-600 ml-1">by {room.createdBy}</span>}
+                  </span>
+                  {isJoined && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />}
                 </span>
                 {isJoined && !isActive && (
                   <button
                     onClick={(e) => { e.stopPropagation(); chat.leaveRoom({ roomId: room.id }) }}
                     className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 text-xs"
-                  >✕</button>
+                  >&#10005;</button>
                 )}
               </div>
             )
@@ -89,7 +170,7 @@ export function RoomChatDemo() {
         </div>
 
         <div className="p-3 border-t border-white/10">
-          <p className="text-xs text-gray-500">Em {chat.$rooms.length} sala(s)</p>
+          <p className="text-xs text-gray-500">Em {joinedRoomIds.length} sala(s)</p>
         </div>
       </div>
 
@@ -103,11 +184,12 @@ export function RoomChatDemo() {
                   onClick={() => chat.switchRoom({ roomId: '' })}
                   className="md:hidden px-2 py-1 text-sm text-gray-400 hover:text-white"
                 >
-                  ←
+                  &#8592;
                 </button>
                 <div>
-                  <h3 className="text-white font-semibold">
-                    {chat.$state.rooms.find(r => r.id === activeRoom)?.name || activeRoom}
+                  <h3 className="text-white font-semibold flex items-center gap-2">
+                    {joinedRoomsMap.get(activeRoom)?.isPrivate && <span className="text-xs">&#128274;</span>}
+                    {joinedRoomsMap.get(activeRoom)?.name || activeRoom}
                   </h3>
                   <p className="text-xs text-gray-500">{activeMessages.length} mensagens</p>
                 </div>
@@ -158,12 +240,95 @@ export function RoomChatDemo() {
         ) : (
           <div className="flex-1 flex items-center justify-center text-gray-500">
             <div className="text-center">
-              <p className="text-4xl mb-4">←</p>
+              <p className="text-4xl mb-4">&#8592;</p>
               <p>Selecione uma sala para começar</p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Error toast */}
+      {error && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-500/90 text-white text-sm rounded-lg shadow-lg z-50">
+          {error}
+        </div>
+      )}
+
+      {/* Create Room Modal */}
+      {showCreateModal && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-white/10" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold text-lg mb-4">Criar Sala</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Nome da sala</label>
+                <input
+                  value={createForm.name}
+                  onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Minha Sala"
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
+                  autoFocus
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom() }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-400 block mb-1">Senha (opcional)</label>
+                <input
+                  type="password"
+                  value={createForm.password}
+                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                  placeholder="Deixe vazio para sala publica"
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
+                  onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom() }}
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
+                >Cancelar</button>
+                <button
+                  onClick={handleCreateRoom}
+                  disabled={!createForm.name.trim()}
+                  className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
+                >Criar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Password Prompt Modal */}
+      {passwordPrompt && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => setPasswordPrompt(null)}>
+          <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-white/10" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-bold text-lg mb-1">Sala Protegida</h3>
+            <p className="text-sm text-gray-400 mb-4">
+              A sala "{passwordPrompt.roomName}" requer senha.
+            </p>
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={e => setPasswordInput(e.target.value)}
+              placeholder="Digite a senha..."
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm mb-3"
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter') handlePasswordSubmit() }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPasswordPrompt(null)}
+                className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
+              >Cancelar</button>
+              <button
+                onClick={handlePasswordSubmit}
+                disabled={!passwordInput}
+                className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
+              >Entrar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
