@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { FluxStackFramework } from '@core/server/framework'
+import { FluxStackFramework } from '@core/framework/server'
 import type { Plugin } from '@core/types'
 import type { FluxStackConfig } from '@core/config/schema'
 
