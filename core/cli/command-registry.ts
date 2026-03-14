@@ -37,7 +37,7 @@ export class CliCommandRegistry {
           return result
         },
         validateSchema: (data: unknown, schema: unknown) => {
-          return createPluginUtils(logger as any).validateSchema(data, schema)
+          return createPluginUtils(logger).validateSchema(data, schema)
         }
       },
       workingDir: process.cwd(),

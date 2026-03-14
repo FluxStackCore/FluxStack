@@ -111,8 +111,8 @@ export class FluxStackFramework {
         }
         return result
       },
-      validateSchema: (data: any, schema: any) => {
-        return createPluginUtils(logger as any).validateSchema(data, schema)
+      validateSchema: (data: unknown, schema: unknown) => {
+        return createPluginUtils(logger).validateSchema(data, schema)
       }
     }
 
