@@ -2,6 +2,7 @@ import type { CliCommand, CliContext, CliArgument, CliOption } from "../plugins/
 import { fluxStackConfig } from "@config"
 import { logger } from "@core/utils/logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
+import { createHash } from "crypto"
 
 export class CliCommandRegistry {
   private commands = new Map<string, CliCommand>()
@@ -21,8 +22,7 @@ export class CliCommandRegistry {
         isDevelopment,
         getEnvironment: () => process.env.NODE_ENV || 'development',
         createHash: (data: string) => {
-          const crypto = require('crypto')
-          return crypto.createHash('sha256').update(data).digest('hex')
+          return createHash('sha256').update(data).digest('hex')
         },
         deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>) => {
           const result = { ...target }
