@@ -36,6 +36,7 @@
     "cli": "bun run core/cli/index.ts",
     "make:component": "bun run core/cli/index.ts make:component",
     "sync-version": "bun run core/utils/sync-version.ts",
+    "postinstall": "bun run scripts/patch-live-exports.ts",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
