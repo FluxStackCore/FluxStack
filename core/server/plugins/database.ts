@@ -1,4 +1,5 @@
 import type { FluxStack, PluginContext, CliCommand, Plugin } from "../../plugins/types"
+import { logger } from "@core/utils/logger"
 
 // Database plugin with CLI commands
 export const databasePlugin: Plugin = {
@@ -42,24 +43,24 @@ export const databasePlugin: Plugin = {
       ],
       handler: async (args, options, context) => {
         if (options["dry-run"]) {
-          console.log("🔍 Dry run mode - showing planned migrations:")
+          logger.info("Dry run mode - showing planned migrations:")
         }
 
         if (options.rollback) {
-          console.log("⬇️  Rolling back last migration...")
+          logger.info("Rolling back last migration...")
           // Simulate rollback
           await new Promise(resolve => setTimeout(resolve, 1000))
-          console.log("✅ Rollback completed")
+          logger.info("Rollback completed")
         } else if (options.to) {
-          console.log(`📈 Migrating to version: ${options.to}`)
+          logger.info(`Migrating to version: ${options.to}`)
           // Simulate migration to version
           await new Promise(resolve => setTimeout(resolve, 1500))
-          console.log(`✅ Migrated to version ${options.to}`)
+          logger.info(`Migrated to version ${options.to}`)
         } else {
-          console.log("📈 Running all pending migrations...")
+          logger.info("Running all pending migrations...")
           // Simulate migration
           await new Promise(resolve => setTimeout(resolve, 2000))
-          console.log("✅ All migrations completed")
+          logger.info("All migrations completed")
         }
       }
     },
@@ -90,17 +91,17 @@ export const databasePlugin: Plugin = {
       ],
       handler: async (args, options, context) => {
         const [seeder] = args
-        
+
         if (seeder) {
-          console.log(`🌱 Running seeder: ${seeder}`)
-          console.log(`   Force mode: ${options.force ? 'ON' : 'OFF'}`)
+          logger.info(`Running seeder: ${seeder}`)
+          logger.info(`   Force mode: ${options.force ? 'ON' : 'OFF'}`)
         } else {
-          console.log("🌱 Running all seeders...")
+          logger.info("Running all seeders...")
         }
-        
+
         // Simulate seeding
         await new Promise(resolve => setTimeout(resolve, 1500))
-        console.log("✅ Database seeded successfully")
+        logger.info("Database seeded successfully")
       }
     },
     {
@@ -127,23 +128,23 @@ export const databasePlugin: Plugin = {
       ],
       handler: async (args, options, context) => {
         if (!options.confirm) {
-          console.log("⚠️  WARNING: This will delete all data in the database!")
-          console.log("Use --confirm to skip this prompt.")
+          logger.warn("WARNING: This will delete all data in the database!")
+          logger.info("Use --confirm to skip this prompt.")
           return
         }
 
-        console.log("🗑️  Dropping all tables...")
+        logger.info("Dropping all tables...")
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        console.log("📈 Running migrations...")
+
+        logger.info("Running migrations...")
         await new Promise(resolve => setTimeout(resolve, 1500))
-        
+
         if (options.seed) {
-          console.log("🌱 Running seeders...")
+          logger.info("Running seeders...")
           await new Promise(resolve => setTimeout(resolve, 1000))
         }
-        
-        console.log("✅ Database reset completed")
+
+        logger.info("Database reset completed")
       }
     },
     {
@@ -152,13 +153,13 @@ export const databasePlugin: Plugin = {
       category: "Database",
       aliases: ["info"],
       handler: async (args, options, context) => {
-        console.log("📊 Database Status:")
-        console.log("------------------")
-        console.log("Connected: ✅ Yes")
-        console.log("Tables: 15")
-        console.log("Last migration: 2024_01_15_create_users_table")
-        console.log("Pending migrations: 2")
-        console.log("Database size: 2.3 MB")
+        logger.info("Database Status:")
+        logger.info("------------------")
+        logger.info("Connected: Yes")
+        logger.info("Tables: 15")
+        logger.info("Last migration: 2024_01_15_create_users_table")
+        logger.info("Pending migrations: 2")
+        logger.info("Database size: 2.3 MB")
       }
     }
   ]
@@ -167,15 +168,15 @@ export const databasePlugin: Plugin = {
 // Utility functions that could be used by the plugin
 export async function runMigration(version?: string): Promise<void> {
   // Actual migration logic would go here
-  console.log(`Running migration ${version || 'all'}`)
+  logger.info(`Running migration ${version || 'all'}`)
 }
 
 export async function rollbackMigration(): Promise<void> {
-  // Actual rollback logic would go here 
-  console.log("Rolling back migration")
+  // Actual rollback logic would go here
+  logger.info("Rolling back migration")
 }
 
 export async function seedDatabase(seeder?: string): Promise<void> {
   // Actual seeding logic would go here
-  console.log(`Seeding database ${seeder || 'all'}`)
+  logger.info(`Seeding database ${seeder || 'all'}`)
 }

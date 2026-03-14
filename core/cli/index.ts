@@ -8,6 +8,7 @@
 import { cliRegistry } from "./command-registry"
 import { pluginDiscovery } from "./plugin-discovery"
 import { generateCommand, interactiveGenerateCommand } from "./generators/index"
+import { buildLogger } from "@core/utils/build-logger"
 
 // Import modular commands
 import { builtInCommands } from "./commands"
@@ -116,7 +117,7 @@ async function registerBuiltInCommands() {
     category: 'Plugins',
     handler: async (args, options, context) => {
       if (args.length === 0) {
-        console.log(`
+        buildLogger.info(`
 ⚡ FluxStack Plugin Dependencies Manager
 
 Usage:
@@ -165,8 +166,8 @@ Examples:
           }
           break
         default:
-          console.error(`❌ Unknown subcommand: ${subcommand}`)
-          console.error('Available subcommands: install, list, check, clean')
+          buildLogger.error(`❌ Unknown subcommand: ${subcommand}`)
+          buildLogger.error('Available subcommands: install, list, check, clean')
       }
     }
   })
@@ -187,6 +188,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('CLI Error:', error)
+  buildLogger.error('CLI Error:', error)
   process.exit(1)
 })

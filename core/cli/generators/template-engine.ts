@@ -2,6 +2,7 @@ import type { GeneratorContext, GeneratorOptions, Template, TemplateFile, Genera
 import { join, dirname } from "path"
 import { mkdir, writeFile, readFile, stat } from "fs/promises"
 import { existsSync } from "fs"
+import { buildLogger } from "@core/utils/build-logger"
 
 export class TemplateEngine {
   private processor: TemplateProcessor
@@ -58,7 +59,7 @@ export class TemplateEngine {
       }
 
       if (dryRun) {
-        console.log(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
+        buildLogger.info(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
         continue
       }
 

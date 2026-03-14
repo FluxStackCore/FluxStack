@@ -1,6 +1,7 @@
 import type { Generator } from "./index"
 import type { GeneratorContext, GeneratorOptions, Template } from "./types"
 import { templateEngine } from "./template-engine"
+import { buildLogger } from "@core/utils/build-logger"
 
 export class ControllerGenerator implements Generator {
   name = 'controller'
@@ -17,9 +18,9 @@ export class ControllerGenerator implements Generator {
     const files = await templateEngine.processTemplate(template, context, options)
     
     if (options.dryRun) {
-      console.log(`\n📋 Would generate controller '${options.name}':\n`)
+      buildLogger.info(`\n📋 Would generate controller '${options.name}':\n`)
       for (const file of files) {
-        console.log(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
+        buildLogger.info(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
       }
       return
     }
@@ -32,7 +33,7 @@ export class ControllerGenerator implements Generator {
       await template.hooks.afterGenerate(context, options, filePaths)
     }
 
-    console.log(`\n✅ Generated controller '${options.name}' with ${files.length} files`)
+    buildLogger.success(`Generated controller '${options.name}' with ${files.length} files`)
   }
 
   private getTemplate(templateName?: string): Template {

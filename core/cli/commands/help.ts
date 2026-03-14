@@ -5,6 +5,7 @@
 
 import type { CLICommand } from '../command-registry'
 import { cliRegistry } from '../command-registry'
+import { buildLogger } from '@core/utils/build-logger'
 
 export const helpCommand: CLICommand = {
   name: 'help',
@@ -24,7 +25,7 @@ export const helpCommand: CLICommand = {
       if (targetCommand) {
         cliRegistry.showCommandHelp(targetCommand)
       } else {
-        console.error(`❌ Unknown command: ${args[0]}`)
+        buildLogger.error(`❌ Unknown command: ${args[0]}`)
         cliRegistry.showHelp()
       }
     } else {

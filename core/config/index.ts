@@ -10,6 +10,7 @@
 import type { FluxStackConfig } from '@config'
 import { fluxStackConfig } from '@config'
 import { helpers } from '../utils/env'
+import { logger } from '../utils/logger'
 
 // ============================================================================
 // 📦 TYPE RE-EXPORTS (for backward compatibility)

@@ -1,5 +1,7 @@
 // 🔥 FluxStack Room System - Pub/Sub tipado para comunicação entre componentes
 
+import { logger } from "@core/utils/logger"
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- default `any` needed for contravariant handler storage
 type EventHandler<T = any> = (data: T) => void
 type Unsubscribe = () => void
@@ -178,7 +180,7 @@ export class Room<TState, TEvents extends Record<string, unknown>> {
         sub.handler(data)
         notified++
       } catch (error) {
-        console.error(`[Room:${this.id}] Error in handler for '${event}':`, error)
+        logger.error(`[Room:${this.id}] Error in handler for '${event}':`, error)
         this.emitSystem('$error', {
           error: error as Error,
           context: `Handler for event '${event}'`
@@ -396,7 +398,7 @@ export class RoomSystem<TState, TEvents extends Record<string, unknown>> {
       try {
         handler(data)
       } catch (error) {
-        console.error(`[RoomSystem:${this.name}] Error in global handler for '${event}':`, error)
+        logger.error(`[RoomSystem:${this.name}] Error in global handler for '${event}':`, error)
       }
     }
   }

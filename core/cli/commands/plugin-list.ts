@@ -6,7 +6,7 @@
 import { Command } from 'commander'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
-import chalk from 'chalk'
+import { buildLogger } from '@core/utils/build-logger'
 
 export function createPluginListCommand(): Command {
   const command = new Command('plugin:list')
@@ -19,97 +19,100 @@ export function createPluginListCommand(): Command {
         const info = getPluginInfo()
 
         if (options.json) {
-          console.log(JSON.stringify(info, null, 2))
+          buildLogger.info(JSON.stringify(info, null, 2))
           return
         }
 
-        console.log(chalk.blue('\n🔌 FluxStack Plugin Status\n'))
+        buildLogger.info('')
+        buildLogger.info('🔌 FluxStack Plugin Status')
+        buildLogger.info('')
 
         // Configuration
-        console.log(chalk.bold('⚙️  Configuration:'))
-        console.log(chalk.gray(`   NPM Plugin Discovery: ${info.config.npmDiscoveryEnabled ? chalk.green('enabled') : chalk.red('disabled')}`))
-        console.log(chalk.gray(`   Project Plugin Discovery: ${info.config.projectDiscoveryEnabled ? chalk.green('enabled') : chalk.red('disabled')}`))
-        console.log()
+        buildLogger.info('⚙️  Configuration:')
+        buildLogger.info(`   NPM Plugin Discovery: ${info.config.npmDiscoveryEnabled ? 'enabled' : 'disabled'}`)
+        buildLogger.info(`   Project Plugin Discovery: ${info.config.projectDiscoveryEnabled ? 'enabled' : 'disabled'}`)
+        buildLogger.info('')
 
         // Whitelisted plugins
         if (!options.installed) {
-          console.log(chalk.bold('🛡️  Whitelisted NPM Plugins:'))
+          buildLogger.info('🛡️  Whitelisted NPM Plugins:')
           if (info.whitelisted.length === 0) {
-            console.log(chalk.gray('   (none)'))
+            buildLogger.info('   (none)')
           } else {
             info.whitelisted.forEach(plugin => {
               const isInstalled = info.installed.includes(plugin)
-              const status = isInstalled ? chalk.green('✓ installed') : chalk.yellow('⚠ not installed')
-              console.log(chalk.gray(`   • ${plugin} ${status}`))
+              const status = isInstalled ? '✓ installed' : '⚠ not installed'
+              buildLogger.info(`   • ${plugin} ${status}`)
             })
           }
-          console.log()
+          buildLogger.info('')
         }
 
         // Installed NPM plugins
         if (!options.whitelisted) {
-          console.log(chalk.bold('📦 Installed NPM Plugins:'))
+          buildLogger.info('📦 Installed NPM Plugins:')
           if (info.installed.length === 0) {
-            console.log(chalk.gray('   (none)'))
+            buildLogger.info('   (none)')
           } else {
             info.installed.forEach(plugin => {
               const isWhitelisted = info.whitelisted.includes(plugin)
               let status = ''
               if (!info.config.npmDiscoveryEnabled) {
-                status = chalk.red('✗ discovery disabled')
+                status = '✗ discovery disabled'
               } else if (!isWhitelisted) {
-                status = chalk.red('✗ not whitelisted (blocked)')
+                status = '✗ not whitelisted (blocked)'
               } else {
-                status = chalk.green('✓ whitelisted (loaded)')
+                status = '✓ whitelisted (loaded)'
               }
-              console.log(chalk.gray(`   • ${plugin} ${status}`))
+              buildLogger.info(`   • ${plugin} ${status}`)
             })
           }
-          console.log()
+          buildLogger.info('')
         }
 
         // Project plugins (from plugins/ directory)
-        console.log(chalk.bold('📁 Project Plugins (plugins/):'))
+        buildLogger.info('📁 Project Plugins (plugins/):')
         if (info.projectPlugins.length === 0) {
-          console.log(chalk.gray('   (none found)'))
+          buildLogger.info('   (none found)')
         } else {
           info.projectPlugins.forEach(plugin => {
             const status = info.config.projectDiscoveryEnabled
-              ? chalk.green('✓ auto-discovered')
-              : chalk.red('✗ discovery disabled')
-            console.log(chalk.gray(`   • ${plugin} ${status}`))
+              ? '✓ auto-discovered'
+              : '✗ discovery disabled'
+            buildLogger.info(`   • ${plugin} ${status}`)
           })
         }
-        console.log()
+        buildLogger.info('')
 
         // Summary
-        console.log(chalk.bold('📊 Summary:'))
-        console.log(chalk.gray(`   Total NPM plugins installed: ${info.installed.length}`))
-        console.log(chalk.gray(`   Total NPM plugins whitelisted: ${info.whitelisted.length}`))
-        console.log(chalk.gray(`   Total project plugins: ${info.projectPlugins.length}`))
+        buildLogger.info('📊 Summary:')
+        buildLogger.info(`   Total NPM plugins installed: ${info.installed.length}`)
+        buildLogger.info(`   Total NPM plugins whitelisted: ${info.whitelisted.length}`)
+        buildLogger.info(`   Total project plugins: ${info.projectPlugins.length}`)
 
         const blockedCount = info.installed.filter(p => !info.whitelisted.includes(p)).length
         if (blockedCount > 0) {
-          console.log(chalk.yellow(`   ⚠️  ${blockedCount} installed plugin(s) blocked (not whitelisted)`))
+          buildLogger.warn(`   ⚠️  ${blockedCount} installed plugin(s) blocked (not whitelisted)`)
         }
-        console.log()
+        buildLogger.info('')
 
         // Help
         if (info.installed.length > 0 && !info.config.npmDiscoveryEnabled) {
-          console.log(chalk.yellow('💡 Tip: Enable NPM plugin discovery with:'))
-          console.log(chalk.gray('   echo "PLUGINS_DISCOVER_NPM=true" >> .env'))
-          console.log()
+          buildLogger.warn('💡 Tip: Enable NPM plugin discovery with:')
+          buildLogger.info('   echo "PLUGINS_DISCOVER_NPM=true" >> .env')
+          buildLogger.info('')
         }
 
         if (blockedCount > 0 && info.config.npmDiscoveryEnabled) {
-          console.log(chalk.yellow('💡 Tip: Add blocked plugins to whitelist with:'))
-          console.log(chalk.gray('   bun run fluxstack plugin:add <plugin-name>'))
-          console.log()
+          buildLogger.warn('💡 Tip: Add blocked plugins to whitelist with:')
+          buildLogger.info('   bun run fluxstack plugin:add <plugin-name>')
+          buildLogger.info('')
         }
 
       } catch (error) {
-        console.error(chalk.red('\n❌ Failed to list plugins:'))
-        console.error(chalk.red(error instanceof Error ? error.message : String(error)))
+        buildLogger.error('')
+        buildLogger.error('❌ Failed to list plugins:')
+        buildLogger.error(error instanceof Error ? error.message : String(error))
         process.exit(1)
       }
     })

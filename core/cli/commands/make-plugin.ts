@@ -4,6 +4,7 @@
  */
 
 import type { CLICommand } from '../command-registry'
+import { buildLogger } from '@core/utils/build-logger'
 
 export const makePluginCommand: CLICommand = {
   name: 'make:plugin',
@@ -52,7 +53,7 @@ export const makePluginCommand: CLICommand = {
     const name = args[0] as string
 
     if (!/^[a-zA-Z0-9-_]+$/.test(name)) {
-      console.error("❌ Plugin name can only contain letters, numbers, hyphens, and underscores")
+      buildLogger.error("❌ Plugin name can only contain letters, numbers, hyphens, and underscores")
       return
     }
 
@@ -61,7 +62,7 @@ export const makePluginCommand: CLICommand = {
     const pluginGenerator = generatorRegistry.get('plugin')
 
     if (!pluginGenerator) {
-      console.error("❌ Plugin generator not found")
+      buildLogger.error("❌ Plugin generator not found")
       return
     }
 
@@ -83,7 +84,7 @@ export const makePluginCommand: CLICommand = {
     try {
       await pluginGenerator.generate(generatorContext, generatorOptions)
     } catch (error) {
-      console.error("❌ Failed to create plugin:", error instanceof Error ? error.message : String(error))
+      buildLogger.error("❌ Failed to create plugin:", error instanceof Error ? error.message : String(error))
       throw error
     }
   }

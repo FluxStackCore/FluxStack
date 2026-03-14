@@ -1,6 +1,7 @@
 import type { Generator } from "./index"
 import type { GeneratorContext, GeneratorOptions, Template } from "./types"
 import { templateEngine } from "./template-engine"
+import { buildLogger } from "@core/utils/build-logger"
 import { join } from "path"
 
 export class PluginGenerator implements Generator {
@@ -17,9 +18,9 @@ export class PluginGenerator implements Generator {
         const files = await templateEngine.processTemplate(template, context, options)
 
         if (options.dryRun) {
-            console.log(`\n📋 Would generate plugin '${options.name}':\n`)
+            buildLogger.info(`\n📋 Would generate plugin '${options.name}':\n`)
             for (const file of files) {
-                console.log(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
+                buildLogger.info(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
             }
             return
         }
@@ -31,14 +32,14 @@ export class PluginGenerator implements Generator {
             await template.hooks.afterGenerate(context, options, filePaths)
         }
 
-        console.log(`\n✅ Generated plugin '${options.name}' with ${files.length} files`)
-        console.log(`\n📦 Next steps:`)
-        console.log(`   1. Configure plugin in plugins/${options.name}/config/index.ts`)
-        console.log(`   2. Set environment variables (optional): ${options.name.toUpperCase().replace(/-/g, '_')}_*`)
-        console.log(`   3. Implement your plugin logic in plugins/${options.name}/index.ts`)
-        console.log(`   4. Add server-side code in plugins/${options.name}/server/ (optional)`)
-        console.log(`   5. Add client-side code in plugins/${options.name}/client/ (optional)`)
-        console.log(`   6. Run: bun run dev`)
+        buildLogger.success(`Generated plugin '${options.name}' with ${files.length} files`)
+        buildLogger.info(`\n📦 Next steps:`)
+        buildLogger.info(`   1. Configure plugin in plugins/${options.name}/config/index.ts`)
+        buildLogger.info(`   2. Set environment variables (optional): ${options.name.toUpperCase().replace(/-/g, '_')}_*`)
+        buildLogger.info(`   3. Implement your plugin logic in plugins/${options.name}/index.ts`)
+        buildLogger.info(`   4. Add server-side code in plugins/${options.name}/server/ (optional)`)
+        buildLogger.info(`   5. Add client-side code in plugins/${options.name}/client/ (optional)`)
+        buildLogger.info(`   6. Run: bun run dev`)
     }
 
     private getTemplate(templateName?: string): Template {
