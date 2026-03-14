@@ -36,9 +36,9 @@ export type PluginPriority = 'highest' | 'high' | 'normal' | 'low' | 'lowest' | 
 export interface PluginContext {
   config: FluxStackConfig
   logger: Logger
-  app: any // Elysia app
+  app: unknown // Elysia app
   utils: PluginUtils
-  registry?: any // Plugin registry reference
+  registry?: unknown // Plugin registry reference
 }
 
 export interface PluginUtils {
@@ -60,8 +60,8 @@ export interface RequestContext {
   headers: Record<string, string>
   query: Record<string, string>
   params: Record<string, string>
-  body?: any
-  user?: any
+  body?: unknown
+  user?: unknown
   startTime: number
   handled?: boolean
   response?: Response
@@ -127,12 +127,12 @@ export interface PluginEventContext {
   pluginName: string
   pluginVersion?: string
   timestamp: number
-  data?: any
+  data?: unknown
 }
 
 export interface PluginConfigSchema {
   type: 'object'
-  properties: Record<string, any>
+  properties: Record<string, unknown>
   required?: string[]
   additionalProperties?: boolean
 }
@@ -203,7 +203,7 @@ export namespace FluxStack {
    * This property will be removed in a future major version.
    * Use the config/ folder structure for automatic type inference.
    */
-  defaultConfig?: any
+  defaultConfig?: unknown
 
   // CLI commands
   commands?: CliCommand[]
@@ -252,7 +252,7 @@ export interface PluginHookResult {
   duration: number
   plugin: string
   hook: PluginHook
-  context?: any
+  context?: unknown
 }
 
 export interface PluginMetrics {
@@ -319,7 +319,7 @@ export interface CliArgument {
   description: string
   required?: boolean
   type?: 'string' | 'number' | 'boolean'
-  default?: any
+  default?: unknown
   choices?: string[]
 }
 
@@ -328,7 +328,7 @@ export interface CliOption {
   short?: string
   description: string
   type?: 'string' | 'number' | 'boolean' | 'array'
-  default?: any
+  default?: unknown
   required?: boolean
   choices?: string[]
 }
@@ -343,7 +343,7 @@ export interface CliCommand {
   aliases?: string[]
   category?: string
   hidden?: boolean
-  handler: (args: any[], options: any, context: CliContext) => Promise<void> | void
+  handler: (args: unknown[], options: Record<string, unknown>, context: CliContext) => Promise<void> | void
 }
 
 export interface CliContext {
@@ -369,7 +369,7 @@ export interface ActiveUpload {
   fileType?: string
   fileSize?: number
   totalChunks: number
-  receivedChunks: Map<number, any>
+  receivedChunks: Map<number, unknown>
   startTime: number
   lastChunkTime?: number
 }

@@ -18,14 +18,14 @@ export interface ApiEndpoint {
 }
 
 export interface ApiSchema {
-  params?: any
-  query?: any
-  body?: any
-  response?: any
-  headers?: any
+  params?: unknown
+  query?: unknown
+  body?: unknown
+  response?: unknown
+  headers?: unknown
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data?: T
   error?: ApiError
   meta?: ApiMeta
@@ -34,7 +34,7 @@ export interface ApiResponse<T = any> {
 export interface ApiError {
   code: string
   message: string
-  details?: any
+  details?: unknown
   statusCode: number
   timestamp: string
 }
@@ -66,17 +66,17 @@ export interface RequestContext {
   path: string
   url: string
   headers: Record<string, string>
-  query: Record<string, any>
-  params: Record<string, any>
-  body?: any
-  user?: any
+  query: Record<string, string>
+  params: Record<string, string>
+  body?: unknown
+  user?: unknown
   startTime: number
 }
 
 export interface ResponseContext extends RequestContext {
   statusCode: number
   headers: Record<string, string>
-  body?: any
+  body?: unknown
   duration: number
   size: number
 }
@@ -85,11 +85,11 @@ export interface MiddlewareContext {
   request: RequestContext
   response?: ResponseContext
   next: () => Promise<void>
-  state: Record<string, any>
+  state: Record<string, unknown>
 }
 
 export interface RouteHandler {
-  (context: RequestContext): Promise<any> | any
+  (context: RequestContext): Promise<unknown> | unknown
 }
 
 export interface MiddlewareHandler {
@@ -137,7 +137,7 @@ export interface ApiParameter {
   in: 'query' | 'header' | 'path' | 'cookie'
   description?: string
   required?: boolean
-  schema: any
+  schema: unknown
 }
 
 export interface ApiRequestBody {
@@ -147,23 +147,23 @@ export interface ApiRequestBody {
 }
 
 export interface ApiMediaType {
-  schema: any
-  example?: any
+  schema: unknown
+  example?: unknown
   examples?: Record<string, ApiExample>
 }
 
 export interface ApiExample {
   summary?: string
   description?: string
-  value: any
+  value: unknown
 }
 
 export interface ApiComponents {
-  schemas?: Record<string, any>
+  schemas?: Record<string, Record<string, unknown>>
   responses?: Record<string, ApiResponse>
   parameters?: Record<string, ApiParameter>
   examples?: Record<string, ApiExample>
   requestBodies?: Record<string, ApiRequestBody>
-  headers?: Record<string, any>
-  securitySchemes?: Record<string, any>
+  headers?: Record<string, Record<string, unknown>>
+  securitySchemes?: Record<string, Record<string, unknown>>
 }

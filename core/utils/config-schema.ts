@@ -43,7 +43,7 @@ export type ConfigFieldType = 'string' | 'number' | 'boolean' | 'array' | 'objec
 /**
  * Config field definition
  */
-export interface ConfigField<T = any> {
+export interface ConfigField<T = unknown> {
   /** Field type */
   type: ConfigFieldType
 
@@ -66,7 +66,7 @@ export interface ConfigField<T = any> {
   description?: string
 
   /** Custom transformer function */
-  transform?: (value: any) => T
+  transform?: (value: unknown) => T
 }
 
 /**
@@ -99,12 +99,12 @@ type InferFieldType<F> =
         F extends { type: 'number' } ? number :
         F extends { type: 'boolean' } ? boolean :
         F extends { type: 'array' } ? string[] :
-        F extends { type: 'object' } ? Record<string, any> :
+        F extends { type: 'object' } ? Record<string, unknown> :
         F extends { type: 'enum'; values: readonly (infer U)[] } ? U :
-        any
+        unknown
       )
       : T
-    : any
+    : unknown
 
 /**
  * Validation error
@@ -112,7 +112,7 @@ type InferFieldType<F> =
 export interface ValidationError {
   field: string
   message: string
-  value?: any
+  value?: unknown
 }
 
 /**
@@ -127,7 +127,7 @@ export interface ValidationResult {
 /**
  * Cast value to specific type
  */
-function castValue(value: any, type: ConfigFieldType): any {
+function castValue(value: unknown, type: ConfigFieldType): unknown {
   if (value === undefined || value === null) {
     return undefined
   }
@@ -178,7 +178,7 @@ function castValue(value: any, type: ConfigFieldType): any {
  */
 function validateField(
   fieldName: string,
-  value: any,
+  value: unknown,
   field: ConfigField
 ): ValidationError | null {
   // Check required
@@ -244,11 +244,11 @@ export class ReactiveConfig<T extends ConfigSchema> {
    * Load config from environment
    */
   private loadConfig(): InferConfig<T> {
-    const config: any = {}
+    const config: Record<string, unknown> = {}
     const errors: ValidationError[] = []
 
     for (const [fieldName, field] of Object.entries(this.schema)) {
-      let value: any
+      let value: unknown
 
       // 1. Try to get from environment variable
       if (field.env) {
@@ -405,7 +405,7 @@ export function validateConfig<T extends ConfigSchema>(
 export function defineNestedConfig<T extends Record<string, ConfigSchema>>(
   schemas: T
 ): { [K in keyof T]: InferConfig<T[K]> } {
-  const config: any = {}
+  const config: Record<string, unknown> = {}
 
   for (const [groupName, schema] of Object.entries(schemas)) {
     config[groupName] = defineConfig(schema)
