@@ -49,8 +49,8 @@ export interface PluginUtils {
   isDevelopment: () => boolean
   getEnvironment: () => string
   createHash: (data: string) => string
-  deepMerge: (target: any, source: any) => any
-  validateSchema: (data: any, schema: any) => { valid: boolean; errors: string[] }
+  deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>) => Record<string, unknown>
+  validateSchema: (data: Record<string, unknown>, schema: PluginConfigSchema) => { valid: boolean; errors: string[] }
 }
 
 export interface RequestContext {

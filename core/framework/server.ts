@@ -1,6 +1,6 @@
 import { Elysia } from "elysia"
 import type { FluxStackConfig, FluxStackContext } from "@core/types"
-import type { FluxStack, PluginContext, PluginUtils } from "@core/plugins/types"
+import type { FluxStack, PluginContext, PluginUtils, PluginConfigSchema } from "@core/plugins/types"
 import { PluginRegistry } from "@core/plugins/registry"
 import { PluginManager } from "@core/plugins/manager"
 import { fluxStackConfig } from "@config"
@@ -11,6 +11,7 @@ import { componentRegistry } from "@core/server/live"
 import { FluxStackError } from "@core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/utils/helpers"
 import { createHash } from "crypto"
+import { createPluginUtils } from "@core/plugins/config"
 import type { Plugin } from "@core/plugins"
 
 export class FluxStackFramework {
@@ -99,25 +100,19 @@ export class FluxStackFramework {
       createHash: (data: string) => {
         return createHash('sha256').update(data).digest('hex')
       },
-      deepMerge: (target: any, source: any) => {
+      deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>) => {
         const result = { ...target }
         for (const key in source) {
           if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-            result[key] = pluginUtils.deepMerge(result[key] || {}, source[key])
+            result[key] = pluginUtils.deepMerge(result[key] as Record<string, unknown> || {}, source[key] as Record<string, unknown>)
           } else {
             result[key] = source[key]
           }
         }
         return result
       },
-      validateSchema: (_data: any, _schema: any) => {
-        // Simple validation - in a real implementation you'd use a proper schema validator
-        try {
-          // Basic validation logic
-          return { valid: true, errors: [] }
-        } catch (error) {
-          return { valid: false, errors: [error instanceof Error ? error.message : 'Validation failed'] }
-        }
+      validateSchema: (data: Record<string, unknown>, schema: PluginConfigSchema) => {
+        return createPluginUtils(logger).validateSchema(data, schema)
       }
     }
 
