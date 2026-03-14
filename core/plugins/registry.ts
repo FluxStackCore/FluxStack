@@ -238,6 +238,56 @@ export class PluginRegistry {
   }
 
   /**
+   * Register a plugin synchronously (no async hooks).
+   *
+   * Used by the framework to add plugins via .use() and during automatic
+   * plugin discovery, where the full async register() flow (which fires
+   * onPluginRegister hooks) is not needed — setup hooks run later in start().
+   */
+  registerSync(plugin: FluxStackPlugin): void {
+    if (this.plugins.has(plugin.name)) {
+      throw new FluxStackError(
+        `Plugin '${plugin.name}' is already registered`,
+        'PLUGIN_ALREADY_REGISTERED',
+        400
+      )
+    }
+
+    this.validatePlugin(plugin)
+    this.plugins.set(plugin.name, plugin)
+
+    if (plugin.dependencies) {
+      this.dependencies.set(plugin.name, plugin.dependencies)
+    }
+
+    this.updateLoadOrder()
+  }
+
+  /**
+   * Refresh the load order.
+   *
+   * Falls back to insertion-order if the topological sort fails
+   * (e.g. unresolvable external dependency listed but not yet registered).
+   */
+  refreshLoadOrder(): void {
+    try {
+      this.updateLoadOrder()
+    } catch {
+      this.loadOrder = Array.from(this.plugins.keys())
+    }
+  }
+
+  /**
+   * Return a read-only snapshot of the internal plugin map.
+   *
+   * Allows the framework to iterate over registered plugins for dependency
+   * validation without reaching into private fields.
+   */
+  getPluginsMap(): ReadonlyMap<string, FluxStackPlugin> {
+    return this.plugins
+  }
+
+  /**
    * Check which dependencies are missing from main package.json
    */
   private checkMissingDependencies(pluginDeps: Record<string, string>): string[] {

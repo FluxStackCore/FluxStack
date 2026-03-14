@@ -14,17 +14,6 @@ import { createHash } from "crypto"
 import { createPluginUtils } from "@core/plugins/config"
 import type { Plugin } from "@core/plugins"
 
-/**
- * Interface for accessing private PluginRegistry members.
- * The framework needs direct access for synchronous plugin registration.
- */
-interface PluginRegistryInternals {
-  plugins: Map<string, FluxStack.Plugin>
-  dependencies: Map<string, string[]>
-  loadOrder: string[]
-  updateLoadOrder(): void
-}
-
 export class FluxStackFramework {
   private app: Elysia
   private context: FluxStackContext
@@ -34,11 +23,6 @@ export class FluxStackFramework {
   private isStarted: boolean = false
   private requestTimings: Map<string, number> = new Map()
   private _originalStderrWrite?: typeof process.stderr.write
-
-  /** Access registry internals for synchronous plugin management */
-  private get registryInternals(): PluginRegistryInternals {
-    return this.pluginRegistry as unknown as PluginRegistryInternals
-  }
 
   /** Access typed config from context (config is stored as unknown to avoid circular deps) */
   private get cfg(): import('@config').FluxStackConfig {
@@ -188,23 +172,12 @@ export class FluxStackFramework {
       const discoveredPlugins = this.pluginManager.getRegistry().getAll()
       for (const plugin of discoveredPlugins) {
         if (!this.pluginRegistry.has(plugin.name)) {
-          // Register in main registry (synchronously, will call setup in start())
-          this.registryInternals.plugins.set(plugin.name, plugin)
-          if (plugin.dependencies) {
-            this.registryInternals.dependencies.set(plugin.name, plugin.dependencies)
-          }
+          this.pluginRegistry.registerSync(plugin)
         }
       }
 
-      // Update load order
-      try {
-        this.registryInternals.updateLoadOrder()
-      } catch {
-        // Fallback: create basic load order
-        const plugins = this.registryInternals.plugins
-        const loadOrder = Array.from(plugins.keys())
-        this.registryInternals.loadOrder = loadOrder
-      }
+      // Refresh load order (falls back to insertion-order on failure)
+      this.pluginRegistry.refreshLoadOrder()
 
       // Execute onConfigLoad hooks for all plugins
       const configLoadContext = {
@@ -680,29 +653,7 @@ export class FluxStackFramework {
 
   use(plugin: Plugin) {
     try {
-      // Use the registry's public register method, but don't await it since we need sync operation
-      if (this.pluginRegistry.has(plugin.name)) {
-        throw new Error(`Plugin '${plugin.name}' is already registered`)
-      }
-
-      // Store plugin without calling setup - setup will be called in start()
-      // We need to manually set the plugin since register() is async but we need sync
-      this.registryInternals.plugins.set(plugin.name, plugin)
-
-      // Update dependencies tracking
-      if ((plugin as FluxStack.Plugin).dependencies) {
-        this.registryInternals.dependencies.set(plugin.name, (plugin as FluxStack.Plugin).dependencies!)
-      }
-
-      // Update load order by calling the private method
-      try {
-        this.registryInternals.updateLoadOrder()
-      } catch {
-        // Fallback: create basic load order
-        const plugins = this.registryInternals.plugins
-        const loadOrder = Array.from(plugins.keys())
-        this.registryInternals.loadOrder = loadOrder
-      }
+      this.pluginRegistry.registerSync(plugin as FluxStack.Plugin)
 
       logger.debug(`Plugin '${plugin.name}' registered`, {
         version: (plugin as FluxStack.Plugin).version,
@@ -733,7 +684,7 @@ export class FluxStackFramework {
       await this.initializeAutomaticPlugins()
 
       // Validate plugin dependencies before starting
-      const plugins = this.registryInternals.plugins
+      const plugins = this.pluginRegistry.getPluginsMap()
       for (const [pluginName, plugin] of plugins) {
         if (plugin.dependencies) {
           for (const depName of plugin.dependencies) {
