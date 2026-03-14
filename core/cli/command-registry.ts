@@ -1,4 +1,4 @@
-import type { CliCommand, CliContext, CliArgument, CliOption } from "../plugins/types"
+import type { CliCommand, CliContext, CliArgument, CliOption, PluginConfigSchema } from "../plugins/types"
 import { fluxStackConfig } from "@config"
 import { logger } from "@core/utils/logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
@@ -36,7 +36,7 @@ export class CliCommandRegistry {
           }
           return result
         },
-        validateSchema: (data: unknown, schema: unknown) => {
+        validateSchema: (data: Record<string, unknown>, schema: PluginConfigSchema) => {
           return createPluginUtils(logger).validateSchema(data, schema)
         }
       },

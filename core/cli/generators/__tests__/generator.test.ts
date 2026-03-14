@@ -32,11 +32,11 @@ describe('Code Generators', () => {
                 createHash: (data: string) => {
                     return createHash('sha256').update(data).digest('hex')
                 },
-                deepMerge: (target: any, source: any) => {
+                deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>) => {
                     const result = { ...target }
                     for (const key in source) {
                         if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                            result[key] = context.utils.deepMerge(result[key] || {}, source[key])
+                            result[key] = context.utils.deepMerge(result[key] as Record<string, unknown> || {}, source[key] as Record<string, unknown>)
                         } else {
                             result[key] = source[key]
                         }

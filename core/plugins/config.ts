@@ -252,7 +252,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Deep merge two objects
    */
-  private deepMerge(target: any, source: any): any {
+  deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
     if (source === null || source === undefined) {
       return target
     }
@@ -274,7 +274,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     for (const key in source) {
       if (source.hasOwnProperty(key)) {
         if (typeof source[key] === 'object' && !Array.isArray(source[key]) && source[key] !== null) {
-          result[key] = this.deepMerge(target[key], source[key])
+          result[key] = this.deepMerge(target[key] as Record<string, unknown>, source[key] as Record<string, unknown>)
         } else {
           result[key] = source[key]
         }
@@ -335,11 +335,11 @@ export function createPluginUtils(logger?: Logger): PluginUtils {
       return hash.toString(36)
     },
 
-    deepMerge: (target: any, source: any): any => {
-      return (sharedConfigManager as any).deepMerge(target, source)
+    deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> => {
+      return sharedConfigManager.deepMerge(target, source)
     },
 
-    validateSchema: (data: any, schema: any): { valid: boolean; errors: string[] } => {
+    validateSchema: (data: Record<string, unknown>, schema: PluginConfigSchema): { valid: boolean; errors: string[] } => {
       const result = sharedConfigManager.validatePluginConfig({ name: 'temp', configSchema: schema }, data)
       return {
         valid: result.valid,

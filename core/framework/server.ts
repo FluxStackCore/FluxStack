@@ -1,6 +1,6 @@
 import { Elysia } from "elysia"
 import type { FluxStackConfig, FluxStackContext } from "@core/types"
-import type { FluxStack, PluginContext, PluginUtils } from "@core/plugins/types"
+import type { FluxStack, PluginContext, PluginUtils, PluginConfigSchema } from "@core/plugins/types"
 import { PluginRegistry } from "@core/plugins/registry"
 import { PluginManager } from "@core/plugins/manager"
 import { fluxStackConfig } from "@config"
@@ -100,18 +100,18 @@ export class FluxStackFramework {
       createHash: (data: string) => {
         return createHash('sha256').update(data).digest('hex')
       },
-      deepMerge: (target: any, source: any) => {
+      deepMerge: (target: Record<string, unknown>, source: Record<string, unknown>) => {
         const result = { ...target }
         for (const key in source) {
           if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-            result[key] = pluginUtils.deepMerge(result[key] || {}, source[key])
+            result[key] = pluginUtils.deepMerge(result[key] as Record<string, unknown> || {}, source[key] as Record<string, unknown>)
           } else {
             result[key] = source[key]
           }
         }
         return result
       },
-      validateSchema: (data: unknown, schema: unknown) => {
+      validateSchema: (data: Record<string, unknown>, schema: PluginConfigSchema) => {
         return createPluginUtils(logger).validateSchema(data, schema)
       }
     }
