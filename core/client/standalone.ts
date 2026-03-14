@@ -5,6 +5,7 @@
 
 import { clientConfig } from '@config'
 import type { LogLevel } from 'vite'
+import { buildLogger } from "../utils/build-logger"
 
 type ViteDevServer = Awaited<ReturnType<typeof import('vite')['createServer']>>
 
@@ -15,9 +16,9 @@ export const startFrontendOnly = async (config: Record<string, unknown> = {}) =>
   const host = (config.viteHost ?? clientConfig.vite.host ?? 'localhost') as string
   const logLevel = (config.logLevel || clientConfig.vite.logLevel || 'info') as LogLevel
 
-  console.log(`⚛️  FluxStack Frontend Only`)
-  console.log(`🌐 http://${host}:${port}`)
-  console.log()
+  buildLogger.info(`⚛️  FluxStack Frontend Only`)
+  buildLogger.info(`🌐 http://${host}:${port}`)
+  buildLogger.info('')
 
   try {
     // Dynamic import of vite
@@ -36,13 +37,13 @@ export const startFrontendOnly = async (config: Record<string, unknown> = {}) =>
 
     await viteServer.listen()
 
-    console.log(`✅ Frontend server ready!`)
-    console.log()
+    buildLogger.success(`✅ Frontend server ready!`)
+    buildLogger.info('')
 
     // Setup cleanup on process exit
     const cleanup = async () => {
       if (viteServer) {
-        console.log('\n🛑 Stopping frontend...')
+        buildLogger.info('\n🛑 Stopping frontend...')
         await viteServer.close()
         viteServer = null
         process.exit(0)
@@ -63,15 +64,15 @@ export const startFrontendOnly = async (config: Record<string, unknown> = {}) =>
       (errorMessage.includes('Port') && errorMessage.includes('is in use'))
 
     if (isPortInUse) {
-      console.error(`❌ Failed to start Vite: Port ${port} is already in use`)
-      console.log(`💡 Try one of these solutions:`)
-      console.log(`   1. Stop the process using port ${port}`)
-      console.log(`   2. Change VITE_PORT in your .env file`)
-      console.log(`   3. Kill the process: ${process.platform === 'win32' ? `netstat -ano | findstr :${port}` : `lsof -ti:${port} | xargs kill -9`}`)
+      buildLogger.error(`❌ Failed to start Vite: Port ${port} is already in use`)
+      buildLogger.info(`💡 Try one of these solutions:`)
+      buildLogger.info(`   1. Stop the process using port ${port}`)
+      buildLogger.info(`   2. Change VITE_PORT in your .env file`)
+      buildLogger.info(`   3. Kill the process: ${process.platform === 'win32' ? `netstat -ano | findstr :${port}` : `lsof -ti:${port} | xargs kill -9`}`)
       process.exit(1)
     } else {
-      console.error('❌ Failed to start Vite server:', errorMessage)
-      console.error('Full error:', error)
+      buildLogger.error('❌ Failed to start Vite server:', errorMessage)
+      buildLogger.error('Full error:', error)
       process.exit(1)
     }
   }

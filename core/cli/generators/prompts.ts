@@ -1,4 +1,5 @@
 import type { PromptConfig } from "./types"
+import { buildLogger } from "@core/utils/build-logger"
 
 export class PromptSystem {
   async prompt(config: PromptConfig): Promise<unknown> {
@@ -29,7 +30,7 @@ export class PromptSystem {
         if (config.validate) {
           const validation = config.validate(input)
           if (validation !== true) {
-            console.log(`Error: ${validation}`)
+            buildLogger.error(`${validation}`)
             // In a real implementation, you'd re-prompt
             resolve(input)
             return

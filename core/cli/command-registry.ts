@@ -1,6 +1,7 @@
 import type { CliCommand, CliContext, CliArgument, CliOption, PluginConfigSchema } from "../plugins/types"
 import { fluxStackConfig } from "@config"
 import { logger } from "@core/utils/logger"
+import { buildLogger } from "@core/utils/build-logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
 import { createHash } from "crypto"
 import { createPluginUtils } from "../plugins/config"
@@ -100,9 +101,9 @@ export class CliCommandRegistry {
 
   async execute(commandName: string, args: string[]): Promise<number> {
     const command = this.get(commandName)
-    
+
     if (!command) {
-      console.error(`❌ Unknown command: ${commandName}`)
+      buildLogger.error(`❌ Unknown command: ${commandName}`)
       this.showHelp()
       return 1
     }
@@ -110,24 +111,24 @@ export class CliCommandRegistry {
     try {
       // Parse arguments and options
       const { parsedArgs, parsedOptions } = this.parseArgs(command, args)
-      
+
       // Validate required arguments
       if (command.arguments) {
         for (let i = 0; i < command.arguments.length; i++) {
           const arg = command.arguments[i]
           if (arg.required && !parsedArgs[i]) {
-            console.error(`❌ Missing required argument: ${arg.name}`)
+            buildLogger.error(`❌ Missing required argument: ${arg.name}`)
             this.showCommandHelp(command)
             return 1
           }
         }
       }
-      
+
       // Validate required options
       if (command.options) {
         for (const option of command.options) {
           if (option.required && !(option.name in parsedOptions)) {
-            console.error(`❌ Missing required option: --${option.name}`)
+            buildLogger.error(`❌ Missing required option: --${option.name}`)
             this.showCommandHelp(command)
             return 1
           }
@@ -137,9 +138,9 @@ export class CliCommandRegistry {
       // Execute command
       await command.handler(parsedArgs, parsedOptions, this.context)
       return 0
-      
+
     } catch (error) {
-      console.error(`❌ Command failed:`, error instanceof Error ? error.message : String(error))
+      buildLogger.error('❌ Command failed:', error instanceof Error ? error.message : String(error))
       return 1
     }
   }
@@ -231,7 +232,7 @@ export class CliCommandRegistry {
   }
 
   showHelp(): void {
-    console.log(`
+    buildLogger.info(`
 ⚡ FluxStack Framework CLI
 
 Usage:
@@ -241,16 +242,16 @@ Usage:
 Built-in Commands:`)
 
     const categories = this.getAllByCategory()
-    
+
     for (const [category, commands] of categories) {
-      console.log(`\n${category}:`)
+      buildLogger.info(`\n${category}:`)
       for (const command of commands) {
         const aliases = command.aliases?.length ? ` (${command.aliases.join(', ')})` : ''
-        console.log(`  ${command.name}${aliases.padEnd(20)} ${command.description}`)
+        buildLogger.info(`  ${command.name}${aliases.padEnd(20)} ${command.description}`)
       }
     }
 
-    console.log(`
+    buildLogger.info(`
 Examples:
   flux dev                    # Start development server
   flux build --production    # Build for production
@@ -261,13 +262,13 @@ Use "flux help <command>" for more information about a specific command.`)
   }
 
   showCommandHelp(command: CliCommand): void {
-    console.log(`\n${command.description}`)
-    
+    buildLogger.info(`\n${command.description}`)
+
     if (command.usage) {
-      console.log(`\nUsage:\n  ${command.usage}`)
+      buildLogger.info(`\nUsage:\n  ${command.usage}`)
     } else {
       let usage = `flux ${command.name}`
-      
+
       if (command.arguments) {
         for (const arg of command.arguments) {
           if (arg.required) {
@@ -277,42 +278,42 @@ Use "flux help <command>" for more information about a specific command.`)
           }
         }
       }
-      
+
       if (command.options?.length) {
         usage += ` [options]`
       }
-      
-      console.log(`\nUsage:\n  ${usage}`)
+
+      buildLogger.info(`\nUsage:\n  ${usage}`)
     }
-    
+
     if (command.arguments?.length) {
-      console.log(`\nArguments:`)
+      buildLogger.info(`\nArguments:`)
       for (const arg of command.arguments) {
         const required = arg.required ? ' (required)' : ''
         const defaultValue = arg.default !== undefined ? ` (default: ${arg.default})` : ''
-        console.log(`  ${arg.name.padEnd(15)} ${arg.description}${required}${defaultValue}`)
+        buildLogger.info(`  ${arg.name.padEnd(15)} ${arg.description}${required}${defaultValue}`)
       }
     }
-    
+
     if (command.options?.length) {
-      console.log(`\nOptions:`)
+      buildLogger.info(`\nOptions:`)
       for (const option of command.options) {
         const short = option.short ? `-${option.short}, ` : '    '
         const required = option.required ? ' (required)' : ''
         const defaultValue = option.default !== undefined ? ` (default: ${option.default})` : ''
-        console.log(`  ${short}--${option.name.padEnd(15)} ${option.description}${required}${defaultValue}`)
+        buildLogger.info(`  ${short}--${option.name.padEnd(15)} ${option.description}${required}${defaultValue}`)
       }
     }
-    
+
     if (command.examples?.length) {
-      console.log(`\nExamples:`)
+      buildLogger.info(`\nExamples:`)
       for (const example of command.examples) {
-        console.log(`  ${example}`)
+        buildLogger.info(`  ${example}`)
       }
     }
-    
+
     if (command.aliases?.length) {
-      console.log(`\nAliases: ${command.aliases.join(', ')}`)
+      buildLogger.info(`\nAliases: ${command.aliases.join(', ')}`)
     }
   }
 }

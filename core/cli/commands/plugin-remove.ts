@@ -7,7 +7,7 @@ import { Command } from 'commander'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { $ } from 'bun'
-import chalk from 'chalk'
+import { buildLogger } from '@core/utils/build-logger'
 
 interface PluginRemoveOptions {
   skipConfirmation?: boolean
@@ -21,13 +21,15 @@ export function createPluginRemoveCommand(): Command {
     .option('--skip-confirmation', 'Skip confirmation prompt')
     .option('--keep-installed', 'Keep plugin installed, only remove from whitelist')
     .action(async (pluginName: string, options: PluginRemoveOptions) => {
-      console.log(chalk.blue('\n🔌 FluxStack Plugin Remover\n'))
+      buildLogger.info('')
+      buildLogger.info('🔌 FluxStack Plugin Remover')
+      buildLogger.info('')
 
       try {
         // 1. Check if plugin is installed
         const packageJsonPath = join(process.cwd(), 'package.json')
         if (!existsSync(packageJsonPath)) {
-          console.error(chalk.red('❌ package.json not found'))
+          buildLogger.error('❌ package.json not found')
           process.exit(1)
         }
 
@@ -37,8 +39,9 @@ export function createPluginRemoveCommand(): Command {
           packageJson.devDependencies?.[pluginName]
 
         if (!isInstalled && !options.keepInstalled) {
-          console.log(chalk.yellow(`⚠️  Plugin ${pluginName} is not installed`))
-          console.log(chalk.yellow('   Will only remove from whitelist\n'))
+          buildLogger.warn(`⚠️  Plugin ${pluginName} is not installed`)
+          buildLogger.warn('   Will only remove from whitelist')
+          buildLogger.info('')
         }
 
         // 2. Confirmation prompt (unless skipped)
@@ -47,48 +50,56 @@ export function createPluginRemoveCommand(): Command {
             ? 'remove from whitelist'
             : 'uninstall and remove from whitelist'
 
-          const answer = prompt(chalk.yellow(`Remove ${pluginName}? This will ${action}. (yes/no): `))
+          const answer = prompt(`Remove ${pluginName}? This will ${action}. (yes/no): `)
           if (answer?.toLowerCase() !== 'yes' && answer?.toLowerCase() !== 'y') {
-            console.log(chalk.red('❌ Removal cancelled'))
+            buildLogger.error('❌ Removal cancelled')
             process.exit(0)
           }
         }
 
         // 3. Remove from whitelist
-        console.log(chalk.blue('\n🔧 Updating configuration...\n'))
+        buildLogger.info('')
+        buildLogger.info('🔧 Updating configuration...')
+        buildLogger.info('')
         const removed = removeFromWhitelist(pluginName)
 
         if (!removed) {
-          console.log(chalk.yellow(`⚠️  Plugin ${pluginName} was not in whitelist`))
+          buildLogger.warn(`⚠️  Plugin ${pluginName} was not in whitelist`)
         } else {
-          console.log(chalk.gray(`   • Removed ${pluginName} from PLUGINS_ALLOWED`))
+          buildLogger.info(`   • Removed ${pluginName} from PLUGINS_ALLOWED`)
         }
 
         // 4. Uninstall plugin (unless --keep-installed)
         if (!options.keepInstalled && isInstalled) {
-          console.log(chalk.blue(`\n📦 Uninstalling ${pluginName}...\n`))
+          buildLogger.info('')
+          buildLogger.info(`📦 Uninstalling ${pluginName}...`)
+          buildLogger.info('')
           await $`bun remove ${pluginName}`.quiet()
-          console.log(chalk.green(`✅ Plugin uninstalled successfully`))
+          buildLogger.success('✅ Plugin uninstalled successfully')
         }
 
         // 5. Check if should disable NPM discovery
         checkAndDisableNpmDiscovery()
 
         // 6. Success message
-        console.log(chalk.green('\n✅ Plugin removal complete!\n'))
-        console.log(chalk.blue('📋 What was done:'))
-        console.log(chalk.gray(`   • Removed ${pluginName} from whitelist (PLUGINS_ALLOWED)`))
+        buildLogger.success('')
+        buildLogger.success('✅ Plugin removal complete!')
+        buildLogger.info('')
+        buildLogger.info('📋 What was done:')
+        buildLogger.info(`   • Removed ${pluginName} from whitelist (PLUGINS_ALLOWED)`)
         if (!options.keepInstalled && isInstalled) {
-          console.log(chalk.gray(`   • Uninstalled ${pluginName}`))
+          buildLogger.info(`   • Uninstalled ${pluginName}`)
         }
 
-        console.log(chalk.blue('\n🚀 Next steps:'))
-        console.log(chalk.gray('   1. Restart your dev server: bun run dev'))
-        console.log(chalk.gray('   2. Plugin will no longer be loaded'))
+        buildLogger.info('')
+        buildLogger.info('🚀 Next steps:')
+        buildLogger.info('   1. Restart your dev server: bun run dev')
+        buildLogger.info('   2. Plugin will no longer be loaded')
 
       } catch (error) {
-        console.error(chalk.red('\n❌ Failed to remove plugin:'))
-        console.error(chalk.red(error instanceof Error ? error.message : String(error)))
+        buildLogger.error('')
+        buildLogger.error('❌ Failed to remove plugin:')
+        buildLogger.error(error instanceof Error ? error.message : String(error))
         process.exit(1)
       }
     })
@@ -164,7 +175,7 @@ function checkAndDisableNpmDiscovery(): void {
         'PLUGINS_DISCOVER_NPM=false'
       )
       writeFileSync(envPath, envContent, 'utf-8')
-      console.log(chalk.gray('   • Disabled NPM plugin discovery (whitelist empty)'))
+      buildLogger.info('   • Disabled NPM plugin discovery (whitelist empty)')
     }
   }
 }

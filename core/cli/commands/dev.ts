@@ -5,6 +5,7 @@
 
 import type { CLICommand } from '../command-registry'
 import { serverConfig, clientConfig } from '@config'
+import { buildLogger } from '@core/utils/build-logger'
 
 export const devCommand: CLICommand = {
   name: 'dev',
@@ -53,7 +54,7 @@ export const devCommand: CLICommand = {
     const backendOnly = options['backend-only'] === true
 
     if (frontendOnly && backendOnly) {
-      console.error('❌ Cannot use --frontend-only and --backend-only together')
+      buildLogger.error('❌ Cannot use --frontend-only and --backend-only together')
       process.exit(1)
     }
 
@@ -67,7 +68,7 @@ export const devCommand: CLICommand = {
 
     const fluxstackMode = backendOnly ? 'backend-only' : 'full-stack'
 
-    console.log(`⚡ Starting ${mode} development server...`)
+    buildLogger.info(`⚡ Starting ${mode} development server...`)
 
     const devProcess = spawn("bun", ["--watch", entryPoint], {
       stdio: "inherit",
@@ -81,7 +82,7 @@ export const devCommand: CLICommand = {
     })
 
     process.on('SIGINT', () => {
-      console.log('\n🛑 Shutting down gracefully...')
+      buildLogger.info('\n🛑 Shutting down gracefully...')
       devProcess.kill('SIGTERM')
       setTimeout(() => {
         devProcess.kill('SIGKILL')

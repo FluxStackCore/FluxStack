@@ -5,6 +5,7 @@
 
 import type { CLICommand } from '../command-registry'
 import { ProjectCreator } from '@core/templates/create-project'
+import { buildLogger } from '@core/utils/build-logger'
 
 export const createCommand: CLICommand = {
   name: 'create',
@@ -36,7 +37,7 @@ export const createCommand: CLICommand = {
     const template = args[1] as string | undefined
 
     if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
-      console.error("❌ Project name can only contain letters, numbers, hyphens, and underscores")
+      buildLogger.error("❌ Project name can only contain letters, numbers, hyphens, and underscores")
       return
     }
 
@@ -48,7 +49,7 @@ export const createCommand: CLICommand = {
 
       await creator.create()
     } catch (error) {
-      console.error("❌ Failed to create project:", error instanceof Error ? error.message : String(error))
+      buildLogger.error("❌ Failed to create project:", error instanceof Error ? error.message : String(error))
       throw error
     }
   }

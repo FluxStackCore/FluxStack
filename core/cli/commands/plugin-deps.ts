@@ -3,7 +3,7 @@
  */
 
 import { Command } from 'commander'
-import chalk from 'chalk'
+import { buildLogger } from '@core/utils/build-logger'
 import { PluginDependencyManager } from '@core/plugins/dependency-manager'
 import { PluginRegistry } from '@core/plugins/registry'
 import { existsSync, readFileSync } from 'fs'
@@ -26,7 +26,8 @@ function createInstallCommand(): Command {
     .option('--dry-run', 'Mostrar o que seria instalado sem executar')
     .option('--package-manager <pm>', 'Package manager a usar (npm, yarn, pnpm, bun)', 'bun')
     .action(async (options) => {
-      console.log(chalk.blue('🔧 Instalando dependências de plugins...\n'))
+      buildLogger.info('🔧 Instalando dependências de plugins...')
+      buildLogger.info('')
 
       try {
         const dependencyManager = new PluginDependencyManager({
@@ -45,7 +46,8 @@ function createInstallCommand(): Command {
         })
 
         const successfulPlugins = results.filter(r => r.success)
-        console.log(chalk.green(`✅ Encontrados ${successfulPlugins.length} plugins\n`))
+        buildLogger.success(`✅ Encontrados ${successfulPlugins.length} plugins`)
+        buildLogger.info('')
 
         // Resolver dependências
         const resolutions = []
@@ -62,34 +64,34 @@ function createInstallCommand(): Command {
         // Mostrar resumo
         let totalDeps = 0
         let totalConflicts = 0
-        
+
         for (const resolution of resolutions) {
           totalDeps += resolution.dependencies.length
           totalConflicts += resolution.conflicts.length
-          
+
           if (resolution.dependencies.length > 0) {
-            console.log(chalk.cyan(`📦 ${resolution.plugin}:`))
+            buildLogger.info(`📦 ${resolution.plugin}:`)
             for (const dep of resolution.dependencies) {
-              const typeColor = dep.type === 'peerDependency' ? chalk.yellow : chalk.white
-              console.log(`  ${typeColor(dep.name)}@${dep.version} (${dep.type})`)
+              buildLogger.info(`  ${dep.name}@${dep.version} (${dep.type})`)
             }
-            console.log()
+            buildLogger.info('')
           }
         }
 
         if (totalConflicts > 0) {
-          console.log(chalk.yellow(`⚠️  ${totalConflicts} conflitos de dependências detectados\n`))
+          buildLogger.warn(`⚠️  ${totalConflicts} conflitos de dependências detectados`)
+          buildLogger.info('')
         }
 
         if (options.dryRun) {
-          console.log(chalk.blue(`📋 Dry run: ${totalDeps} dependências seriam instaladas`))
+          buildLogger.info(`📋 Dry run: ${totalDeps} dependências seriam instaladas`)
         } else {
           await dependencyManager.installPluginDependencies(resolutions)
-          console.log(chalk.green(`✅ ${totalDeps} dependências instaladas com sucesso!`))
+          buildLogger.success(`✅ ${totalDeps} dependências instaladas com sucesso!`)
         }
 
       } catch (error) {
-        console.error(chalk.red('❌ Erro ao instalar dependências:'), error)
+        buildLogger.error('❌ Erro ao instalar dependências:', error)
         process.exit(1)
       }
     })
@@ -100,7 +102,8 @@ function createListCommand(): Command {
     .description('Listar dependências de plugins')
     .option('--plugin <name>', 'Mostrar apenas dependências de um plugin específico')
     .action(async (options) => {
-      console.log(chalk.blue('📋 Dependências de plugins:\n'))
+      buildLogger.info('📋 Dependências de plugins:')
+      buildLogger.info('')
 
       try {
         const registry = new PluginRegistry({
@@ -125,30 +128,29 @@ function createListCommand(): Command {
             const pluginDir = findPluginDirectory(result.plugin.name)
             if (pluginDir) {
               const resolution = await dependencyManager.resolvePluginDependencies(pluginDir)
-              
-              console.log(chalk.cyan(`📦 ${resolution.plugin}`))
-              
+
+              buildLogger.info(`📦 ${resolution.plugin}`)
+
               if (resolution.dependencies.length === 0) {
-                console.log(chalk.gray('  Nenhuma dependência'))
+                buildLogger.info('  Nenhuma dependência')
               } else {
                 for (const dep of resolution.dependencies) {
-                  const typeColor = dep.type === 'peerDependency' ? chalk.yellow : chalk.white
-                  const optional = dep.optional ? chalk.gray(' (opcional)') : ''
-                  console.log(`  ${typeColor(dep.name)}@${dep.version} (${dep.type})${optional}`)
+                  const optional = dep.optional ? ' (opcional)' : ''
+                  buildLogger.info(`  ${dep.name}@${dep.version} (${dep.type})${optional}`)
                 }
               }
 
               if (resolution.conflicts.length > 0) {
-                console.log(chalk.red(`  ⚠️  ${resolution.conflicts.length} conflitos`))
+                buildLogger.error(`  ⚠️  ${resolution.conflicts.length} conflitos`)
               }
 
-              console.log()
+              buildLogger.info('')
             }
           }
         }
 
       } catch (error) {
-        console.error(chalk.red('❌ Erro ao listar dependências:'), error)
+        buildLogger.error('❌ Erro ao listar dependências:', error)
         process.exit(1)
       }
     })
@@ -158,7 +160,8 @@ function createCheckCommand(): Command {
   return new Command('check')
     .description('Verificar conflitos de dependências')
     .action(async () => {
-      console.log(chalk.blue('🔍 Verificando conflitos de dependências...\n'))
+      buildLogger.info('🔍 Verificando conflitos de dependências...')
+      buildLogger.info('')
 
       try {
         const registry = new PluginRegistry({
@@ -186,26 +189,27 @@ function createCheckCommand(): Command {
         }
 
         const allConflicts = resolutions.flatMap(r => r.conflicts)
-        
+
         if (allConflicts.length === 0) {
-          console.log(chalk.green('✅ Nenhum conflito de dependências encontrado!'))
+          buildLogger.success('✅ Nenhum conflito de dependências encontrado!')
         } else {
-          console.log(chalk.red(`❌ ${allConflicts.length} conflitos encontrados:\n`))
-          
+          buildLogger.error(`❌ ${allConflicts.length} conflitos encontrados:`)
+          buildLogger.info('')
+
           for (const conflict of allConflicts) {
-            console.log(chalk.yellow(`⚠️  ${conflict.package}:`))
+            buildLogger.warn(`⚠️  ${conflict.package}:`)
             for (const version of conflict.versions) {
-              console.log(`  ${version.plugin}: ${version.version}`)
+              buildLogger.info(`  ${version.plugin}: ${version.version}`)
             }
             if (conflict.resolution) {
-              console.log(chalk.green(`  Resolução: ${conflict.resolution}`))
+              buildLogger.success(`  Resolução: ${conflict.resolution}`)
             }
-            console.log()
+            buildLogger.info('')
           }
         }
 
       } catch (error) {
-        console.error(chalk.red('❌ Erro ao verificar conflitos:'), error)
+        buildLogger.error('❌ Erro ao verificar conflitos:', error)
         process.exit(1)
       }
     })
@@ -216,14 +220,15 @@ function createCleanCommand(): Command {
     .description('Limpar dependências não utilizadas')
     .option('--dry-run', 'Mostrar o que seria removido sem executar')
     .action(async (options) => {
-      console.log(chalk.blue('🧹 Limpando dependências não utilizadas...\n'))
+      buildLogger.info('🧹 Limpando dependências não utilizadas...')
+      buildLogger.info('')
 
       if (options.dryRun) {
-        console.log(chalk.blue('📋 Dry run: mostrando dependências que seriam removidas'))
+        buildLogger.info('📋 Dry run: mostrando dependências que seriam removidas')
       }
 
       // TODO: Implementar lógica de limpeza
-      console.log(chalk.yellow('⚠️  Funcionalidade ainda não implementada'))
+      buildLogger.warn('⚠️  Funcionalidade ainda não implementada')
     })
 }
 
@@ -259,17 +264,17 @@ function createConsoleLogger(): ConsoleLogger {
   const logger: ConsoleLogger = {
     debug: (message: unknown, ...args: unknown[]) => {
       if (process.env.DEBUG) {
-        console.log(chalk.gray(`[DEBUG] ${message}`), ...args)
+        buildLogger.info(`[DEBUG] ${message}`, ...args)
       }
     },
     info: (message: unknown, ...args: unknown[]) => {
-      console.log(chalk.blue(`[INFO] ${message}`), ...args)
+      buildLogger.info(`[INFO] ${message}`, ...args)
     },
     warn: (message: unknown, ...args: unknown[]) => {
-      console.log(chalk.yellow(`[WARN] ${message}`), ...args)
+      buildLogger.warn(`[WARN] ${message}`, ...args)
     },
     error: (message: unknown, ...args: unknown[]) => {
-      console.log(chalk.red(`[ERROR] ${message}`), ...args)
+      buildLogger.error(`[ERROR] ${message}`, ...args)
     },
     child: () => createConsoleLogger(),
     request: () => {},

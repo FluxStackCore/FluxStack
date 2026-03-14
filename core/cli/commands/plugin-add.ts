@@ -7,7 +7,7 @@ import { Command } from 'commander'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { $ } from 'bun'
-import chalk from 'chalk'
+import { buildLogger } from '@core/utils/build-logger'
 
 interface PluginAddOptions {
   skipAudit?: boolean
@@ -21,26 +21,29 @@ export function createPluginAddCommand(): Command {
     .option('--skip-audit', 'Skip npm audit check')
     .option('--skip-confirmation', 'Skip confirmation prompt')
     .action(async (pluginName: string, options: PluginAddOptions) => {
-      console.log(chalk.blue('\n🔌 FluxStack Plugin Installer\n'))
+      buildLogger.info('')
+      buildLogger.info('🔌 FluxStack Plugin Installer')
+      buildLogger.info('')
 
       try {
         // 1. Validate plugin name
         if (!isValidPluginName(pluginName)) {
-          console.error(chalk.red(`❌ Invalid plugin name: ${pluginName}`))
-          console.log(chalk.yellow('\n📝 Valid plugin names:'))
-          console.log('  - fluxstack-plugin-*')
-          console.log('  - fplugin-*')
-          console.log('  - @fluxstack/plugin-*')
-          console.log('  - @fplugin/*')
-          console.log('  - @org/fluxstack-plugin-*')
-          console.log('  - @org/fplugin-*')
+          buildLogger.error(`❌ Invalid plugin name: ${pluginName}`)
+          buildLogger.info('')
+          buildLogger.info('📝 Valid plugin names:')
+          buildLogger.info('  - fluxstack-plugin-*')
+          buildLogger.info('  - fplugin-*')
+          buildLogger.info('  - @fluxstack/plugin-*')
+          buildLogger.info('  - @fplugin/*')
+          buildLogger.info('  - @org/fluxstack-plugin-*')
+          buildLogger.info('  - @org/fplugin-*')
           process.exit(1)
         }
 
         // 2. Check if plugin already installed
         const packageJsonPath = join(process.cwd(), 'package.json')
         if (!existsSync(packageJsonPath)) {
-          console.error(chalk.red('❌ package.json not found'))
+          buildLogger.error('❌ package.json not found')
           process.exit(1)
         }
 
@@ -50,69 +53,83 @@ export function createPluginAddCommand(): Command {
           packageJson.devDependencies?.[pluginName]
 
         if (isAlreadyInstalled && !options.skipConfirmation) {
-          console.log(chalk.yellow(`⚠️  Plugin ${pluginName} is already installed`))
-          console.log(chalk.yellow('   Will only update whitelist\n'))
+          buildLogger.warn(`⚠️  Plugin ${pluginName} is already installed`)
+          buildLogger.warn('   Will only update whitelist')
+          buildLogger.info('')
         }
 
         // 3. Audit plugin (unless skipped)
         if (!options.skipAudit && !isAlreadyInstalled) {
-          console.log(chalk.blue('🔍 Auditing plugin security...\n'))
+          buildLogger.info('🔍 Auditing plugin security...')
+          buildLogger.info('')
 
           try {
             // Get plugin info
             const info = await $`npm view ${pluginName} repository homepage version description`.text()
-            console.log(chalk.gray(info))
+            buildLogger.info(info)
 
             // Run audit
-            console.log(chalk.blue('\n🛡️  Running npm audit...\n'))
+            buildLogger.info('')
+            buildLogger.info('🛡️  Running npm audit...')
+            buildLogger.info('')
             const auditResult = await $`npm audit ${pluginName}`.text()
-            console.log(chalk.gray(auditResult))
+            buildLogger.info(auditResult)
           } catch (error) {
-            console.warn(chalk.yellow(`⚠️  Could not audit plugin: ${error instanceof Error ? error.message : 'Unknown error'}`))
+            buildLogger.warn(`⚠️  Could not audit plugin: ${error instanceof Error ? error.message : 'Unknown error'}`)
           }
         }
 
         // 4. Confirmation prompt (unless skipped)
         if (!options.skipConfirmation) {
-          console.log(chalk.yellow('\n⚠️  Security Warning:'))
-          console.log(chalk.yellow('   NPM plugins can execute arbitrary code'))
-          console.log(chalk.yellow('   Only install plugins from trusted sources\n'))
+          buildLogger.warn('')
+          buildLogger.warn('⚠️  Security Warning:')
+          buildLogger.warn('   NPM plugins can execute arbitrary code')
+          buildLogger.warn('   Only install plugins from trusted sources')
+          buildLogger.info('')
 
-          const answer = prompt(chalk.blue('Continue with installation? (yes/no): '))
+          const answer = prompt('Continue with installation? (yes/no): ')
           if (answer?.toLowerCase() !== 'yes' && answer?.toLowerCase() !== 'y') {
-            console.log(chalk.red('❌ Installation cancelled'))
+            buildLogger.error('❌ Installation cancelled')
             process.exit(0)
           }
         }
 
         // 5. Install plugin
         if (!isAlreadyInstalled) {
-          console.log(chalk.blue(`\n📦 Installing ${pluginName}...\n`))
+          buildLogger.info('')
+          buildLogger.info(`📦 Installing ${pluginName}...`)
+          buildLogger.info('')
           await $`bun add ${pluginName}`.quiet()
-          console.log(chalk.green(`✅ Plugin installed successfully`))
+          buildLogger.success('✅ Plugin installed successfully')
         }
 
         // 6. Update .env file
-        console.log(chalk.blue('\n🔧 Updating configuration...\n'))
+        buildLogger.info('')
+        buildLogger.info('🔧 Updating configuration...')
+        buildLogger.info('')
         updateEnvFile(pluginName)
 
         // 7. Success message
-        console.log(chalk.green('\n✅ Plugin setup complete!\n'))
-        console.log(chalk.blue('📋 What was done:'))
+        buildLogger.success('')
+        buildLogger.success('✅ Plugin setup complete!')
+        buildLogger.info('')
+        buildLogger.info('📋 What was done:')
         if (!isAlreadyInstalled) {
-          console.log(chalk.gray(`   • Installed ${pluginName}`))
+          buildLogger.info(`   • Installed ${pluginName}`)
         }
-        console.log(chalk.gray('   • Enabled NPM plugin discovery (PLUGINS_DISCOVER_NPM=true)'))
-        console.log(chalk.gray(`   • Added ${pluginName} to whitelist (PLUGINS_ALLOWED)`))
+        buildLogger.info('   • Enabled NPM plugin discovery (PLUGINS_DISCOVER_NPM=true)')
+        buildLogger.info(`   • Added ${pluginName} to whitelist (PLUGINS_ALLOWED)`)
 
-        console.log(chalk.blue('\n🚀 Next steps:'))
-        console.log(chalk.gray('   1. Restart your dev server: bun run dev'))
-        console.log(chalk.gray('   2. Plugin will be auto-discovered and loaded'))
-        console.log(chalk.gray('   3. Check logs for plugin initialization'))
+        buildLogger.info('')
+        buildLogger.info('🚀 Next steps:')
+        buildLogger.info('   1. Restart your dev server: bun run dev')
+        buildLogger.info('   2. Plugin will be auto-discovered and loaded')
+        buildLogger.info('   3. Check logs for plugin initialization')
 
       } catch (error) {
-        console.error(chalk.red('\n❌ Failed to install plugin:'))
-        console.error(chalk.red(error instanceof Error ? error.message : String(error)))
+        buildLogger.error('')
+        buildLogger.error('❌ Failed to install plugin:')
+        buildLogger.error(error instanceof Error ? error.message : String(error))
         process.exit(1)
       }
     })
@@ -143,7 +160,7 @@ function updateEnvFile(pluginName: string): void {
   const envPath = join(process.cwd(), '.env')
 
   if (!existsSync(envPath)) {
-    console.warn(chalk.yellow('⚠️  .env file not found, creating...'))
+    buildLogger.warn('⚠️  .env file not found, creating...')
     writeFileSync(envPath, '', 'utf-8')
   }
 
@@ -157,11 +174,11 @@ function updateEnvFile(pluginName: string): void {
       'PLUGINS_DISCOVER_NPM=true'
     )
     updated = true
-    console.log(chalk.gray('   • Set PLUGINS_DISCOVER_NPM=true'))
+    buildLogger.info('   • Set PLUGINS_DISCOVER_NPM=true')
   } else if (!/^PLUGINS_DISCOVER_NPM=/m.test(envContent)) {
     envContent += '\n# Plugin Discovery\nPLUGINS_DISCOVER_NPM=true\n'
     updated = true
-    console.log(chalk.gray('   • Added PLUGINS_DISCOVER_NPM=true'))
+    buildLogger.info('   • Added PLUGINS_DISCOVER_NPM=true')
   }
 
   // 2. Add plugin to whitelist
@@ -181,14 +198,14 @@ function updateEnvFile(pluginName: string): void {
         `PLUGINS_ALLOWED=${newPlugins}`
       )
       updated = true
-      console.log(chalk.gray(`   • Added ${pluginName} to PLUGINS_ALLOWED`))
+      buildLogger.info(`   • Added ${pluginName} to PLUGINS_ALLOWED`)
     } else {
-      console.log(chalk.gray(`   • ${pluginName} already in PLUGINS_ALLOWED`))
+      buildLogger.info(`   • ${pluginName} already in PLUGINS_ALLOWED`)
     }
   } else {
     envContent += `PLUGINS_ALLOWED=${pluginName}\n`
     updated = true
-    console.log(chalk.gray(`   • Created PLUGINS_ALLOWED with ${pluginName}`))
+    buildLogger.info(`   • Created PLUGINS_ALLOWED with ${pluginName}`)
   }
 
   if (updated) {

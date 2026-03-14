@@ -2,6 +2,7 @@ import type { CliCommand } from "../../plugins/types"
 import { generatorRegistry } from "./index"
 import type { GeneratorContext, GeneratorOptions } from "./types"
 import { promptSystem } from "./prompts"
+import { buildLogger } from "@core/utils/build-logger"
 
 export const interactiveGenerateCommand: CliCommand = {
   name: 'generate:interactive',
@@ -14,7 +15,7 @@ export const interactiveGenerateCommand: CliCommand = {
     'flux gi'
   ],
   handler: async (args, options, context) => {
-    console.log('🎯 FluxStack Interactive Code Generator\n')
+    buildLogger.info('🎯 FluxStack Interactive Code Generator\n')
     
     // Select generator type
     const generators = generatorRegistry.getAll()
@@ -30,7 +31,7 @@ export const interactiveGenerateCommand: CliCommand = {
 
     const generator = generatorRegistry.get(selectedType)
     if (!generator) {
-      console.error(`❌ Generator not found: ${selectedType}`)
+      buildLogger.error(`Generator not found: ${selectedType}`)
       return
     }
     
@@ -110,7 +111,7 @@ export const interactiveGenerateCommand: CliCommand = {
     )
     
     // Show dry run first
-    console.log('\n📋 Preview of files to be generated:\n')
+    buildLogger.info('\n📋 Preview of files to be generated:\n')
     
     const generatorContext: GeneratorContext = {
       workingDir: context.workingDir,
@@ -136,7 +137,7 @@ export const interactiveGenerateCommand: CliCommand = {
       )
       
       if (!proceed) {
-        console.log('❌ Generation cancelled')
+        buildLogger.warn('Generation cancelled')
         return
       }
       
@@ -144,13 +145,13 @@ export const interactiveGenerateCommand: CliCommand = {
       generatorOptions.dryRun = false
       await generator.generate(generatorContext, generatorOptions)
       
-      console.log(`\n✅ Successfully generated ${selectedType}: ${name}`)
+      buildLogger.success(`Successfully generated ${selectedType}: ${name}`)
       
       // Ask if user wants to generate related files
       await suggestRelatedGenerations(selectedType, name, generatorContext)
       
     } catch (error) {
-      console.error(`❌ Failed to generate ${selectedType}:`, error instanceof Error ? error.message : String(error))
+      buildLogger.error(`Failed to generate ${selectedType}: ${error instanceof Error ? error.message : String(error)}`)
       throw error
     }
   }
@@ -189,9 +190,9 @@ async function suggestRelatedGenerations(
     return
   }
   
-  console.log('\n💡 Suggested next steps:')
+  buildLogger.info('\n💡 Suggested next steps:')
   for (const suggestion of suggestions) {
-    console.log(`   • ${suggestion.description}`)
+    buildLogger.info(`   • ${suggestion.description}`)
   }
   
   const generateRelated = await promptSystem.confirm(
@@ -218,9 +219,9 @@ async function suggestRelatedGenerations(
             force: false,
             dryRun: false
           })
-          console.log(`✅ Generated ${suggestion.type}: ${name}`)
+          buildLogger.success(`Generated ${suggestion.type}: ${name}`)
         } catch (error) {
-          console.error(`❌ Failed to generate ${suggestion.type}:`, error instanceof Error ? error.message : String(error))
+          buildLogger.error(`Failed to generate ${suggestion.type}: ${error instanceof Error ? error.message : String(error)}`)
         }
       }
     }

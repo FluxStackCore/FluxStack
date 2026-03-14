@@ -1,6 +1,7 @@
 import { spawn } from "bun"
 import { join, resolve } from "path"
 import { mkdir } from "fs/promises"
+import { buildLogger } from "@core/utils/build-logger"
 
 export interface CreateProjectOptions {
   name: string
@@ -20,9 +21,9 @@ export class ProjectCreator {
   }
 
   async create() {
-    console.log(`🎉 Creating FluxStack project: ${this.projectName}`)
-    console.log(`📁 Target directory: ${this.targetDir}`)
-    console.log()
+    buildLogger.info(`🎉 Creating FluxStack project: ${this.projectName}`)
+    buildLogger.info(`📁 Target directory: ${this.targetDir}`)
+    buildLogger.info('')
 
     try {
       // 1. Create project directory
@@ -42,30 +43,30 @@ export class ProjectCreator {
       
       // 6. Install dependencies (last step)
       await this.installDependencies()
-      
-      console.log()
-      console.log("🎉 Project created successfully!")
-      console.log()
-      console.log("Next steps:")
-      console.log(`  cd ${this.projectName}`)
-      console.log(`  bun run dev`)
-      console.log()
-      console.log("Happy coding! 🚀")
-      
+
+      buildLogger.info('')
+      buildLogger.success("🎉 Project created successfully!")
+      buildLogger.info('')
+      buildLogger.info("Next steps:")
+      buildLogger.info(`  cd ${this.projectName}`)
+      buildLogger.info(`  bun run dev`)
+      buildLogger.info('')
+      buildLogger.info("Happy coding! 🚀")
+
     } catch (error) {
-      console.error("❌ Error creating project:", error instanceof Error ? error.message : String(error))
+      buildLogger.error("❌ Error creating project:", error instanceof Error ? error.message : String(error))
       process.exit(1)
     }
   }
 
   private async createDirectory() {
-    console.log("📁 Creating project directory...")
+    buildLogger.info("📁 Creating project directory...")
     await mkdir(this.targetDir, { recursive: true })
   }
 
   private async copyTemplate() {
-    console.log("📋 Copying template files...")
-    
+    buildLogger.info("📋 Copying template files...")
+
     // Copy files using Bun's built-in functions for better performance
     const rootDir = join(__dirname, '..', '..')
     
@@ -106,7 +107,7 @@ export class ProjectCreator {
     try {
       entries = await fs.readdir(src, { withFileTypes: true })
     } catch (error) {
-      console.warn(`Warning: Could not read directory ${src}`)
+      buildLogger.warn(`Warning: Could not read directory ${src}`)
       return
     }
     
@@ -126,8 +127,8 @@ export class ProjectCreator {
   }
 
   private async generatePackageJson() {
-    console.log("📦 Generating package.json...")
-    
+    buildLogger.info("📦 Generating package.json...")
+
     const packageJson = {
       name: this.projectName,
       version: "1.0.0",
@@ -191,7 +192,7 @@ export class ProjectCreator {
   }
 
   private async generateConfigFiles() {
-    console.log("⚙️ Generating config files...")
+    buildLogger.info("⚙️ Generating config files...")
 
     // TypeScript config
     const tsConfig = {
@@ -552,8 +553,8 @@ Built with ❤️ using FluxStack framework.
   }
 
   private async installDependencies() {
-    console.log("📦 Installing dependencies...")
-    
+    buildLogger.info("📦 Installing dependencies...")
+
     const installProcess = spawn({
       cmd: ["bun", "install"],
       cwd: this.targetDir,
@@ -569,8 +570,8 @@ Built with ❤️ using FluxStack framework.
   }
 
   private async initGit() {
-    console.log("🔧 Initializing git repository...")
-    
+    buildLogger.info("🔧 Initializing git repository...")
+
     try {
       // Initialize git repository
       await spawn({
@@ -596,7 +597,7 @@ Built with ❤️ using FluxStack framework.
         stderr: "ignore"
       }).exited
     } catch (error) {
-      console.warn("⚠️ Git initialization failed (git may not be installed)")
+      buildLogger.warn("⚠️ Git initialization failed (git may not be installed)")
     }
   }
 }

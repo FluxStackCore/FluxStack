@@ -1,6 +1,7 @@
 import type { Generator } from "./index"
 import type { GeneratorContext, GeneratorOptions, Template } from "./types"
 import { templateEngine } from "./template-engine"
+import { buildLogger } from "@core/utils/build-logger"
 
 export class ComponentGenerator implements Generator {
     name = 'component'
@@ -16,9 +17,9 @@ export class ComponentGenerator implements Generator {
         const files = await templateEngine.processTemplate(template, context, options)
 
         if (options.dryRun) {
-            console.log(`\n📋 Would generate component '${options.name}':\n`)
+            buildLogger.info(`\n📋 Would generate component '${options.name}':\n`)
             for (const file of files) {
-                console.log(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
+                buildLogger.info(`${file.action === 'create' ? '📄' : '✏️'} ${file.path}`)
             }
             return
         }
@@ -30,7 +31,7 @@ export class ComponentGenerator implements Generator {
             await template.hooks.afterGenerate(context, options, filePaths)
         }
 
-        console.log(`\n✅ Generated component '${options.name}' with ${files.length} files`)
+        buildLogger.success(`Generated component '${options.name}' with ${files.length} files`)
     }
 
     private getTemplate(templateName?: string): Template {

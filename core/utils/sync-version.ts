@@ -7,6 +7,7 @@
 
 import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { buildLogger } from "./build-logger"
 
 interface PackageJson {
   version: string
@@ -37,7 +38,7 @@ export const FLUXSTACK_VERSION = '${version}'
 `
   writeFileSync(versionPath, versionContent)
   if (!silent) {
-    console.log(`✅ Updated version.ts to v${version}`)
+    buildLogger.success(`✅ Updated version.ts to v${version}`)
   }
 }
 
@@ -49,11 +50,11 @@ function syncVersion(silent = false): void {
     const packageVersion = getPackageVersion()
     updateVersionFile(packageVersion, silent)
     if (!silent) {
-      console.log(`🔄 Version synchronized: v${packageVersion}`)
+      buildLogger.info(`🔄 Version synchronized: v${packageVersion}`)
     }
   } catch (error) {
     if (!silent) {
-      console.error('❌ Failed to sync version:', error)
+      buildLogger.error('❌ Failed to sync version:', error)
     }
     process.exit(1)
   }

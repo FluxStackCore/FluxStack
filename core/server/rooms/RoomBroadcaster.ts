@@ -2,6 +2,7 @@
 
 import type { ServerWebSocket } from 'bun'
 import type { Room, RoomSystem, SystemEvents } from './RoomSystem'
+import { logger } from "@core/utils/logger"
 
 type WebSocketLike = {
   send: (data: string) => void
@@ -238,7 +239,7 @@ export class RoomBroadcaster<TState, TEvents extends Record<string, unknown>> {
       connection.ws.send(JSON.stringify(message))
       return true
     } catch (error) {
-      console.error(`[RoomBroadcaster] Error sending to ${connectionId}:`, error)
+      logger.error(`[RoomBroadcaster] Error sending to ${connectionId}:`, error)
       return false
     }
   }

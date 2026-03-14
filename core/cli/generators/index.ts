@@ -5,6 +5,7 @@ import { ComponentGenerator } from "./component"
 import { ServiceGenerator } from "./service"
 import { PluginGenerator } from "./plugin"
 import type { GeneratorContext, GeneratorOptions } from "./types"
+import { buildLogger } from "@core/utils/build-logger"
 
 export interface Generator {
   name: string
@@ -111,10 +112,10 @@ export const generateCommand: CliCommand = {
 
     const generator = generatorRegistry.get(type)
     if (!generator) {
-      console.error(`❌ Unknown generator type: ${type}`)
-      console.log('\nAvailable generators:')
+      buildLogger.error(`Unknown generator type: ${type}`)
+      buildLogger.info('\nAvailable generators:')
       for (const gen of generatorRegistry.getAll()) {
-        console.log(`  ${gen.name.padEnd(12)} ${gen.description}`)
+        buildLogger.info(`  ${gen.name.padEnd(12)} ${gen.description}`)
       }
       return
     }
@@ -138,10 +139,10 @@ export const generateCommand: CliCommand = {
       await generator.generate(generatorContext, generatorOptions)
       
       if (!options['dry-run']) {
-        console.log(`✅ Successfully generated ${type}: ${name}`)
+        buildLogger.success(`Successfully generated ${type}: ${name}`)
       }
     } catch (error) {
-      console.error(`❌ Failed to generate ${type}:`, error instanceof Error ? error.message : String(error))
+      buildLogger.error(`Failed to generate ${type}: ${error instanceof Error ? error.message : String(error)}`)
       throw error
     }
   }
