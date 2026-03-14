@@ -30,7 +30,7 @@ export class PluginRegistry {
     this.config = options.config
     this.dependencyManager = new PluginDependencyManager({
       logger: this.logger,
-      autoInstall: true,
+      autoInstall: process.env.NODE_ENV !== 'production',
       packageManager: 'bun'
     })
   }
