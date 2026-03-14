@@ -138,6 +138,9 @@ dist
 
 chrome_data
 .chromium
+
+# Plugin-local lock files (dependencies resolved from root)
+plugins/*/bun.lock
 core/server/live/auto-generated-components.ts
 app/client/.live-stubs/
 Fluxstack-Desktop
