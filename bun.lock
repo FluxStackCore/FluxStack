@@ -7,10 +7,10 @@
       "dependencies": {
         "@elysiajs/eden": "^1.3.2",
         "@elysiajs/swagger": "^1.3.1",
-        "@fluxstack/live": "^0.3.0",
-        "@fluxstack/live-client": "^0.3.0",
-        "@fluxstack/live-elysia": "^0.2.0",
-        "@fluxstack/live-react": "^0.3.0",
+        "@fluxstack/live": "^0.3.1",
+        "@fluxstack/live-client": "^0.3.1",
+        "@fluxstack/live-elysia": "^0.2.1",
+        "@fluxstack/live-react": "^0.3.1",
         "@vitejs/plugin-react": "^4.6.0",
         "chalk": "^5.3.0",
         "commander": "^12.1.0",
@@ -199,13 +199,13 @@
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.3.5", "", { "dependencies": { "@eslint/core": "^0.15.2", "levn": "^0.4.1" } }, "sha512-Z5kJ+wU3oA7MMIqVR9tyZRtjYPr4OC004Q4Rw7pgOKUOKkJfZ3O24nz3WYfGRpMDNmcOi3TwQOmgm7B7Tpii0w=="],
 
-    "@fluxstack/live": ["@fluxstack/live@0.3.0", "", { "peerDependencies": { "zod": "^4.3.6" } }, "sha512-vaWZKSCU5VjimQgj6dvcJLMJ26HgPHayi7E5IDhmXCzyKl7m7WApXLqTfSPmrRmw1ONDg5zATMDQiiFvVmrRIQ=="],
+    "@fluxstack/live": ["@fluxstack/live@0.3.1", "", { "peerDependencies": { "zod": "^4.3.6" } }, "sha512-qogVZiq5438pgGJ4U0ccyTA1sSFlBbSs39Rch3tDgiNvb7Fq9Bt0NIrBq8JFDylpszmwnnOlbD5P2+AavXQOCg=="],
 
-    "@fluxstack/live-client": ["@fluxstack/live-client@0.3.0", "", { "dependencies": { "@fluxstack/live": "^0.3.0" } }, "sha512-t42ZKoNu7DdmZlrwokf5wd9Dz3+Pgg373xcaR5HCbxYDerdOfM22JY05dkXXirtxa8SU8gyhkgEvBK0/AdDvZg=="],
+    "@fluxstack/live-client": ["@fluxstack/live-client@0.3.1", "", { "dependencies": { "@fluxstack/live": "^0.3.0" } }, "sha512-UQTJ97Da7znoxcLfsulqvNIRGHJsKXoBrQSgWBAPmS+TURIiMolFaewbpvifG9dtJQkPtm9R5JXetcaJ7QIopw=="],
 
-    "@fluxstack/live-elysia": ["@fluxstack/live-elysia@0.2.0", "", { "dependencies": { "@fluxstack/live": "^0.2.0" }, "peerDependencies": { "elysia": ">=1.0.0" } }, "sha512-kZfg/h2kW6mfRHJcJ31FwIgz57TBDaR6No4FVs7w0JrtJzALnkwSbVndoOYpjFQoIq+WTTUfwLgxEMNH6UEJdA=="],
+    "@fluxstack/live-elysia": ["@fluxstack/live-elysia@0.2.1", "", { "dependencies": { "@fluxstack/live": "^0.2.0" }, "peerDependencies": { "elysia": ">=1.0.0" } }, "sha512-WhmFslLfvkvtTk7EmVTUEL4TgJXnI2bgeToV5ArUH5uG/rE0uLbn50dcD3PVls9hcrRpwu8d4IHhQmjTKpuEMQ=="],
 
-    "@fluxstack/live-react": ["@fluxstack/live-react@0.3.0", "", { "dependencies": { "@fluxstack/live": "^0.3.0", "@fluxstack/live-client": "^0.3.0" }, "peerDependencies": { "react": ">=18.0.0", "zustand": ">=4.0.0" } }, "sha512-Ff9568e0WHg2yDUICGbyZeftvkzS2vyR6LXulQ0YBfwUBDNW2RMWuhNZe/6+2YxAQgQe5XkkivHxY2qZhcy91A=="],
+    "@fluxstack/live-react": ["@fluxstack/live-react@0.3.1", "", { "dependencies": { "@fluxstack/live": "^0.3.0", "@fluxstack/live-client": "^0.3.0" }, "peerDependencies": { "react": ">=18.0.0", "zustand": ">=4.0.0" } }, "sha512-BTJe+25FE4Bq1W3MD2tTzhvuggp3CNOmV2lYkj9atWbaJBAo8tQ+N3yg5nC0c2SMqYdZi1ZNy94cE9300vzPaA=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "", {}, "sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA=="],
 

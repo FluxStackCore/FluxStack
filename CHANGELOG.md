@@ -19,7 +19,6 @@ Live Components code has been extracted from `core/` into standalone npm package
 
 ### Added
 
-- `scripts/patch-live-exports.ts` — temporary postinstall patch to fix `"bun"` export condition in published `@fluxstack/live@0.3.0` packages (remove after `>= 0.3.1` is published)
 - Typed LiveRoom demos: `LivePingPong`, `LiveSharedCounter` with dedicated Room classes (`ChatRoom`, `CounterRoom`, `DirectoryRoom`, `PingRoom`)
 - `PingPongDemo.tsx`, `SharedCounterDemo.tsx` — new frontend demo components
 - `LLMD/resources/live-binary-delta.md` — binary delta codec documentation
@@ -41,8 +40,7 @@ Live Components code has been extracted from `core/` into standalone npm package
 
 ### Fixed
 
-- Bun bundler failing on Linux CI with `"Could not resolve: @fluxstack/live"` — caused by `"bun"` export condition pointing to `./src/index.ts` which doesn't exist in the npm tarball (only `dist/` is shipped)
-- Dockerfile copies `scripts/` before `bun install` so postinstall patch runs correctly
+- Bun bundler failing on Linux CI with `"Could not resolve: @fluxstack/live"` — caused by `"bun"` export condition in `@fluxstack/live@0.3.0` pointing to non-existent `src/` (fixed in `@fluxstack/live@0.3.1`)
 - `live-components-generator.ts` basename extraction bug
 - Vite aliases made conditional for CI compatibility
 
