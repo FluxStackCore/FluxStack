@@ -48,19 +48,24 @@ export const buildCommand: CLICommand = {
       await pluginManager.initialize()
       // Sync plugins to registry (same as framework does)
       const discoveredPlugins = pluginManager.getRegistry().getAll()
+      const registryInternals = pluginRegistry as unknown as {
+        plugins: Map<string, import('@core/plugins/types').FluxStack.Plugin>
+        dependencies: Map<string, string[]>
+        loadOrder: string[]
+        updateLoadOrder(): void
+      }
       for (const plugin of discoveredPlugins) {
         if (!pluginRegistry.has(plugin.name)) {
-          (pluginRegistry as any).plugins.set(plugin.name, plugin)
+          registryInternals.plugins.set(plugin.name, plugin)
           if (plugin.dependencies) {
-            (pluginRegistry as any).dependencies.set(plugin.name, plugin.dependencies)
+            registryInternals.dependencies.set(plugin.name, plugin.dependencies)
           }
         }
       }
       try {
-        (pluginRegistry as any).updateLoadOrder()
-      } catch (error) {
-        const plugins = (pluginRegistry as any).plugins as Map<string, any>
-        ;(pluginRegistry as any).loadOrder = Array.from(plugins.keys())
+        registryInternals.updateLoadOrder()
+      } catch {
+        registryInternals.loadOrder = Array.from(registryInternals.plugins.keys())
       }
     } catch (error) {
       context.logger.warn('Failed to load plugins for build hooks', { error })

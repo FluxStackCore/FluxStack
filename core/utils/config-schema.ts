@@ -386,7 +386,7 @@ export function validateConfig<T extends ConfigSchema>(
   const errors: ValidationError[] = []
 
   for (const [fieldName, field] of Object.entries(schema)) {
-    const value = (values as any)[fieldName]
+    const value = (values as Record<string, unknown>)[fieldName]
     const error = validateField(fieldName, value, field)
     if (error) {
       errors.push(error)

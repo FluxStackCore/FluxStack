@@ -10,7 +10,7 @@ import { beforeEach, vi } from 'vitest'
  */
 export function setupFluxStackTests() {
   // Mock fetch globally
-  global.fetch = vi.fn() as any
+  global.fetch = vi.fn() as unknown as typeof fetch
 
   // Mock localStorage
   const localStorageMock = {

@@ -33,7 +33,7 @@ describe('Error Middleware', () => {
   describe('errorMiddleware', () => {
     it('should create middleware without errors', () => {
       const middleware = errorMiddleware({
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: false
       })
       
@@ -43,7 +43,7 @@ describe('Error Middleware', () => {
 
     it('should create middleware with custom options', () => {
       const middleware = errorMiddleware({
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: true,
         metricsCollector: mockMetricsCollector,
         customErrorMessages: {
@@ -84,7 +84,7 @@ describe('Error Middleware', () => {
   describe('fullErrorHandlingMiddleware', () => {
     it('should create full error handling middleware', () => {
       const middleware = fullErrorHandlingMiddleware({
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: false
       })
       
@@ -103,7 +103,7 @@ describe('Error Middleware', () => {
   describe('Middleware Configuration', () => {
     it('should accept all configuration options', () => {
       const middleware = errorMiddleware({
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: true,
         enableRequestContext: true,
         metricsCollector: mockMetricsCollector,

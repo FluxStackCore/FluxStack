@@ -76,7 +76,7 @@ export abstract class LiveComponent<TState = ComponentState> {
   public async executeAction(action: string, payload: any): Promise<any> {
     try {
       // Check if method exists
-      const method = (this as any)[action]
+      const method = (this as unknown as Record<string, Function>)[action]
       if (typeof method !== 'function') {
         throw new Error(`Action '${action}' not found on component`)
       }
@@ -97,7 +97,7 @@ export abstract class LiveComponent<TState = ComponentState> {
   // Send message to client
   protected emit(type: string, payload: any) {
     const message: LiveMessage = {
-      type: type as any,
+      type: type as LiveMessage['type'],
       componentId: this.id,
       payload,
       timestamp: Date.now(),

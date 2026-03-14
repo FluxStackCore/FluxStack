@@ -38,17 +38,19 @@ class EnvLoader {
    * Create dynamic accessor to prevent build-time inlining
    */
   private createAccessor(): () => Record<string, string | undefined> {
-    const global = globalThis as any
+    const global = globalThis as unknown as Record<string, Record<string, unknown> | undefined>
 
     return () => {
       // Try Bun.env first (most reliable in Bun)
-      if (global['Bun']?.['env']) {
-        return global['Bun']['env']
+      const bun = global['Bun'] as Record<string, unknown> | undefined
+      if (bun?.['env']) {
+        return bun['env'] as Record<string, string | undefined>
       }
 
       // Fallback to process.env
-      if (global['process']?.['env']) {
-        return global['process']['env']
+      const proc = global['process'] as Record<string, unknown> | undefined
+      if (proc?.['env']) {
+        return proc['env'] as Record<string, string | undefined>
       }
 
       return {}

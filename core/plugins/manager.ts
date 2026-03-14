@@ -311,19 +311,19 @@ export class PluginManager extends EventEmitter {
           case 'setup':
           case 'onServerStart':
           case 'onServerStop':
-            hookPromise = Promise.resolve(hookFunction(pluginContext as any))
+            hookPromise = Promise.resolve((hookFunction as Function)(pluginContext))
             break
           case 'onRequest':
           case 'onResponse':
           case 'onError':
-            hookPromise = Promise.resolve(hookFunction(context as any))
+            hookPromise = Promise.resolve((hookFunction as Function)(context))
             break
           case 'onBuild':
           case 'onBuildComplete':
-            hookPromise = Promise.resolve(hookFunction(context as any))
+            hookPromise = Promise.resolve((hookFunction as Function)(context))
             break
           default:
-            hookPromise = Promise.resolve(hookFunction(context || pluginContext))
+            hookPromise = Promise.resolve((hookFunction as Function)(context || pluginContext))
         }
 
         // Race between hook execution and timeout

@@ -97,7 +97,7 @@ describe('Configuration Validator', () => {
         ...defaultFluxStackConfig,
         logging: {
           ...defaultFluxStackConfig.logging,
-          level: 'invalid' as any
+          level: 'invalid' as unknown as 'debug' | 'info' | 'warn' | 'error'
         }
       }
 

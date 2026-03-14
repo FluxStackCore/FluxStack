@@ -1,11 +1,11 @@
 import { Elysia } from "elysia"
 import type { FluxStackConfig, FluxStackContext } from "@core/types"
-import type { FluxStack, PluginContext, PluginUtils, PluginConfigSchema } from "@core/plugins/types"
+import type { FluxStack, PluginContext, PluginUtils, PluginConfigSchema, PluginHook } from "@core/plugins/types"
 import { PluginRegistry } from "@core/plugins/registry"
 import { PluginManager } from "@core/plugins/manager"
 import { fluxStackConfig } from "@config"
 import { getEnvironmentInfo } from "@core/config"
-import { logger } from "@core/utils/logger"
+import { logger, type Logger } from "@core/utils/logger"
 import { displayStartupBanner, type StartupInfo } from "@core/utils/logger/startup-banner"
 import { componentRegistry } from "@core/server/live"
 import { FluxStackError } from "@core/utils/errors"
@@ -13,6 +13,17 @@ import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/uti
 import { createHash } from "crypto"
 import { createPluginUtils } from "@core/plugins/config"
 import type { Plugin } from "@core/plugins"
+
+/**
+ * Interface for accessing private PluginRegistry members.
+ * The framework needs direct access for synchronous plugin registration.
+ */
+interface PluginRegistryInternals {
+  plugins: Map<string, FluxStack.Plugin>
+  dependencies: Map<string, string[]>
+  loadOrder: string[]
+  updateLoadOrder(): void
+}
 
 export class FluxStackFramework {
   private app: Elysia
@@ -22,6 +33,12 @@ export class FluxStackFramework {
   private pluginContext: PluginContext
   private isStarted: boolean = false
   private requestTimings: Map<string, number> = new Map()
+  private _originalStderrWrite?: typeof process.stderr.write
+
+  /** Access registry internals for synchronous plugin management */
+  private get registryInternals(): PluginRegistryInternals {
+    return this.pluginRegistry as unknown as PluginRegistryInternals
+  }
 
   /**
    * Helper to safely parse request.url which might be relative or absolute
@@ -61,7 +78,8 @@ export class FluxStackFramework {
 
     // Fallback: try to get from Bun's server socket (if available)
     // This is set by Bun when running in server mode
-    const socketIP = (request as any).ip || (request as any).remoteAddress
+    const requestWithSocket = request as Request & { ip?: string; remoteAddress?: string }
+    const socketIP = requestWithSocket.ip || requestWithSocket.remoteAddress
     if (socketIP) {
       return socketIP
     }
@@ -116,33 +134,24 @@ export class FluxStackFramework {
       }
     }
 
-    // Create plugin-compatible logger interface
-    interface PluginLogger {
-      debug: (message: string, meta?: unknown) => void
-      info: (message: string, meta?: unknown) => void
-      warn: (message: string, meta?: unknown) => void
-      error: (message: string, meta?: unknown) => void
-      child: (context: Record<string, unknown>) => PluginLogger
-      time: (label: string) => void
-      timeEnd: (label: string) => void
-      request: (method: string, path: string, status?: number, duration?: number, ip?: string) => void
-    }
-
-    const pluginLogger: PluginLogger = {
-      debug: (message: string, meta?: unknown) => logger.debug(message, meta),
-      info: (message: string, meta?: unknown) => logger.info(message, meta),
-      warn: (message: string, meta?: unknown) => logger.warn(message, meta),
-      error: (message: string, meta?: unknown) => logger.error(message, meta),
-      child: (context: Record<string, unknown>) => pluginLogger,
+    // Create plugin-compatible logger
+    const pluginLogger: Logger = {
+      debug: (message: unknown, ...args: unknown[]) => logger.debug(message, ...args),
+      info: (message: unknown, ...args: unknown[]) => logger.info(message, ...args),
+      warn: (message: unknown, ...args: unknown[]) => logger.warn(message, ...args),
+      error: (message: unknown, ...args: unknown[]) => logger.error(message, ...args),
+      child: (_context: Record<string, unknown>) => pluginLogger,
       time: (label: string) => logger.time(label),
       timeEnd: (label: string) => logger.timeEnd(label),
       request: (method: string, path: string, status?: number, duration?: number, ip?: string) =>
-        logger.request(method, path, status, duration, ip)
+        logger.request(method, path, status, duration, ip),
+      plugin: (pluginName: string, message: string, meta?: unknown) => logger.plugin(pluginName, message, meta),
+      framework: (message: string, meta?: unknown) => logger.framework(message, meta)
     }
 
     this.pluginContext = {
       config: fullConfig,
-      logger: pluginLogger as any,
+      logger: pluginLogger,
       app: this.app,
       utils: pluginUtils
     }
@@ -150,7 +159,7 @@ export class FluxStackFramework {
     // Initialize plugin manager
     this.pluginManager = new PluginManager({
       config: fullConfig,
-      logger: pluginLogger as any,
+      logger: pluginLogger,
       app: this.app
     })
 
@@ -180,21 +189,21 @@ export class FluxStackFramework {
       for (const plugin of discoveredPlugins) {
         if (!this.pluginRegistry.has(plugin.name)) {
           // Register in main registry (synchronously, will call setup in start())
-          (this.pluginRegistry as any).plugins.set(plugin.name, plugin)
+          this.registryInternals.plugins.set(plugin.name, plugin)
           if (plugin.dependencies) {
-            (this.pluginRegistry as any).dependencies.set(plugin.name, plugin.dependencies)
+            this.registryInternals.dependencies.set(plugin.name, plugin.dependencies)
           }
         }
       }
 
       // Update load order
       try {
-        (this.pluginRegistry as any).updateLoadOrder()
-      } catch (error) {
+        this.registryInternals.updateLoadOrder()
+      } catch {
         // Fallback: create basic load order
-        const plugins = (this.pluginRegistry as any).plugins as Map<string, FluxStack.Plugin>
+        const plugins = this.registryInternals.plugins
         const loadOrder = Array.from(plugins.keys())
-        ;(this.pluginRegistry as any).loadOrder = loadOrder
+        this.registryInternals.loadOrder = loadOrder
       }
 
       // Execute onConfigLoad hooks for all plugins
@@ -316,7 +325,7 @@ export class FluxStackFramework {
     }
 
       // Store reference to restore original behavior if needed
-      ; (this as any)._originalStderrWrite = originalStderrWrite
+      this._originalStderrWrite = originalStderrWrite
   }
 
   private setupHooks() {
@@ -425,7 +434,7 @@ export class FluxStackFramework {
         query: Object.fromEntries(url.searchParams.entries()),
         params: {},
         response: currentResponse,
-        statusCode: Number((currentResponse as any)?.status || set.status || 200),
+        statusCode: Number((currentResponse instanceof Response ? currentResponse.status : undefined) || set.status || 200),
         duration,
         startTime
       }
@@ -527,17 +536,17 @@ export class FluxStackFramework {
     })
   }
 
-  private async executePluginHooks(hookName: string, context: any): Promise<void> {
+  private async executePluginHooks(hookName: PluginHook, context: unknown): Promise<void> {
     const loadOrder = this.pluginRegistry.getLoadOrder()
 
     for (const pluginName of loadOrder) {
       const plugin = this.pluginRegistry.get(pluginName)
       if (!plugin) continue
 
-      const hookFn = (plugin as any)[hookName]
+      const hookFn = plugin[hookName]
       if (typeof hookFn === 'function') {
         try {
-          await hookFn(context)
+          await (hookFn as Function)(context)
         } catch (error) {
           const err = error instanceof Error ? error : new Error(String(error))
           logger.error(`Plugin '${pluginName}' ${hookName} hook failed`, {
@@ -560,8 +569,8 @@ export class FluxStackFramework {
       const otherPlugin = this.pluginRegistry.get(otherPluginName)
       if (!otherPlugin) continue
 
-      const hookFn = (otherPlugin as any).onPluginError
-      if (typeof hookFn === 'function') {
+      const hookFn = otherPlugin.onPluginError
+      if (hookFn && typeof hookFn === 'function') {
         try {
           await hookFn({
             pluginName,
@@ -578,17 +587,17 @@ export class FluxStackFramework {
     }
   }
 
-  private async executePluginBeforeRouteHooks(requestContext: any): Promise<Response | null> {
+  private async executePluginBeforeRouteHooks(requestContext: { handled?: boolean; response?: Response; [key: string]: unknown }): Promise<Response | null> {
     const loadOrder = this.pluginRegistry.getLoadOrder()
 
     for (const pluginName of loadOrder) {
       const plugin = this.pluginRegistry.get(pluginName)
       if (!plugin) continue
 
-      const onBeforeRouteFn = (plugin as any).onBeforeRoute
-      if (typeof onBeforeRouteFn === 'function') {
+      const onBeforeRouteFn = plugin.onBeforeRoute
+      if (onBeforeRouteFn && typeof onBeforeRouteFn === 'function') {
         try {
-          await onBeforeRouteFn(requestContext)
+          await onBeforeRouteFn(requestContext as unknown as import('@core/plugins/types').RequestContext)
 
           // If this plugin handled the request, return the response
           if (requestContext.handled && requestContext.response) {
@@ -605,17 +614,17 @@ export class FluxStackFramework {
     return null
   }
 
-  private async executePluginErrorHooks(errorContext: any): Promise<Response | null> {
+  private async executePluginErrorHooks(errorContext: { handled?: boolean; error: Error; request: Request; [key: string]: unknown }): Promise<Response | null> {
     const loadOrder = this.pluginRegistry.getLoadOrder()
 
     for (const pluginName of loadOrder) {
       const plugin = this.pluginRegistry.get(pluginName)
       if (!plugin) continue
 
-      const onErrorFn = (plugin as any).onError
-      if (typeof onErrorFn === 'function') {
+      const onErrorFn = plugin.onError
+      if (onErrorFn && typeof onErrorFn === 'function') {
         try {
-          await onErrorFn(errorContext)
+          await onErrorFn(errorContext as unknown as import('@core/plugins/types').ErrorContext)
 
           // If this plugin handled the error, check if it provides a response
           if (errorContext.handled) {
@@ -638,7 +647,7 @@ export class FluxStackFramework {
     return null
   }
 
-  private async handleViteProxy(errorContext: any): Promise<Response> {
+  private async handleViteProxy(errorContext: { request: Request; method?: string; headers?: Record<string, string> }): Promise<Response> {
     const vitePort = this.context.config.client?.port || 5173
     const url = this.parseRequestURL(errorContext.request)
 
@@ -678,21 +687,21 @@ export class FluxStackFramework {
 
       // Store plugin without calling setup - setup will be called in start()
       // We need to manually set the plugin since register() is async but we need sync
-      (this.pluginRegistry as any).plugins.set(plugin.name, plugin)
+      this.registryInternals.plugins.set(plugin.name, plugin)
 
       // Update dependencies tracking
       if ((plugin as FluxStack.Plugin).dependencies) {
-        (this.pluginRegistry as any).dependencies.set(plugin.name, (plugin as FluxStack.Plugin).dependencies)
+        this.registryInternals.dependencies.set(plugin.name, (plugin as FluxStack.Plugin).dependencies!)
       }
 
       // Update load order by calling the private method
       try {
-        (this.pluginRegistry as any).updateLoadOrder()
-      } catch (error) {
+        this.registryInternals.updateLoadOrder()
+      } catch {
         // Fallback: create basic load order
-        const plugins = (this.pluginRegistry as any).plugins as Map<string, Plugin>
+        const plugins = this.registryInternals.plugins
         const loadOrder = Array.from(plugins.keys())
-          ; (this.pluginRegistry as any).loadOrder = loadOrder
+        this.registryInternals.loadOrder = loadOrder
       }
 
       logger.debug(`Plugin '${plugin.name}' registered`, {
@@ -719,7 +728,7 @@ export class FluxStackFramework {
 
     try {
       // Validate plugin dependencies before starting
-      const plugins = (this.pluginRegistry as any).plugins as Map<string, FluxStack.Plugin>
+      const plugins = this.registryInternals.plugins
       for (const [pluginName, plugin] of plugins) {
         if (plugin.dependencies) {
           for (const depName of plugin.dependencies) {
@@ -756,8 +765,9 @@ export class FluxStackFramework {
       for (const pluginName of loadOrder) {
         const plugin = this.pluginRegistry.get(pluginName)!
 
-        if ((plugin as any).plugin) {
-          this.app.use((plugin as any).plugin)
+        const pluginWithRoutes = plugin as FluxStack.Plugin & { plugin?: Elysia }
+        if (pluginWithRoutes.plugin) {
+          this.app.use(pluginWithRoutes.plugin)
           logger.debug(`Plugin '${pluginName}' routes mounted`)
         }
       }

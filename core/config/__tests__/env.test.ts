@@ -134,7 +134,7 @@ describe('Environment Configuration System', () => {
     describe('toObject', () => {
       it('should parse valid JSON', () => {
         expect(EnvConverter.toObject('{"key": "value"}', {})).toEqual({ key: 'value' })
-        expect(EnvConverter.toObject('[1,2,3]', [] as any)).toEqual([1, 2, 3])
+        expect(EnvConverter.toObject('[1,2,3]', [] as unknown as Record<string, unknown>)).toEqual([1, 2, 3])
       })
 
       it('should return default for invalid JSON', () => {

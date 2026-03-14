@@ -250,7 +250,7 @@ describe('Helper Utilities', () => {
 
       it('should handle non-existent keys', () => {
         const obj = { a: 1, b: 2 }
-        const result = pick(obj, ['a', 'c'] as any)
+        const result = pick(obj, ['a', 'c'] as unknown as (keyof typeof obj)[])
 
         expect(result).toEqual({ a: 1 })
       })

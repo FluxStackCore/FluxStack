@@ -162,8 +162,8 @@ export const PluginUtils = {
      * Check if plugin implements hook
      */
     implementsHook: (plugin: Plugin, hook: PluginHook): boolean => {
-        const hookFunction = (plugin as any)[hook]
-        return hookFunction && typeof hookFunction === 'function'
+        const hookFunction = plugin[hook]
+        return !!hookFunction && typeof hookFunction === 'function'
     },
 
     /**

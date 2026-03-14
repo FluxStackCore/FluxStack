@@ -39,7 +39,7 @@ export async function setupViteDev(context: PluginContext): Promise<void> {
     context.logger.debug('Hot reload coordination active')
 
     // Store Vite config in context for later use
-    ;(context as any).viteConfig = {
+    ;(context as PluginContext & { viteConfig?: { port: number; host: string; server: typeof viteServer } }).viteConfig = {
       port: vitePort,
       host: viteHost,
       server: viteServer

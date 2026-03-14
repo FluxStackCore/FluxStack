@@ -135,7 +135,7 @@ describe('Monitoring Plugin', () => {
 
   afterEach(() => {
     // Clean up any intervals that might have been created
-    const intervals = (context as any).monitoringIntervals as NodeJS.Timeout[]
+    const intervals = (context as Record<string, unknown>).monitoringIntervals as NodeJS.Timeout[]
     if (intervals) {
       intervals.forEach(interval => clearInterval(interval))
     }
@@ -170,7 +170,7 @@ describe('Monitoring Plugin', () => {
       
       expect(mockLogger.info).toHaveBeenCalledWith('Initializing monitoring plugin', expect.any(Object))
       expect(mockLogger.info).toHaveBeenCalledWith('Monitoring plugin initialized successfully')
-      expect((context as any).metricsRegistry).toBeDefined()
+      expect((context as Record<string, unknown>).metricsRegistry).toBeDefined()
     })
 
     it('should skip setup when disabled', async () => {
@@ -190,13 +190,13 @@ describe('Monitoring Plugin', () => {
       await monitoringPlugin.setup!(disabledContext)
       
       expect(mockLogger.info).toHaveBeenCalledWith('Monitoring plugin disabled by configuration')
-      expect((disabledContext as any).metricsRegistry).toBeUndefined()
+      expect((disabledContext as Record<string, unknown>).metricsRegistry).toBeUndefined()
     })
 
     it('should initialize metrics registry', async () => {
       await monitoringPlugin.setup!(context)
       
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry).toBeDefined()
       expect(registry.counters).toBeInstanceOf(Map)
       expect(registry.gauges).toBeInstanceOf(Map)
@@ -222,7 +222,7 @@ describe('Monitoring Plugin', () => {
       )
 
       // Check that server start metric was recorded
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.counters.size).toBeGreaterThan(0)
     })
 
@@ -232,7 +232,7 @@ describe('Monitoring Plugin', () => {
       expect(mockLogger.info).toHaveBeenCalledWith('Monitoring plugin: Server monitoring stopped')
 
       // Check that server stop metric was recorded
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.counters.size).toBeGreaterThan(0)
     })
   })
@@ -254,11 +254,11 @@ describe('Monitoring Plugin', () => {
       }
 
       // Add metrics registry to request context for testing
-      ;(requestContext as any).metricsRegistry = (context as any).metricsRegistry
+      ;(requestContext as Record<string, unknown>).metricsRegistry = (context as Record<string, unknown>).metricsRegistry
 
       await monitoringPlugin.onRequest!(requestContext)
       
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.counters.size).toBeGreaterThan(0)
       expect(registry.histograms.size).toBeGreaterThan(0)
     })
@@ -279,11 +279,11 @@ describe('Monitoring Plugin', () => {
       }
 
       // Add metrics registry to response context for testing
-      ;(responseContext as any).metricsRegistry = (context as any).metricsRegistry
+      ;(responseContext as Record<string, unknown>).metricsRegistry = (context as Record<string, unknown>).metricsRegistry
 
       await monitoringPlugin.onResponse!(responseContext)
       
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.counters.size).toBeGreaterThan(0)
       expect(registry.histograms.size).toBeGreaterThan(0)
     })
@@ -303,11 +303,11 @@ describe('Monitoring Plugin', () => {
       }
 
       // Add metrics registry to error context for testing
-      ;(errorContext as any).metricsRegistry = (context as any).metricsRegistry
+      ;(errorContext as Record<string, unknown>).metricsRegistry = (context as Record<string, unknown>).metricsRegistry
 
       await monitoringPlugin.onError!(errorContext)
       
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.counters.size).toBeGreaterThan(0)
       expect(registry.histograms.size).toBeGreaterThan(0)
     })
@@ -320,7 +320,7 @@ describe('Monitoring Plugin', () => {
       // Wait a bit for system metrics to be collected
       await new Promise(resolve => setTimeout(resolve, 1100))
       
-      const registry = (context as any).metricsRegistry
+      const registry = (context as Record<string, unknown>).metricsRegistry
       expect(registry.gauges.size).toBeGreaterThan(0)
       
       // Check for specific system metrics
@@ -368,7 +368,7 @@ describe('Monitoring Plugin', () => {
       await monitoringPlugin.setup!(contextWithoutConfig)
       
       // Should still initialize with defaults
-      expect((contextWithoutConfig as any).metricsRegistry).toBeDefined()
+      expect((contextWithoutConfig as Record<string, unknown>).metricsRegistry).toBeDefined()
     })
 
     it('should merge custom configuration with defaults', async () => {

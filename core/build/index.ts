@@ -482,7 +482,7 @@ MONITORING_ENABLED=true
       const plugin = this.pluginRegistry.get(pluginName)
       if (!plugin) continue
 
-      const hookFn = (plugin as any)[hookName]
+      const hookFn = (plugin as unknown as Record<string, unknown>)[hookName]
       if (typeof hookFn === 'function') {
         try {
           await hookFn(context)

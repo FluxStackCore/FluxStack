@@ -49,12 +49,13 @@ export function createMiddleware<TContext = any>(
 ) {
   const { name, handler, nonBlocking = false } = options
 
+  // Elysia's derive/onBeforeHandle have complex overloaded type signatures
+  // that cannot be satisfied by a generic TContext handler. We cast through
+  // 'never' to bridge the generic handler with Elysia's strict internal types.
   if (nonBlocking) {
-    // Non-blocking: use derive() - adds to context without stopping execution
-    return new Elysia({ name }).derive(handler as any)
+    return new Elysia({ name }).derive(handler as never)
   } else {
-    // Blocking: use onBeforeHandle() - can stop execution by returning a response
-    return new Elysia({ name }).onBeforeHandle(handler as any)
+    return new Elysia({ name }).onBeforeHandle(handler as never)
   }
 }
 
@@ -106,7 +107,7 @@ export function createGuard<TContext = any>(options: {
     .onBeforeHandle(async (ctx) => {
       const passed = await options.check(ctx as TContext)
       if (!passed) {
-        return options.onFail((ctx as any).set, ctx as TContext)
+        return options.onFail((ctx as unknown as TContext & { set: unknown }).set, ctx as unknown as TContext)
       }
     })
 }
@@ -171,7 +172,7 @@ export function createRateLimit(options: {
           requests.set(key, { count: 1, resetTime: now + windowMs })
         } else if (entry.count >= maxRequests) {
           // Rate limit exceeded
-          ;(ctx as any).set.status = 429
+          ;(ctx as { set: { status: number } }).set.status = 429
           return {
             success: false,
             error: 'RATE_LIMIT_EXCEEDED',

@@ -421,7 +421,7 @@ describe('PluginManager', () => {
       const metrics = manager.getPluginMetrics('metrics-plugin')
       expect(metrics).toBeDefined()
       expect(typeof metrics).toBe('object')
-      expect((metrics as any).hookExecutions).toBeDefined()
+      expect((metrics as { hookExecutions: unknown }).hookExecutions).toBeDefined()
     })
 
     it('should get all plugin metrics', async () => {

@@ -33,7 +33,7 @@ export function createFluxStore<T>(
             storage === 'localStorage' ? localStorage : sessionStorage
           ),
           version,
-          migrate: migrate as any,
+          migrate: migrate as ((persistedState: unknown, version: number) => T) | undefined,
           onRehydrateStorage: () => (state) => {
             console.log('FluxStack: Store rehydrated', name, state)
           }

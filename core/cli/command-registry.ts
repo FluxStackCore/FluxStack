@@ -15,7 +15,7 @@ export class CliCommandRegistry {
 
     this.context = {
       config,
-      logger: logger as any,
+      logger,
       utils: {
         createTimer,
         formatBytes,

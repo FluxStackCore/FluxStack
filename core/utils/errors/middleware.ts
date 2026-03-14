@@ -16,7 +16,7 @@ export const errorMiddleware = (options: ErrorMiddlewareOptions = {}) => {
     .onError(async ({ error, request, path, set }) => {
       // Extract request context
       const context: ErrorHandlerContext = {
-        logger: options.logger || console as any, // Fallback to console if no logger provided
+        logger: options.logger || console as unknown as Logger, // Fallback to console if no logger provided
         isDevelopment: options.isDevelopment ?? process.env.NODE_ENV === 'development',
         request,
         path,
@@ -46,7 +46,7 @@ export const errorMiddleware = (options: ErrorMiddlewareOptions = {}) => {
         return errorResponse
       } catch (handlerError) {
         // Fallback error handling if the error handler itself fails
-        const fallbackLogger = options.logger || console as any
+        const fallbackLogger = options.logger || console as unknown as Logger
         fallbackLogger.error('Error handler failed', {
           originalError: error instanceof Error ? error.message : String(error),
           handlerError: handlerError instanceof Error ? handlerError.message : handlerError
