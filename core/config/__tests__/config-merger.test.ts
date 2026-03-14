@@ -164,7 +164,7 @@ describe('ConfigMerger', () => {
             port: null,
             apiPrefix: undefined
           }
-        } as any,
+        } as Partial<FluxStackConfig>,
         source: 'environment'
       }
 
@@ -219,10 +219,10 @@ describe('ConfigMerger', () => {
       expect(result.monitoring?.metrics?.collectInterval).toBe(10000) // from config2
       expect(result.monitoring?.metrics?.httpMetrics).toBe(true) // from config1
       expect(result.monitoring?.metrics?.systemMetrics).toBe(true) // from config2
-      expect((result.monitoring?.metrics as any)?.customMetrics).toBe(true) // from config2
+      expect((result.monitoring?.metrics as Record<string, unknown>)?.customMetrics).toBe(true) // from config2
       expect(result.monitoring?.profiling?.enabled).toBe(true) // from config2
       expect(result.monitoring?.profiling?.sampleRate).toBe(0.1) // from config1
-      expect((result.monitoring?.profiling as any)?.memoryProfiling).toBe(true) // from config2
+      expect((result.monitoring?.profiling as Record<string, unknown>)?.memoryProfiling).toBe(true) // from config2
     })
 
     test('handles empty configurations', () => {

@@ -10,9 +10,9 @@ type ViteDevServer = Awaited<ReturnType<typeof import('vite')['createServer']>>
 
 let viteServer: ViteDevServer | null = null
 
-export const startFrontendOnly = async (config: any = {}) => {
-  const port = config.vitePort || clientConfig.vite.port || 5173
-  const host = config.viteHost || clientConfig.vite.host || 'localhost'
+export const startFrontendOnly = async (config: Record<string, unknown> = {}) => {
+  const port = (config.vitePort ?? clientConfig.vite.port ?? 5173) as number
+  const host = (config.viteHost ?? clientConfig.vite.host ?? 'localhost') as string
   const logLevel = (config.logLevel || clientConfig.vite.logLevel || 'info') as LogLevel
 
   console.log(`⚛️  FluxStack Frontend Only`)
@@ -29,7 +29,7 @@ export const startFrontendOnly = async (config: any = {}) => {
       server: {
         port,
         host,
-        strictPort: clientConfig.vite.strictPort
+        strictPort: clientConfig.vite.strictPort as boolean | undefined
       },
       logLevel
     })

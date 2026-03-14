@@ -15,7 +15,7 @@ export class CliCommandRegistry {
 
     this.context = {
       config,
-      logger: logger as any,
+      logger,
       utils: {
         createTimer,
         formatBytes,
@@ -144,9 +144,9 @@ export class CliCommandRegistry {
     }
   }
 
-  private parseArgs(command: CliCommand, args: string[]): { parsedArgs: any[], parsedOptions: any } {
-    const parsedArgs: any[] = []
-    const parsedOptions: any = {}
+  private parseArgs(command: CliCommand, args: string[]): { parsedArgs: unknown[], parsedOptions: Record<string, unknown> } {
+    const parsedArgs: unknown[] = []
+    const parsedOptions: Record<string, unknown> = {}
     
     let i = 0
     while (i < args.length) {
@@ -163,7 +163,7 @@ export class CliCommandRegistry {
           } else if (option.type === 'array') {
             parsedOptions[optionName] = parsedOptions[optionName] || []
             if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
-              parsedOptions[optionName].push(args[++i])
+              (parsedOptions[optionName] as unknown[]).push(args[++i])
             }
           } else {
             if (i + 1 < args.length && !args[i + 1].startsWith('-')) {
@@ -222,7 +222,7 @@ export class CliCommandRegistry {
     return { parsedArgs, parsedOptions }
   }
 
-  private convertType(value: string, type?: 'string' | 'number' | 'boolean' | 'array'): any {
+  private convertType(value: string, type?: 'string' | 'number' | 'boolean' | 'array'): string | number | boolean | string[] {
     if (!type || type === 'string') return value
     if (type === 'number') return Number(value)
     if (type === 'boolean') return value.toLowerCase() === 'true'

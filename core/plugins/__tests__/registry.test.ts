@@ -343,7 +343,7 @@ describe('PluginRegistry', () => {
 
       const registryWithConfig = new PluginRegistry({ 
         logger: mockLogger,
-        config: config as any
+        config: config as unknown as import('@config').FluxStackConfig
       })
 
       await registryWithConfig.register(plugin)

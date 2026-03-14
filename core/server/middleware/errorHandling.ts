@@ -8,17 +8,17 @@ export interface Request {
   url: string
   method: string
   ip?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface Response {
   status: (code: number) => Response
-  json: (data: any) => Response
-  [key: string]: any
+  json: (data: unknown) => Response
+  [key: string]: unknown
 }
 
 export interface NextFunction {
-  (error?: any): void
+  (error?: unknown): void
 }
 import type { Logger } from '@core/utils/logger/index'
 
@@ -31,7 +31,7 @@ export interface ErrorHandlingOptions {
 export interface FluxStackError extends Error {
   statusCode?: number
   code?: string
-  details?: any
+  details?: unknown
 }
 
 /**
@@ -66,23 +66,23 @@ export function errorHandlingMiddleware(options: ErrorHandlingOptions = {}) {
 
     // Default error response
     const statusCode = error.statusCode || 500
-    const response: any = {
-      error: {
-        message: error.message || 'Internal Server Error',
-        code: error.code || 'INTERNAL_ERROR',
-        statusCode
-      }
+    const errorBody: Record<string, unknown> = {
+      message: error.message || 'Internal Server Error',
+      code: error.code || 'INTERNAL_ERROR',
+      statusCode
     }
 
     // Include stack trace in development
     if (includeStack && error.stack) {
-      response.error.stack = error.stack
+      errorBody.stack = error.stack
     }
 
     // Include additional details if available
     if (error.details) {
-      response.error.details = error.details
+      errorBody.details = error.details
     }
+
+    const response = { error: errorBody }
 
     res.status(statusCode).json(response)
   }
@@ -122,7 +122,7 @@ export function createError(
   message: string, 
   statusCode: number = 500, 
   code?: string, 
-  details?: any
+  details?: unknown
 ): FluxStackError {
   const error = new Error(message) as FluxStackError
   error.statusCode = statusCode

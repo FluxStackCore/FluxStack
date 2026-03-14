@@ -25,7 +25,7 @@ export const liveComponentsPlugin: Plugin = {
   tags: ['websocket', 'real-time', 'live-components'],
 
   setup: async (context: PluginContext) => {
-    const transport = new ElysiaTransport(context.app)
+    const transport = new ElysiaTransport(context.app as import('elysia').Elysia)
     const componentsPath = path.join(process.cwd(), 'app', 'server', 'live')
 
     // Auto-discover LiveRoom classes from rooms/ directory

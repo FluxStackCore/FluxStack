@@ -24,13 +24,13 @@ export const cryptoAuthRequired = (options: CryptoAuthMiddlewareOptions = {}) =>
       return {}
     })
     .use(
-      createGuard({
+      createGuard<{ request: Request & { user?: unknown } }>({
         name: 'crypto-auth-check',
         check: ({ request }) => {
-          return !!(request as any).user
+          return !!request.user
         },
         onFail: (set) => {
-          set.status = 401
+          (set as { status: number }).status = 401
           return {
             error: {
               message: 'Authentication required',

@@ -163,7 +163,7 @@ export const {{camelName}}Routes = new Elysia({ prefix: '/api/{{kebabName}}s' })
   })
   .get('/search', async ({ query }) => {
     // Assuming controller has a search method
-    return await (controller as any).search({ query })
+    return await (controller as Record<string, Function>).search({ query })
   }, {
     query: t.Object({
       q: t.String({
@@ -476,7 +476,7 @@ import { UnauthorizedError } from '@core/utils/errors'
 import { logger } from '@core/utils/logger'
 
 // JWT verification function (implement based on your JWT library)
-async function verifyJWT(token: string): Promise<any> {
+async function verifyJWT(token: string): Promise<Record<string, unknown>> {
   // TODO: Implement JWT verification
   // This is a placeholder - replace with actual JWT verification
   if (!token || token === 'invalid') {
@@ -507,7 +507,7 @@ export async function authMiddleware(context: Context) {
     const user = await verifyJWT(token)
     
     // Add user to context for use in route handlers
-    ;(context as any).user = user
+    ;(context as { user?: unknown }).user = user
     
     logger.debug('User authenticated', { userId: user.userId })
     

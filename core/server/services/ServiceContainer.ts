@@ -8,19 +8,19 @@
 import type { Logger } from '@core/utils/logger/index'
 
 export interface ServiceDefinition {
-  factory: (container: ServiceContainer) => any
+  factory: (container: ServiceContainer) => unknown
   singleton?: boolean
   dependencies?: string[]
 }
 
 export class ServiceContainer {
-  private services = new Map<string, any>()
+  private services = new Map<string, unknown>()
   private definitions = new Map<string, ServiceDefinition>()
-  private singletons = new Map<string, any>()
+  private singletons = new Map<string, unknown>()
   private logger: Logger
 
   constructor(logger: Logger) {
-    this.logger = logger.child({ component: 'ServiceContainer' })
+    this.logger = logger.child?.({ component: 'ServiceContainer' }) ?? logger
   }
 
   /**
@@ -115,7 +115,7 @@ export class ServiceContainer {
    */
   registerMany(services: Array<{
     name: string
-    constructor: any
+    constructor: new (context: { config: Record<string, unknown>; logger: unknown; services: ServiceContainer }) => unknown
     dependencies?: string[]
     singleton?: boolean
   }>): void {

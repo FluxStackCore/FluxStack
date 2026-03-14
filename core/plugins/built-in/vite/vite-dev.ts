@@ -13,8 +13,8 @@ let viteServer: ViteDevServer | null = null
  * This file is only imported in development mode
  */
 export async function setupViteDev(context: PluginContext): Promise<void> {
-  const vitePort = clientConfig.vite.port || 5173
-  const viteHost = clientConfig.vite.host || "localhost"
+  const vitePort = (clientConfig.vite.port as number) || 5173
+  const viteHost = (clientConfig.vite.host as string) || "localhost"
   const logLevel = clientConfig.vite.logLevel as LogLevel
   // Import group logger utilities
   const { endGroup } = await import('@core/utils/logger/group-logger')
@@ -39,7 +39,7 @@ export async function setupViteDev(context: PluginContext): Promise<void> {
     context.logger.debug('Hot reload coordination active')
 
     // Store Vite config in context for later use
-    ;(context as any).viteConfig = {
+    ;(context as PluginContext & { viteConfig?: { port: number; host: string; server: typeof viteServer } }).viteConfig = {
       port: vitePort,
       host: viteHost,
       server: viteServer

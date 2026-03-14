@@ -106,8 +106,9 @@ export const generateCommand: CliCommand = {
     }
   ],
   handler: async (args, options, context) => {
-    const [type, name] = args
-    
+    const type = args[0] as string
+    const name = args[1] as string
+
     const generator = generatorRegistry.get(type)
     if (!generator) {
       console.error(`❌ Unknown generator type: ${type}`)
@@ -127,10 +128,10 @@ export const generateCommand: CliCommand = {
 
     const generatorOptions: GeneratorOptions = {
       name,
-      path: options.path,
-      template: options.template,
-      force: options.force,
-      dryRun: options['dry-run']
+      path: options.path as string | undefined,
+      template: options.template as string | undefined,
+      force: options.force as boolean | undefined,
+      dryRun: options['dry-run'] as boolean | undefined
     }
 
     try {

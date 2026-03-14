@@ -4,7 +4,7 @@ export interface ErrorMetadata {
   requestId?: string
   userAgent?: string
   ip?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface ErrorSerializedResponse {
@@ -12,7 +12,7 @@ export interface ErrorSerializedResponse {
     message: string
     code: string
     statusCode: number
-    details?: any
+    details?: unknown
     timestamp: string
     correlationId?: string
     stack?: string
@@ -22,7 +22,7 @@ export interface ErrorSerializedResponse {
 export class FluxStackError extends Error {
   public readonly code: string
   public readonly statusCode: number
-  public readonly context?: any
+  public readonly context?: unknown
   public readonly timestamp: Date
   public readonly metadata: ErrorMetadata
   public readonly isOperational: boolean
@@ -32,7 +32,7 @@ export class FluxStackError extends Error {
     message: string,
     code: string,
     statusCode: number = 500,
-    context?: any,
+    context?: unknown,
     metadata: ErrorMetadata = {},
     isOperational: boolean = true,
     userMessage?: string
@@ -66,7 +66,7 @@ export class FluxStackError extends Error {
     const stackValue = this.stack as unknown
     if (Array.isArray(stackValue)) {
       return stackValue
-        .map((site: any) => {
+        .map((site: { getFileName?: () => string; getLineNumber?: () => number; getColumnNumber?: () => number; getFunctionName?: () => string }) => {
           try {
             const fileName = site.getFileName?.() || 'unknown'
             const lineNumber = site.getLineNumber?.() || 0
@@ -106,7 +106,7 @@ export class FluxStackError extends Error {
         message: this.userMessage || this.message,
         code: this.code,
         statusCode: this.statusCode,
-        ...(this.context && { details: this.context }),
+        ...(this.context !== undefined ? { details: this.context } : {}),
         timestamp: this.timestamp.toISOString(),
         ...(this.metadata.correlationId && { correlationId: this.metadata.correlationId }),
         ...(isDevelopment && { stack: this.formatStack() })
@@ -133,7 +133,7 @@ export class FluxStackError extends Error {
 
 // Validation Errors (400)
 export class ValidationError extends FluxStackError {
-  constructor(message: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string, context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'VALIDATION_ERROR', 
@@ -148,7 +148,7 @@ export class ValidationError extends FluxStackError {
 }
 
 export class InvalidInputError extends FluxStackError {
-  constructor(field: string, value?: any, metadata?: ErrorMetadata) {
+  constructor(field: string, value?: unknown, metadata?: ErrorMetadata) {
     super(
       `Invalid input for field: ${field}`,
       'INVALID_INPUT',
@@ -179,7 +179,7 @@ export class MissingRequiredFieldError extends FluxStackError {
 
 // Authentication Errors (401)
 export class UnauthorizedError extends FluxStackError {
-  constructor(message: string = 'Authentication required', context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string = 'Authentication required', context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'UNAUTHORIZED', 
@@ -225,7 +225,7 @@ export class TokenExpiredError extends FluxStackError {
 
 // Authorization Errors (403)
 export class ForbiddenError extends FluxStackError {
-  constructor(message: string = 'Access forbidden', context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string = 'Access forbidden', context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'FORBIDDEN', 
@@ -256,7 +256,7 @@ export class InsufficientPermissionsError extends FluxStackError {
 
 // Not Found Errors (404)
 export class NotFoundError extends FluxStackError {
-  constructor(resource: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(resource: string, context?: unknown, metadata?: ErrorMetadata) {
     super(
       `${resource} not found`, 
       'NOT_FOUND', 
@@ -302,7 +302,7 @@ export class EndpointNotFoundError extends FluxStackError {
 
 // Conflict Errors (409)
 export class ConflictError extends FluxStackError {
-  constructor(message: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string, context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'CONFLICT', 
@@ -349,7 +349,7 @@ export class RateLimitExceededError extends FluxStackError {
 
 // Server Errors (500)
 export class InternalServerError extends FluxStackError {
-  constructor(message: string = 'Internal server error', context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string = 'Internal server error', context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'INTERNAL_SERVER_ERROR', 
@@ -364,7 +364,7 @@ export class InternalServerError extends FluxStackError {
 }
 
 export class DatabaseError extends FluxStackError {
-  constructor(operation: string, details?: any, metadata?: ErrorMetadata) {
+  constructor(operation: string, details?: unknown, metadata?: ErrorMetadata) {
     super(
       `Database operation failed: ${operation}`,
       'DATABASE_ERROR',
@@ -379,7 +379,7 @@ export class DatabaseError extends FluxStackError {
 }
 
 export class ExternalServiceError extends FluxStackError {
-  constructor(service: string, details?: any, metadata?: ErrorMetadata) {
+  constructor(service: string, details?: unknown, metadata?: ErrorMetadata) {
     super(
       `External service error: ${service}`,
       'EXTERNAL_SERVICE_ERROR',
@@ -395,7 +395,7 @@ export class ExternalServiceError extends FluxStackError {
 
 // Service Unavailable Errors (503)
 export class ServiceUnavailableError extends FluxStackError {
-  constructor(message: string = 'Service unavailable', context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string = 'Service unavailable', context?: unknown, metadata?: ErrorMetadata) {
     super(
       message, 
       'SERVICE_UNAVAILABLE', 
@@ -428,7 +428,7 @@ export class MaintenanceModeError extends FluxStackError {
 
 // Plugin Errors
 export class PluginError extends FluxStackError {
-  constructor(pluginName: string, message: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(pluginName: string, message: string, context?: Record<string, unknown>, metadata?: ErrorMetadata) {
     super(
       `Plugin error in ${pluginName}: ${message}`,
       'PLUGIN_ERROR',
@@ -459,7 +459,7 @@ export class PluginNotFoundError extends FluxStackError {
 
 // Configuration Errors
 export class ConfigError extends FluxStackError {
-  constructor(message: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string, context?: unknown, metadata?: ErrorMetadata) {
     super(
       `Configuration error: ${message}`,
       'CONFIG_ERROR',
@@ -474,7 +474,7 @@ export class ConfigError extends FluxStackError {
 }
 
 export class InvalidConfigError extends FluxStackError {
-  constructor(field: string, value?: any, metadata?: ErrorMetadata) {
+  constructor(field: string, value?: unknown, metadata?: ErrorMetadata) {
     super(
       `Invalid configuration for field: ${field}`,
       'INVALID_CONFIG',
@@ -490,7 +490,7 @@ export class InvalidConfigError extends FluxStackError {
 
 // Build Errors
 export class BuildError extends FluxStackError {
-  constructor(message: string, context?: any, metadata?: ErrorMetadata) {
+  constructor(message: string, context?: unknown, metadata?: ErrorMetadata) {
     super(
       `Build error: ${message}`,
       'BUILD_ERROR',
@@ -505,7 +505,7 @@ export class BuildError extends FluxStackError {
 }
 
 export class CompilationError extends FluxStackError {
-  constructor(file: string, details?: any, metadata?: ErrorMetadata) {
+  constructor(file: string, details?: unknown, metadata?: ErrorMetadata) {
     super(
       `Compilation failed for file: ${file}`,
       'COMPILATION_ERROR',
@@ -520,27 +520,32 @@ export class CompilationError extends FluxStackError {
 }
 
 // Utility functions for error handling
-export const isFluxStackError = (error: any): error is FluxStackError => {
+export const isFluxStackError = (error: unknown): error is FluxStackError => {
   return error instanceof FluxStackError
 }
 
-export const isOperationalError = (error: any): boolean => {
+export const isOperationalError = (error: unknown): boolean => {
   return isFluxStackError(error) && error.isOperational
 }
 
 export const createErrorFromCode = (
   code: string, 
   message?: string, 
-  context?: any, 
+  context?: Record<string, unknown>,
   metadata?: ErrorMetadata
 ): FluxStackError => {
+  const str = (val: unknown, fallback: string): string =>
+    typeof val === 'string' ? val : fallback
+  const num = (val: unknown, fallback: number): number =>
+    typeof val === 'number' ? val : fallback
+
   switch (code) {
     case 'VALIDATION_ERROR':
       return new ValidationError(message || 'Validation failed', context, metadata)
     case 'INVALID_INPUT':
-      return new InvalidInputError(context?.field || 'unknown', context?.value, metadata)
+      return new InvalidInputError(str(context?.field, 'unknown'), context?.value, metadata)
     case 'MISSING_REQUIRED_FIELD':
-      return new MissingRequiredFieldError(context?.field || 'unknown', metadata)
+      return new MissingRequiredFieldError(str(context?.field, 'unknown'), metadata)
     case 'UNAUTHORIZED':
       return new UnauthorizedError(message, context, metadata)
     case 'INVALID_TOKEN':
@@ -550,62 +555,65 @@ export const createErrorFromCode = (
     case 'FORBIDDEN':
       return new ForbiddenError(message, context, metadata)
     case 'INSUFFICIENT_PERMISSIONS':
-      return new InsufficientPermissionsError(context?.requiredPermission || 'unknown', metadata)
+      return new InsufficientPermissionsError(str(context?.requiredPermission, 'unknown'), metadata)
     case 'NOT_FOUND':
-      return new NotFoundError(context?.resource || 'Resource', context, metadata)
+      return new NotFoundError(str(context?.resource, 'Resource'), context, metadata)
     case 'RESOURCE_NOT_FOUND':
       return new ResourceNotFoundError(
-        context?.resourceType || 'Resource', 
-        context?.identifier || 'unknown', 
+        str(context?.resourceType, 'Resource'),
+        str(context?.identifier, 'unknown'),
         metadata
       )
     case 'ENDPOINT_NOT_FOUND':
       return new EndpointNotFoundError(
-        context?.method || 'GET', 
-        context?.path || '/unknown', 
+        str(context?.method, 'GET'),
+        str(context?.path, '/unknown'),
         metadata
       )
     case 'CONFLICT':
       return new ConflictError(message || 'Resource conflict', context, metadata)
     case 'RESOURCE_ALREADY_EXISTS':
       return new ResourceAlreadyExistsError(
-        context?.resourceType || 'Resource',
-        context?.identifier || 'unknown',
+        str(context?.resourceType, 'Resource'),
+        str(context?.identifier, 'unknown'),
         metadata
       )
     case 'RATE_LIMIT_EXCEEDED':
       return new RateLimitExceededError(
-        context?.limit || 100,
-        context?.windowMs || 60000,
+        num(context?.limit, 100),
+        num(context?.windowMs, 60000),
         metadata
       )
     case 'INTERNAL_SERVER_ERROR':
       return new InternalServerError(message, context, metadata)
     case 'DATABASE_ERROR':
-      return new DatabaseError(context?.operation || 'unknown', context?.details, metadata)
+      return new DatabaseError(str(context?.operation, 'unknown'), context?.details, metadata)
     case 'EXTERNAL_SERVICE_ERROR':
-      return new ExternalServiceError(context?.service || 'unknown', context?.details, metadata)
+      return new ExternalServiceError(str(context?.service, 'unknown'), context?.details, metadata)
     case 'SERVICE_UNAVAILABLE':
       return new ServiceUnavailableError(message, context, metadata)
     case 'MAINTENANCE_MODE':
-      return new MaintenanceModeError(context?.estimatedDuration, metadata)
+      return new MaintenanceModeError(
+        typeof context?.estimatedDuration === 'string' ? context.estimatedDuration : undefined,
+        metadata
+      )
     case 'PLUGIN_ERROR':
       return new PluginError(
-        context?.pluginName || 'unknown',
+        str(context?.pluginName, 'unknown'),
         message || 'Plugin error',
         context,
         metadata
       )
     case 'PLUGIN_NOT_FOUND':
-      return new PluginNotFoundError(context?.pluginName || 'unknown', metadata)
+      return new PluginNotFoundError(str(context?.pluginName, 'unknown'), metadata)
     case 'CONFIG_ERROR':
       return new ConfigError(message || 'Configuration error', context, metadata)
     case 'INVALID_CONFIG':
-      return new InvalidConfigError(context?.field || 'unknown', context?.value, metadata)
+      return new InvalidConfigError(str(context?.field, 'unknown'), context?.value, metadata)
     case 'BUILD_ERROR':
       return new BuildError(message || 'Build error', context, metadata)
     case 'COMPILATION_ERROR':
-      return new CompilationError(context?.file || 'unknown', context?.details, metadata)
+      return new CompilationError(str(context?.file, 'unknown'), context?.details, metadata)
     default:
       return new FluxStackError(message || 'Unknown error', code, 500, context, metadata)
   }
@@ -617,13 +625,13 @@ export const wrapError = (error: Error, metadata?: ErrorMetadata): FluxStackErro
   }
 
   // Detect Elysia validation errors (thrown by TypeBox schema validation)
-  const errorAny = error as any
+  const errorWithStatus = error as Error & { status?: number }
   if (
     error.constructor?.name === 'ValidationError' ||
     error.constructor?.name === 'TransformDecodeError' ||
-    (typeof errorAny.status === 'number' && errorAny.status >= 400 && errorAny.status < 500)
+    (typeof errorWithStatus.status === 'number' && errorWithStatus.status >= 400 && errorWithStatus.status < 500)
   ) {
-    const status = errorAny.status ?? 422
+    const status = errorWithStatus.status ?? 422
     const message = error.message || 'Validation failed'
     return new ValidationError(message, { originalError: error.name, status }, metadata)
   }

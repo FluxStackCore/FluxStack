@@ -42,7 +42,7 @@ describe('Enhanced Error Handler', () => {
     vi.clearAllMocks()
     handler = new EnhancedErrorHandler()
     context = {
-      logger: mockLogger as any,
+      logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
       isDevelopment: false,
       correlationId: 'test-123',
       userId: 'user-456',
@@ -220,7 +220,7 @@ describe('Recovery Strategies', () => {
     vi.clearAllMocks()
     handler = new EnhancedErrorHandler()
     context = {
-      logger: mockLogger as any,
+      logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
       isDevelopment: false,
       correlationId: 'test-123'
     }
@@ -252,8 +252,8 @@ describe('Recovery Strategies', () => {
         await strategy.recover(error, context)
       } catch (recoveredError) {
         expect(recoveredError).toBeInstanceOf(FluxStackError)
-        expect((recoveredError as any).metadata.retryCount).toBe(1)
-        expect((recoveredError as any).code).toBe('EXTERNAL_SERVICE_ERROR')
+        expect((recoveredError as FluxStackError).metadata?.retryCount).toBe(1)
+        expect((recoveredError as FluxStackError).code).toBe('EXTERNAL_SERVICE_ERROR')
       }
 
       expect(mockLogger.info).toHaveBeenCalledWith(
@@ -325,7 +325,7 @@ describe('Legacy Error Handler Functions', () => {
   describe('errorHandler', () => {
     it('should handle errors using enhanced handler', async () => {
       const context: ErrorHandlerContext = {
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: false
       }
       const error = new ValidationError('Test')
@@ -340,7 +340,7 @@ describe('Legacy Error Handler Functions', () => {
   describe('createErrorHandler', () => {
     it('should create error handler with base context', async () => {
       const baseContext = {
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: false
       }
       const handler = createErrorHandler(baseContext)
@@ -354,7 +354,7 @@ describe('Legacy Error Handler Functions', () => {
 
     it('should merge request context with base context', async () => {
       const baseContext = {
-        logger: mockLogger as any,
+        logger: mockLogger as unknown as import('@core/utils/logger/index').Logger,
         isDevelopment: false
       }
       const handler = createErrorHandler(baseContext)

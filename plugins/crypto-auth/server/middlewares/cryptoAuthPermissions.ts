@@ -27,10 +27,10 @@ export const cryptoAuthPermissions = (
       return {}
     })
     .use(
-      createGuard({
+      createGuard<{ request: Request & { user?: CryptoAuthUser } }>({
         name: 'crypto-auth-permissions-check',
         check: ({ request }) => {
-          const user = (request as any).user as CryptoAuthUser | undefined
+          const user = request.user
 
           if (!user) return false
 
@@ -40,10 +40,11 @@ export const cryptoAuthPermissions = (
           )
         },
         onFail: (set, { request }) => {
-          const user = (request as any).user as CryptoAuthUser | undefined
+          const user = request.user
+          const s = set as { status: number }
 
           if (!user) {
-            set.status = 401
+            s.status = 401
             return {
               error: {
                 message: 'Authentication required',
@@ -59,7 +60,7 @@ export const cryptoAuthPermissions = (
             has: user.permissions
           })
 
-          set.status = 403
+          s.status = 403
           return {
             error: {
               message: 'Insufficient permissions',

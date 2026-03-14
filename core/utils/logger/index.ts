@@ -23,9 +23,19 @@ export { clearColorCache } from './colors'
 export { clearCallerCache } from './stack-trace'
 export { clearLoggerCache } from './winston-logger'
 
-// Export Logger type from winston
-import type winston from 'winston'
-export type Logger = winston.Logger
+// Export Logger type - matches the actual logger object shape
+export interface Logger {
+  debug: (message: unknown, ...args: unknown[]) => void
+  info: (message: unknown, ...args: unknown[]) => void
+  warn: (message: unknown, ...args: unknown[]) => void
+  error: (message: unknown, ...args: unknown[]) => void
+  request: (method: string, path: string, status?: number, duration?: number, ip?: string) => void
+  plugin: (pluginName: string, message: string, meta?: unknown) => void
+  framework: (message: string, meta?: unknown) => void
+  time: (label: string) => void
+  timeEnd: (label: string) => void
+  child?: (context: Record<string, unknown>) => Logger
+}
 
 // Re-export banner utilities for custom banners
 export { displayStartupBanner, type StartupInfo } from './startup-banner'

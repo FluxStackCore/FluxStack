@@ -30,7 +30,7 @@ export const staticPlugin: Plugin = {
     })
 
     // Static fallback handler (runs last)
-    const staticFallback = (c: any) => {
+    const staticFallback = (c: { request: Request }) => {
       const req = c.request
       if (!req) return
 
@@ -87,7 +87,7 @@ export const staticPlugin: Plugin = {
     }
 
     // Register as catch-all fallback (runs after all other routes)
-    context.app.all('*', staticFallback)
+    ;(context.app as Record<string, Function>).all('*', staticFallback)
   },
 
   onServerStart: async (context: PluginContext) => {

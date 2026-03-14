@@ -21,7 +21,7 @@ export interface ErrorMetricsCollector {
 
 export interface ErrorRecoveryStrategy {
   canRecover(error: FluxStackError): boolean
-  recover(error: FluxStackError, context: ErrorHandlerContext): Promise<any> | any
+  recover(error: FluxStackError, context: ErrorHandlerContext): Promise<ErrorSerializedResponse> | ErrorSerializedResponse
 }
 
 export interface ErrorHandlerOptions {
@@ -144,7 +144,7 @@ export class EnhancedErrorHandler {
   /**
    * Format stack trace to readable string (handles Bun CallSite objects)
    */
-  private formatErrorStack(stack: any): string | undefined {
+  private formatErrorStack(stack: unknown): string | undefined {
     if (!stack) return undefined
 
     // If stack is already a string, return it
@@ -153,7 +153,7 @@ export class EnhancedErrorHandler {
     // If stack is an array of CallSite objects (Bun), format them
     if (Array.isArray(stack)) {
       return stack
-        .map((site: any, index: number) => {
+        .map((site: { getFileName?: () => string; getLineNumber?: () => number; getColumnNumber?: () => number; getFunctionName?: () => string }, index: number) => {
           try {
             const fileName = site.getFileName?.() || 'unknown'
             const lineNumber = site.getLineNumber?.() || 0
@@ -193,10 +193,10 @@ export class EnhancedErrorHandler {
     }
 
     // Skip logging for Vite internal routes (even if NOT_FOUND logging is enabled)
-    if (error.code === 'NOT_FOUND' && error.metadata?.path) {
+    if (error.code === 'NOT_FOUND' && typeof error.metadata?.path === 'string') {
       const path = error.metadata.path
-      if (path.startsWith('/@') || 
-          path.startsWith('/__vite') || 
+      if (path.startsWith('/@') ||
+          path.startsWith('/__vite') ||
           path.includes('/.vite/') ||
           path.endsWith('.js.map') ||
           path.endsWith('.css.map')) {
@@ -228,18 +228,20 @@ export class EnhancedErrorHandler {
     return response
   }
 
-  private sanitizeErrorResponse(errorResponse: any): any {
+  private sanitizeErrorResponse(errorResponse: ErrorSerializedResponse['error']): ErrorSerializedResponse['error'] {
     const sanitized = { ...errorResponse }
-    
+
     // Remove potentially sensitive fields in production
-    if (sanitized.details) {
+    if (sanitized.details && typeof sanitized.details === 'object' && sanitized.details !== null) {
       // Remove sensitive fields from details
+      const details = sanitized.details as Record<string, unknown>
       const sensitiveFields = ['password', 'token', 'secret', 'key', 'credential']
       for (const field of sensitiveFields) {
-        if (sanitized.details[field]) {
-          sanitized.details[field] = '[REDACTED]'
+        if (details[field]) {
+          details[field] = '[REDACTED]'
         }
       }
+      sanitized.details = details
     }
 
     return sanitized
@@ -249,7 +251,7 @@ export class EnhancedErrorHandler {
     this.recoveryStrategies.push(strategy)
   }
 
-  removeRecoveryStrategy(strategyClass: new (...args: any[]) => ErrorRecoveryStrategy): void {
+  removeRecoveryStrategy(strategyClass: new (...args: unknown[]) => ErrorRecoveryStrategy): void {
     this.recoveryStrategies = this.recoveryStrategies.filter(
       strategy => !(strategy instanceof strategyClass)
     )
@@ -289,12 +291,14 @@ export class RetryRecoveryStrategy implements ErrorRecoveryStrategy {
   ) {}
 
   canRecover(error: FluxStackError): boolean {
-    return this.retryableCodes.includes(error.code) && 
-           (!error.context?.retryCount || error.context.retryCount < this.maxRetries)
+    const ctx = error.context as Record<string, unknown> | undefined
+    return this.retryableCodes.includes(error.code) &&
+           (!ctx?.retryCount || (ctx.retryCount as number) < this.maxRetries)
   }
 
-  async recover(error: FluxStackError, context: ErrorHandlerContext): Promise<any> {
-    const retryCount = (error.context?.retryCount || 0) + 1
+  async recover(error: FluxStackError, context: ErrorHandlerContext): Promise<ErrorSerializedResponse> {
+    const ctx = error.context as Record<string, unknown> | undefined
+    const retryCount = ((ctx?.retryCount as number) || 0) + 1
     
     context.logger.info('Attempting error recovery', {
       errorCode: error.code,
@@ -313,7 +317,7 @@ export class RetryRecoveryStrategy implements ErrorRecoveryStrategy {
 
 export class FallbackRecoveryStrategy implements ErrorRecoveryStrategy {
   constructor(
-    private fallbackResponse: any,
+    private fallbackResponse: unknown,
     private applicableCodes: string[] = ['EXTERNAL_SERVICE_ERROR']
   ) {}
 
@@ -321,15 +325,21 @@ export class FallbackRecoveryStrategy implements ErrorRecoveryStrategy {
     return this.applicableCodes.includes(error.code)
   }
 
-  recover(error: FluxStackError, context: ErrorHandlerContext): any {
+  recover(error: FluxStackError, context: ErrorHandlerContext): ErrorSerializedResponse {
     context.logger.info('Using fallback recovery', {
       errorCode: error.code,
       correlationId: error.metadata.correlationId
     })
 
     return {
-      data: this.fallbackResponse,
-      warning: 'Fallback data provided due to service unavailability'
+      error: {
+        message: 'Fallback data provided due to service unavailability',
+        code: error.code,
+        statusCode: error.statusCode,
+        details: { fallback: this.fallbackResponse },
+        timestamp: new Date().toISOString(),
+        correlationId: error.metadata.correlationId as string | undefined
+      }
     }
   }
 }

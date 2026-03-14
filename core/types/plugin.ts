@@ -42,7 +42,7 @@ export interface PluginManifest {
   fluxstack: {
     version: string
     hooks: string[]
-    config?: any
+    config?: Record<string, unknown>
   }
 }
 
@@ -88,7 +88,7 @@ export type PluginPriority = 'highest' | 'high' | 'normal' | 'low' | 'lowest' | 
 
 export interface PluginConfigSchema {
   type: 'object'
-  properties: Record<string, any>
+  properties: Record<string, unknown>
   required?: string[]
   additionalProperties?: boolean
 }

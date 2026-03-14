@@ -24,7 +24,7 @@ export interface LoggerConfig {
 export function getLoggerConfig(): LoggerConfig {
   return {
     level: loggerConfig.level ?? 'info',
-    format: (loggerConfig as any).format ?? 'pretty',
+    format: loggerConfig.format ?? 'pretty',
     dateFormat: loggerConfig.dateFormat ?? 'YYYY-MM-DD HH:mm:ss',
     logToFile: loggerConfig.logToFile ?? false,
     maxSize: loggerConfig.maxSize ?? '20m',
@@ -32,7 +32,7 @@ export function getLoggerConfig(): LoggerConfig {
     objectDepth: loggerConfig.objectDepth ?? 4,
     enableColors: loggerConfig.enableColors ?? true,
     enableStackTrace: loggerConfig.enableStackTrace ?? true,
-    transports: (loggerConfig as any).transports ?? ['console']
+    transports: loggerConfig.transports ?? ['console']
   }
 }
 

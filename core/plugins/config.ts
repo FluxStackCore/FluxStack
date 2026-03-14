@@ -10,10 +10,10 @@ import type { Logger } from "@core/utils/logger/index"
 type Plugin = FluxStack.Plugin
 
 export interface PluginConfigManager {
-  validatePluginConfig(plugin: Plugin, config: any): PluginValidationResult
-  mergePluginConfig(plugin: Plugin, userConfig: any): any
-  getPluginConfig(pluginName: string, config: FluxStackConfig): any
-  setPluginConfig(pluginName: string, pluginConfig: any, config: FluxStackConfig): void
+  validatePluginConfig(plugin: Plugin, config: unknown): PluginValidationResult
+  mergePluginConfig(plugin: Plugin, userConfig: unknown): unknown
+  getPluginConfig(pluginName: string, config: FluxStackConfig): unknown
+  setPluginConfig(pluginName: string, pluginConfig: unknown, config: FluxStackConfig): void
 }
 
 export class DefaultPluginConfigManager implements PluginConfigManager {
@@ -24,7 +24,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Validate plugin configuration against its schema
    */
-  validatePluginConfig(plugin: Plugin, config: any): PluginValidationResult {
+  validatePluginConfig(plugin: Plugin, config: unknown): PluginValidationResult {
     const result: PluginValidationResult = {
       valid: true,
       errors: [],
@@ -49,21 +49,21 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Merge user configuration with plugin defaults
    */
-  mergePluginConfig(plugin: Plugin, userConfig: any): any {
-    const defaultConfig = plugin.defaultConfig || {}
-    
+  mergePluginConfig(plugin: Plugin, userConfig: unknown): unknown {
+    const defaultConfig = (plugin.defaultConfig || {}) as Record<string, unknown>
+
     if (!userConfig) {
       return defaultConfig
     }
 
-    return this.deepMerge(defaultConfig, userConfig)
+    return this.deepMerge(defaultConfig, userConfig as Record<string, unknown>)
   }
 
   /**
    * Get plugin configuration from main config
    * @deprecated Plugin configs are now directly accessed from config.plugins
    */
-  getPluginConfig(pluginName: string, config: FluxStackConfig): any {
+  getPluginConfig(pluginName: string, config: FluxStackConfig): unknown {
     // Plugin configs are now accessed directly from config.plugins
     // Example: config.plugins.swaggerEnabled
     return {}
@@ -73,7 +73,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
    * Set plugin configuration in main config
    * @deprecated Plugin configs are now set via environment variables and config files
    */
-  setPluginConfig(pluginName: string, pluginConfig: any, config: FluxStackConfig): void {
+  setPluginConfig(pluginName: string, pluginConfig: unknown, config: FluxStackConfig): void {
     // Plugin configs are now set via environment variables and config files
     // This function is deprecated and does nothing
   }
@@ -82,7 +82,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
    * Validate configuration against JSON schema
    */
   private validateAgainstSchema(
-    data: any,
+    data: unknown,
     schema: PluginConfigSchema,
     pluginName: string,
     result: PluginValidationResult
@@ -93,10 +93,12 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
       return
     }
 
+    const dataObj = data as Record<string, unknown>
+
     // Check required properties
     if (schema.required && Array.isArray(schema.required)) {
       for (const requiredProp of schema.required) {
-        if (!(requiredProp in data)) {
+        if (!(requiredProp in dataObj)) {
           result.valid = false
           result.errors.push(`Plugin '${pluginName}' configuration missing required property: ${requiredProp}`)
         }
@@ -106,8 +108,8 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     // Validate properties
     if (schema.properties) {
       for (const [propName, propSchema] of Object.entries(schema.properties)) {
-        if (propName in data) {
-          this.validateProperty(data[propName], propSchema, `${pluginName}.${propName}`, result)
+        if (propName in dataObj) {
+          this.validateProperty(dataObj[propName], propSchema as Record<string, unknown>, `${pluginName}.${propName}`, result)
         }
       }
     }
@@ -115,8 +117,8 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     // Check for additional properties
     if (schema.additionalProperties === false) {
       const allowedProps = Object.keys(schema.properties || {})
-      const actualProps = Object.keys(data)
-      
+      const actualProps = Object.keys(dataObj)
+
       for (const prop of actualProps) {
         if (!allowedProps.includes(prop)) {
           result.warnings.push(`Plugin '${pluginName}' configuration has unexpected property: ${prop}`)
@@ -128,7 +130,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Validate individual property
    */
-  private validateProperty(value: any, schema: any, path: string, result: PluginValidationResult): void {
+  private validateProperty(value: unknown, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
     if (schema.type) {
       const actualType = Array.isArray(value) ? 'array' : typeof value
       if (actualType !== schema.type) {
@@ -141,13 +143,13 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     // Type-specific validations
     switch (schema.type) {
       case 'string':
-        this.validateStringProperty(value, schema, path, result)
+        this.validateStringProperty(value as string, schema, path, result)
         break
       case 'number':
-        this.validateNumberProperty(value, schema, path, result)
+        this.validateNumberProperty(value as number, schema, path, result)
         break
       case 'array':
-        this.validateArrayProperty(value, schema, path, result)
+        this.validateArrayProperty(value as unknown[], schema, path, result)
         break
       case 'object':
         if (schema.properties) {
@@ -157,28 +159,28 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     }
 
     // Enum validation
-    if (schema.enum && !schema.enum.includes(value)) {
+    if (schema.enum && !(schema.enum as unknown[]).includes(value)) {
       result.valid = false
-      result.errors.push(`Property '${path}' must be one of: ${schema.enum.join(', ')}`)
+      result.errors.push(`Property '${path}' must be one of: ${(schema.enum as unknown[]).join(', ')}`)
     }
   }
 
   /**
    * Validate string property
    */
-  private validateStringProperty(value: string, schema: any, path: string, result: PluginValidationResult): void {
-    if (schema.minLength && value.length < schema.minLength) {
+  private validateStringProperty(value: string, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
+    if (schema.minLength && value.length < (schema.minLength as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at least ${schema.minLength} characters long`)
     }
 
-    if (schema.maxLength && value.length > schema.maxLength) {
+    if (schema.maxLength && value.length > (schema.maxLength as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at most ${schema.maxLength} characters long`)
     }
 
     if (schema.pattern) {
-      const regex = new RegExp(schema.pattern)
+      const regex = new RegExp(schema.pattern as string)
       if (!regex.test(value)) {
         result.valid = false
         result.errors.push(`Property '${path}' does not match required pattern: ${schema.pattern}`)
@@ -189,18 +191,18 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Validate number property
    */
-  private validateNumberProperty(value: number, schema: any, path: string, result: PluginValidationResult): void {
-    if (schema.minimum !== undefined && value < schema.minimum) {
+  private validateNumberProperty(value: number, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
+    if (schema.minimum !== undefined && value < (schema.minimum as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at least ${schema.minimum}`)
     }
 
-    if (schema.maximum !== undefined && value > schema.maximum) {
+    if (schema.maximum !== undefined && value > (schema.maximum as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must be at most ${schema.maximum}`)
     }
 
-    if (schema.multipleOf && value % schema.multipleOf !== 0) {
+    if (schema.multipleOf && value % (schema.multipleOf as number) !== 0) {
       result.valid = false
       result.errors.push(`Property '${path}' must be a multiple of ${schema.multipleOf}`)
     }
@@ -209,20 +211,20 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Validate array property
    */
-  private validateArrayProperty(value: any[], schema: any, path: string, result: PluginValidationResult): void {
-    if (schema.minItems && value.length < schema.minItems) {
+  private validateArrayProperty(value: unknown[], schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
+    if (schema.minItems && value.length < (schema.minItems as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must have at least ${schema.minItems} items`)
     }
 
-    if (schema.maxItems && value.length > schema.maxItems) {
+    if (schema.maxItems && value.length > (schema.maxItems as number)) {
       result.valid = false
       result.errors.push(`Property '${path}' must have at most ${schema.maxItems} items`)
     }
 
     if (schema.items) {
       value.forEach((item, index) => {
-        this.validateProperty(item, schema.items, `${path}[${index}]`, result)
+        this.validateProperty(item, schema.items as Record<string, unknown>, `${path}[${index}]`, result)
       })
     }
   }
@@ -230,10 +232,11 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
   /**
    * Validate object property
    */
-  private validateObjectProperty(value: any, schema: any, path: string, result: PluginValidationResult): void {
+  private validateObjectProperty(value: unknown, schema: Record<string, unknown>, path: string, result: PluginValidationResult): void {
+    const valueObj = value as Record<string, unknown>
     if (schema.required) {
-      for (const requiredProp of schema.required) {
-        if (!(requiredProp in value)) {
+      for (const requiredProp of (schema.required as string[])) {
+        if (!(requiredProp in valueObj)) {
           result.valid = false
           result.errors.push(`Property '${path}' missing required property: ${requiredProp}`)
         }
@@ -241,9 +244,9 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     }
 
     if (schema.properties) {
-      for (const [propName, propSchema] of Object.entries(schema.properties)) {
-        if (propName in value) {
-          this.validateProperty(value[propName], propSchema, `${path}.${propName}`, result)
+      for (const [propName, propSchema] of Object.entries(schema.properties as Record<string, unknown>)) {
+        if (propName in valueObj) {
+          this.validateProperty(valueObj[propName], propSchema as Record<string, unknown>, `${path}.${propName}`, result)
         }
       }
     }
@@ -266,7 +269,7 @@ export class DefaultPluginConfigManager implements PluginConfigManager {
     }
 
     if (Array.isArray(source)) {
-      return [...source]
+      return [...source] as unknown as Record<string, unknown>
     }
 
     const result = { ...target }

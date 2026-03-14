@@ -46,7 +46,7 @@ export interface ConfigLoadOptions {
   strict?: boolean
 }
 
-export interface ConfigLoadResult<T = any> {
+export interface ConfigLoadResult<T = unknown> {
   config: T
   errors: ValidationError[]
   warnings: ValidationWarning[]
@@ -61,19 +61,19 @@ export interface ValidationResult {
 export interface ValidationError {
   path: string
   message: string
-  value?: any
+  value?: unknown
 }
 
 export interface ValidationWarning {
   path: string
   message: string
-  value?: any
+  value?: unknown
 }
 
 // Additional configuration utility types
 export interface ConfigOverride {
   path: string
-  value: any
+  value: unknown
   source: 'env' | 'file' | 'runtime'
 }
 
@@ -94,5 +94,5 @@ export interface ConfigSource {
   type: 'file' | 'env' | 'default' | 'override'
   path?: string
   priority: number
-  data: any
+  data: unknown
 }

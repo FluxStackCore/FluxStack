@@ -20,7 +20,7 @@ export const helpCommand: CLICommand = {
   ],
   handler: async (args, options, context) => {
     if (args[0]) {
-      const targetCommand = cliRegistry.get(args[0])
+      const targetCommand = cliRegistry.get(args[0] as string)
       if (targetCommand) {
         cliRegistry.showCommandHelp(targetCommand)
       } else {

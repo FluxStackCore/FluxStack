@@ -49,7 +49,7 @@ export const makePluginCommand: CLICommand = {
     }
   ],
   handler: async (args, options, context) => {
-    const [name] = args
+    const name = args[0] as string
 
     if (!/^[a-zA-Z0-9-_]+$/.test(name)) {
       console.error("❌ Plugin name can only contain letters, numbers, hyphens, and underscores")
@@ -74,10 +74,10 @@ export const makePluginCommand: CLICommand = {
 
     const generatorOptions = {
       name,
-      template: options.template,
-      force: options.force,
+      template: options.template as string | undefined,
+      force: options.force as boolean | undefined,
       dryRun: false,
-      description: options.description
+      description: options.description as string | undefined
     }
 
     try {

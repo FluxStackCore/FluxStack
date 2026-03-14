@@ -36,6 +36,15 @@ export type {
 // These lazily access the LiveServer instance created by the plugin
 import { liveServer, pendingAuthProviders } from './websocket-plugin'
 import type { LiveAuthProvider as _LiveAuthProvider } from '@fluxstack/live'
+import type { ComponentRegistry as _ComponentRegistry } from '@fluxstack/live'
+import type { WebSocketConnectionManager as _WebSocketConnectionManager } from '@fluxstack/live'
+import type { RoomStateManager as _RoomStateManager } from '@fluxstack/live'
+import type { LiveRoomManager as _LiveRoomManager } from '@fluxstack/live'
+import type { RoomEventBus as _RoomEventBus } from '@fluxstack/live'
+import type { FileUploadManager as _FileUploadManager } from '@fluxstack/live'
+import type { PerformanceMonitor as _PerformanceMonitor } from '@fluxstack/live'
+import type { StateSignatureManager as _StateSignatureManager } from '@fluxstack/live'
+import type { LiveAuthManager as _LiveAuthManager } from '@fluxstack/live'
 
 function requireLiveServer() {
   if (!liveServer) {
@@ -53,7 +62,7 @@ function requireLiveServer() {
  * then delegates to liveServer.authManager once available.
  * @deprecated Access via liveServer.authManager instead
  */
-export const liveAuthManager = {
+export const liveAuthManager: Pick<_LiveAuthManager, 'authenticate' | 'hasProviders' | 'authorizeRoom' | 'authorizeAction' | 'authorizeComponent'> & { register: (provider: _LiveAuthProvider) => void } = {
   register(provider: _LiveAuthProvider) {
     if (liveServer) {
       liveServer.useAuth(provider)
@@ -66,44 +75,35 @@ export const liveAuthManager = {
   get authorizeRoom() { return requireLiveServer().authManager.authorizeRoom.bind(requireLiveServer().authManager) },
   get authorizeAction() { return requireLiveServer().authManager.authorizeAction.bind(requireLiveServer().authManager) },
   get authorizeComponent() { return requireLiveServer().authManager.authorizeComponent.bind(requireLiveServer().authManager) },
-} as any
+}
+
+/** Helper to create a typed lazy proxy that delegates to a LiveServer property */
+function createLazyProxy<T extends object>(accessor: () => T): T {
+  return new Proxy({} as T, {
+    get(_, prop) { return (accessor() as Record<string | symbol, unknown>)[prop] }
+  })
+}
 
 /** @deprecated Access via liveServer.registry instead */
-export const componentRegistry = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().registry as any)[prop] }
-})
+export const componentRegistry = createLazyProxy<_ComponentRegistry>(() => requireLiveServer().registry)
 
 /** @deprecated Access via liveServer.connectionManager instead */
-export const connectionManager = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().connectionManager as any)[prop] }
-})
+export const connectionManager = createLazyProxy<_WebSocketConnectionManager>(() => requireLiveServer().connectionManager)
 
 /** @deprecated Access via liveServer.roomManager instead */
-export const liveRoomManager = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().roomManager as any)[prop] }
-})
+export const liveRoomManager = createLazyProxy<_LiveRoomManager>(() => requireLiveServer().roomManager)
 
 /** @deprecated Access via liveServer.roomEvents instead */
-export const roomEvents = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().roomEvents as any)[prop] }
-})
+export const roomEvents = createLazyProxy<_RoomEventBus>(() => requireLiveServer().roomEvents)
 
 /** @deprecated Access via liveServer.fileUploadManager instead */
-export const fileUploadManager = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().fileUploadManager as any)[prop] }
-})
+export const fileUploadManager = createLazyProxy<_FileUploadManager>(() => requireLiveServer().fileUploadManager)
 
 /** @deprecated Access via liveServer.performanceMonitor instead */
-export const performanceMonitor = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().performanceMonitor as any)[prop] }
-})
+export const performanceMonitor = createLazyProxy<_PerformanceMonitor>(() => requireLiveServer().performanceMonitor)
 
 /** @deprecated Access via liveServer.stateSignature instead */
-export const stateSignature = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().stateSignature as any)[prop] }
-})
+export const stateSignature = createLazyProxy<_StateSignatureManager>(() => requireLiveServer().stateSignature)
 
 // Room state backward compat
-export const roomState = new Proxy({} as any, {
-  get(_, prop) { return (requireLiveServer().roomManager as any)[prop] }
-})
+export const roomState = createLazyProxy<_LiveRoomManager>(() => requireLiveServer().roomManager)

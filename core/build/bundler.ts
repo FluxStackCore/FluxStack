@@ -79,7 +79,7 @@ export class Bundler {
     buildLogger.section('Server Build', '⚡')
 
     const startTime = Date.now()
-    let liveComponentsGenerator: any = null
+    let liveComponentsGenerator: unknown = null
 
     try {
       // Run pre-build steps
@@ -170,7 +170,7 @@ export class Bundler {
     buildLogger.section('Executable Build', '📦')
 
     const startTime = Date.now()
-    let liveComponentsGenerator: any = null
+    let liveComponentsGenerator: unknown = null
 
     try {
       // Run pre-build steps
@@ -322,7 +322,7 @@ export class Bundler {
   /**
    * Run pre-build steps (Live Components and Plugins generation)
    */
-  private async runPreBuildSteps(): Promise<any> {
+  private async runPreBuildSteps(): Promise<unknown> {
     // 🚀 PRE-BUILD: Auto-generate Live Components registration
     const generatorModule = await import('./live-components-generator')
     const liveComponentsGenerator = generatorModule.liveComponentsGenerator
@@ -339,9 +339,9 @@ export class Bundler {
   /**
    * Run post-build cleanup
    */
-  private async runPostBuildCleanup(liveComponentsGenerator: any): Promise<void> {
-    if (liveComponentsGenerator) {
-      await liveComponentsGenerator.postBuild(false)
+  private async runPostBuildCleanup(liveComponentsGenerator: unknown): Promise<void> {
+    if (liveComponentsGenerator && typeof liveComponentsGenerator === 'object' && 'postBuild' in liveComponentsGenerator) {
+      await (liveComponentsGenerator as { postBuild: (keep: boolean) => Promise<void> }).postBuild(false)
     }
 
     const pluginsGeneratorModule = await import('./flux-plugins-generator')

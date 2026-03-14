@@ -27,7 +27,7 @@
  * Uses Bun.env (runtime) → process.env (fallback) → eval (last resort)
  */
 class EnvLoader {
-  private cache = new Map<string, any>()
+  private cache = new Map<string, unknown>()
   private accessor: () => Record<string, string | undefined>
 
   constructor() {
@@ -38,17 +38,19 @@ class EnvLoader {
    * Create dynamic accessor to prevent build-time inlining
    */
   private createAccessor(): () => Record<string, string | undefined> {
-    const global = globalThis as any
+    const global = globalThis as unknown as Record<string, Record<string, unknown> | undefined>
 
     return () => {
       // Try Bun.env first (most reliable in Bun)
-      if (global['Bun']?.['env']) {
-        return global['Bun']['env']
+      const bun = global['Bun'] as Record<string, unknown> | undefined
+      if (bun?.['env']) {
+        return bun['env'] as Record<string, string | undefined>
       }
 
       // Fallback to process.env
-      if (global['process']?.['env']) {
-        return global['process']['env']
+      const proc = global['process'] as Record<string, unknown> | undefined
+      if (proc?.['env']) {
+        return proc['env'] as Record<string, string | undefined>
       }
 
       return {}
@@ -63,7 +65,7 @@ class EnvLoader {
     // Check cache first
     const cacheKey = `${key}:${typeof defaultValue}`
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)
+      return this.cache.get(cacheKey) as T
     }
 
     const env = this.accessor()
@@ -75,7 +77,7 @@ class EnvLoader {
     }
 
     // Auto-detect type from defaultValue
-    let result: any = value
+    let result: unknown = value
 
     if (typeof defaultValue === 'number') {
       const parsed = Number(value)

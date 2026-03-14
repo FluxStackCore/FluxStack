@@ -1,7 +1,7 @@
 import { copyFileSync, writeFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync } from "fs"
 import { join } from "path"
 import type { FluxStackConfig } from "../config"
-import type { BuildResult, BuildManifest } from "../types/build"
+import type { BuildResult, BuildManifest, BundleResult, OptimizationResult } from "../types/build"
 import { Bundler } from "./bundler"
 import { Optimizer } from "./optimizer"
 import { FLUXSTACK_VERSION } from "../utils/version"
@@ -9,14 +9,69 @@ import { buildLogger } from "../utils/build-logger"
 import type { PluginRegistry } from "../plugins/registry"
 import type { BuildContext, BuildAssetContext, BuildErrorContext } from "../plugins/types"
 
+/**
+ * Runtime shape of config properties - the FluxStackConfig type uses
+ * complex conditional inference via defineConfig/defineNestedConfig
+ * which causes spread results to collapse to {} at the type level.
+ * We declare the actual runtime shapes explicitly.
+ */
+interface BuildConfigRuntime {
+  target: string
+  outDir: string
+  sourceMaps: boolean
+  clean: boolean
+  mode: string
+  external: string[]
+  optimize: boolean
+  optimization: {
+    minify: boolean
+    treeshake: boolean
+    compress: boolean
+    splitChunks: boolean
+    bundleAnalyzer: boolean
+    removeUnusedCSS: boolean
+    optimizeImages: boolean
+  }
+}
+
+interface OptimizationConfigRuntime {
+  minify: boolean
+  treeshake: boolean
+  compress: boolean
+  splitChunks: boolean
+  bundleAnalyzer: boolean
+  removeUnusedCSS: boolean
+  optimizeImages: boolean
+}
+
+interface AppConfigRuntime {
+  name: string
+  version: string
+  env: string
+  debug: boolean
+}
+
+interface ClientBuildRuntime {
+  outDir: string
+  sourceMaps: boolean
+}
+
+/** Augmented config type that resolves the spread-collapsed properties */
+type ResolvedFluxStackConfig = FluxStackConfig & {
+  build: BuildConfigRuntime
+  optimization: OptimizationConfigRuntime
+  app: AppConfigRuntime
+  clientBuild: ClientBuildRuntime
+}
+
 export class FluxStackBuilder {
-  private config: FluxStackConfig
+  private config: ResolvedFluxStackConfig
   private bundler: Bundler
   private optimizer: Optimizer
   private pluginRegistry?: PluginRegistry
 
   constructor(config: FluxStackConfig, pluginRegistry?: PluginRegistry) {
-    this.config = config
+    this.config = config as ResolvedFluxStackConfig
     this.pluginRegistry = pluginRegistry
 
     const optimization = this.config.optimization || {
@@ -28,22 +83,24 @@ export class FluxStackBuilder {
       bundleAnalyzer: false
     }
 
+    const buildCfg = this.config.build
+
     // Initialize bundler with configuration
     this.bundler = new Bundler({
-      target: config.build.target ?? 'bun',
-      outDir: config.build.outDir ?? 'dist',
-      sourceMaps: config.build.sourceMaps ?? false,
-      minify: optimization.minify,
-      external: config.build.external || []
+      target: (buildCfg.target ?? 'bun') as 'bun' | 'node' | 'docker',
+      outDir: buildCfg.outDir ?? 'dist',
+      sourceMaps: buildCfg.sourceMaps ?? false,
+      minify: optimization.minify as boolean ?? true,
+      external: buildCfg.external || []
     })
 
     // Initialize optimizer with configuration
     this.optimizer = new Optimizer({
-      treeshake: optimization.treeshake ?? true,
-      compress: optimization.compress || false,
-      removeUnusedCSS: optimization.removeUnusedCSS || false,
-      optimizeImages: optimization.optimizeImages || false,
-      bundleAnalysis: optimization.bundleAnalyzer || false
+      treeshake: Boolean(optimization.treeshake ?? true),
+      compress: Boolean(optimization.compress || false),
+      removeUnusedCSS: Boolean(optimization.removeUnusedCSS || false),
+      optimizeImages: Boolean(optimization.optimizeImages || false),
+      bundleAnalysis: Boolean(optimization.bundleAnalyzer || false)
     })
   }
 
@@ -429,19 +486,33 @@ MONITORING_ENABLED=true
   }
 
   private async generateManifest(
-    clientResult: any,
-    serverResult: any,
-    optimizationResult?: any
+    clientResult: BundleResult,
+    serverResult: BundleResult,
+    optimizationResult?: OptimizationResult
   ): Promise<BuildManifest> {
+    const target = (this.config.build.target ?? 'bun') as import("../types/build").BuildTarget
+    const mode = (this.config.build.mode ?? 'production') as import("../types/build").BuildMode
+
+    // Map string asset paths to AssetManifest objects
+    const clientAssets: import("../types/build").AssetManifest[] = (clientResult.assets || []).map(
+      (assetPath) => ({
+        name: assetPath.split('/').pop() || assetPath,
+        file: assetPath,
+        size: 0,
+        hash: '',
+        type: 'asset'
+      })
+    )
+
     return {
       version: this.config.app.version ?? '0.0.0',
       timestamp: new Date().toISOString(),
-      target: this.config.build.target ?? 'bun',
-      mode: this.config.build.mode ?? 'production',
+      target,
+      mode,
       client: {
         entryPoints: [],
         chunks: [],
-        assets: clientResult.assets || [],
+        assets: clientAssets,
         publicPath: '/'
       },
       server: {
@@ -473,7 +544,7 @@ MONITORING_ENABLED=true
   /**
    * Execute plugin hooks for build process
    */
-  private async executePluginHooks(hookName: string, context: any): Promise<void> {
+  private async executePluginHooks(hookName: string, context: unknown): Promise<void> {
     if (!this.pluginRegistry) return
 
     const loadOrder = this.pluginRegistry.getLoadOrder()
@@ -482,7 +553,7 @@ MONITORING_ENABLED=true
       const plugin = this.pluginRegistry.get(pluginName)
       if (!plugin) continue
 
-      const hookFn = (plugin as any)[hookName]
+      const hookFn = (plugin as unknown as Record<string, unknown>)[hookName]
       if (typeof hookFn === 'function') {
         try {
           await hookFn(context)

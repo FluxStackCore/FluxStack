@@ -83,7 +83,7 @@ export type ActionReturnType<T, K extends keyof T> =
 // Deprecated types (backward compat)
 /** @deprecated Use FluxStackWSData instead */
 export interface WebSocketData {
-  components: Map<string, any>
+  components: Map<string, unknown>
   userId?: string
   subscriptions: Set<string>
 }
@@ -99,8 +99,8 @@ export interface StateValidation {
 /** @deprecated Not used in current protocol */
 export interface StateConflict {
   property: string
-  clientValue: any
-  serverValue: any
+  clientValue: unknown
+  serverValue: unknown
   timestamp: number
   resolved: boolean
 }

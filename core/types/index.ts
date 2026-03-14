@@ -119,7 +119,7 @@ export interface LegacyFluxStackConfig {
 }
 
 export interface FluxStackContext {
-  config: any // Use any to avoid circular dependency
+  config: unknown // Use unknown to avoid circular dependency
   isDevelopment: boolean
   isProduction: boolean
   isTest: boolean

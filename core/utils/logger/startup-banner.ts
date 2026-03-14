@@ -53,9 +53,9 @@ export function displayStartupBanner(info: StartupInfo): void {
   }
 
   // Display plugins in compact format
-  const plugins = (global as any).__fluxstackPlugins || []
+  const plugins = ((globalThis as Record<string, unknown>).__fluxstackPlugins || []) as Array<{ name: string }>
   if (plugins.length > 0) {
-    const pluginList = plugins.map((p: any) => p.name).join(', ')
+    const pluginList = plugins.map((p) => p.name).join(', ')
     console.log(chalk.gray(`  Plugins (${plugins.length}): `) + chalk.magenta(pluginList))
   }
 

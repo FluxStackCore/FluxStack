@@ -76,7 +76,7 @@ export const staticFilesPlugin: Plugin = {
     const enableUploads = pluginsConfig.staticEnableUploads
 
     // Async handler — uses Bun.file() APIs instead of Node fs
-    const serveFile = (baseDir: string, isUpload: boolean) => async ({ params, set, request }: any) => {
+    const serveFile = (baseDir: string, isUpload: boolean) => async ({ params, set, request }: { params: Record<string, string>; set: { status: number; headers: Record<string, string> }; request: Request }) => {
       const requestedPath: string = params['*'] || ''
 
       // Reject null bytes early — prevents filesystem confusion
@@ -155,15 +155,16 @@ export const staticFilesPlugin: Plugin = {
     }
 
     // Register routes based on config flags
+    const app = context.app as import('elysia').Elysia
     if (enablePublic) {
       await mkdir(publicDir, { recursive: true })
-      context.app.get('/api/static/*', serveFile(publicDir, false))
+      app.get('/api/static/*', serveFile(publicDir, false) as never)
       context.logger.debug('Static public files route registered: /api/static/*')
     }
 
     if (enableUploads) {
       await mkdir(uploadsDir, { recursive: true })
-      context.app.get('/api/uploads/*', serveFile(uploadsDir, true))
+      app.get('/api/uploads/*', serveFile(uploadsDir, true) as never)
       context.logger.debug('Static uploads route registered: /api/uploads/*')
     }
 

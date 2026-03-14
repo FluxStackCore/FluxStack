@@ -53,7 +53,7 @@ function createStaticFallback() {
   // Discover base directory once
   const baseDir = existsSync('client') ? 'client'
     : existsSync('dist/client') ? 'dist/client'
-    : clientConfig.build.outDir ?? 'dist/client'
+    : (clientConfig.build.outDir as string) ?? 'dist/client'
 
   // Pre-scan all files at startup — O(1) lookup per request
   const fileMap = collectFiles(baseDir)
@@ -227,7 +227,7 @@ export const vitePlugin: Plugin = {
 
     if (!IS_DEV) {
       context.logger.debug("Production mode: static file serving enabled")
-      context.app.all('*', createStaticFallback())
+      ;(context.app as Record<string, Function>).all('*', createStaticFallback())
       return
     }
 
@@ -249,7 +249,7 @@ export const vitePlugin: Plugin = {
   onBeforeRoute: async (ctx: RequestContext) => {
     if (!IS_DEV) return
 
-    const shouldSkip = (pluginsConfig.viteExcludePaths ?? []).some(prefix =>
+    const shouldSkip = ((pluginsConfig.viteExcludePaths ?? []) as string[]).some((prefix: string) =>
       ctx.path === prefix || ctx.path.startsWith(prefix + '/')
     )
 

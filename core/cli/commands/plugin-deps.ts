@@ -32,11 +32,11 @@ function createInstallCommand(): Command {
         const dependencyManager = new PluginDependencyManager({
           autoInstall: !options.dryRun,
           packageManager: options.packageManager,
-          logger: createConsoleLogger() as any as any
+          logger: createConsoleLogger()
         })
 
         const registry = new PluginRegistry({
-          logger: createConsoleLogger() as any as any
+          logger: createConsoleLogger()
         })
 
         // Descobrir plugins
@@ -104,7 +104,7 @@ function createListCommand(): Command {
 
       try {
         const registry = new PluginRegistry({
-          logger: createConsoleLogger() as any
+          logger: createConsoleLogger()
         })
 
         const results = await registry.discoverPlugins({
@@ -113,7 +113,7 @@ function createListCommand(): Command {
 
         const dependencyManager = new PluginDependencyManager({
           autoInstall: false,
-          logger: createConsoleLogger() as any
+          logger: createConsoleLogger()
         })
 
         for (const result of results) {
@@ -162,7 +162,7 @@ function createCheckCommand(): Command {
 
       try {
         const registry = new PluginRegistry({
-          logger: createConsoleLogger() as any
+          logger: createConsoleLogger()
         })
 
         const results = await registry.discoverPlugins({
@@ -171,7 +171,7 @@ function createCheckCommand(): Command {
 
         const dependencyManager = new PluginDependencyManager({
           autoInstall: false,
-          logger: createConsoleLogger() as any
+          logger: createConsoleLogger()
         })
 
         const resolutions = []
@@ -243,29 +243,40 @@ function findPluginDirectory(pluginName: string): string | null {
 }
 
 interface ConsoleLogger {
-  debug: (msg: string, meta?: unknown) => void
-  info: (msg: string, meta?: unknown) => void
-  warn: (msg: string, meta?: unknown) => void
-  error: (msg: string, meta?: unknown) => void
+  debug: (message: unknown, ...args: unknown[]) => void
+  info: (message: unknown, ...args: unknown[]) => void
+  warn: (message: unknown, ...args: unknown[]) => void
+  error: (message: unknown, ...args: unknown[]) => void
   child: () => ConsoleLogger
+  request: (method: string, path: string, status?: number, duration?: number, ip?: string) => void
+  plugin: (pluginName: string, message: string, meta?: unknown) => void
+  framework: (message: string, meta?: unknown) => void
+  time: (label: string) => void
+  timeEnd: (label: string) => void
 }
 
 function createConsoleLogger(): ConsoleLogger {
-  return {
-    debug: (msg: string, meta?: unknown) => {
+  const logger: ConsoleLogger = {
+    debug: (message: unknown, ...args: unknown[]) => {
       if (process.env.DEBUG) {
-        console.log(chalk.gray(`[DEBUG] ${msg}`), meta || '')
+        console.log(chalk.gray(`[DEBUG] ${message}`), ...args)
       }
     },
-    info: (msg: string, meta?: unknown) => {
-      console.log(chalk.blue(`[INFO] ${msg}`), meta || '')
+    info: (message: unknown, ...args: unknown[]) => {
+      console.log(chalk.blue(`[INFO] ${message}`), ...args)
     },
-    warn: (msg: string, meta?: unknown) => {
-      console.log(chalk.yellow(`[WARN] ${msg}`), meta || '')
+    warn: (message: unknown, ...args: unknown[]) => {
+      console.log(chalk.yellow(`[WARN] ${message}`), ...args)
     },
-    error: (msg: string, meta?: unknown) => {
-      console.log(chalk.red(`[ERROR] ${msg}`), meta || '')
+    error: (message: unknown, ...args: unknown[]) => {
+      console.log(chalk.red(`[ERROR] ${message}`), ...args)
     },
-    child: () => createConsoleLogger()
+    child: () => createConsoleLogger(),
+    request: () => {},
+    plugin: () => {},
+    framework: () => {},
+    time: () => {},
+    timeEnd: () => {}
   }
+  return logger
 }

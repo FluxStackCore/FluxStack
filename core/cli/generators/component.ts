@@ -141,7 +141,7 @@ import './{{pascalName}}.css'
 
 export interface {{pascalName}}Props {
   className?: string
-  onAction?: (data: any) => void
+  onAction?: (data: unknown) => void
 }
 
 export const {{pascalName}}: React.FC<{{pascalName}}Props> = ({ 
@@ -150,7 +150,7 @@ export const {{pascalName}}: React.FC<{{pascalName}}Props> = ({
   ...props 
 }) => {
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<Record<string, unknown> | null>(null)
 
   useEffect(() => {
     // Component initialization logic

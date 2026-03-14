@@ -15,7 +15,7 @@ export interface GeneratorOptions {
   template?: string
   force?: boolean
   dryRun?: boolean
-  [key: string]: any
+  [key: string]: unknown
 }
 
 export interface TemplateVariable {
@@ -23,7 +23,7 @@ export interface TemplateVariable {
   description: string
   type: 'string' | 'boolean' | 'choice'
   required?: boolean
-  default?: any
+  default?: string | boolean
   choices?: string[]
   prompt?: string
 }
@@ -42,7 +42,7 @@ export interface Template {
 export interface TemplateFile {
   path: string
   content: string
-  condition?: (variables: Record<string, any>) => boolean
+  condition?: (variables: Record<string, unknown>) => boolean
 }
 
 export interface GeneratedFile {
@@ -60,12 +60,12 @@ export interface GenerationResult {
 }
 
 // Utility types for template processing
-export type TemplateProcessor = (template: string, variables: Record<string, any>) => string
+export type TemplateProcessor = (template: string, variables: Record<string, unknown>) => string
 
 export interface PromptConfig {
   type: 'input' | 'confirm' | 'select' | 'multiselect'
   message: string
-  default?: any
-  choices?: Array<{ name: string; value: any; description?: string }>
-  validate?: (value: any) => boolean | string
+  default?: unknown
+  choices?: Array<{ name: string; value: unknown; description?: string }>
+  validate?: (value: unknown) => boolean | string
 }

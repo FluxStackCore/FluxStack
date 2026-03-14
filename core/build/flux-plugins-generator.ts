@@ -164,7 +164,7 @@ ${pluginsList}
 export const externalPlugins = discoveredPlugins
 
 // Plugin registration function
-export async function registerDiscoveredPlugins(registry: any): Promise<void> {
+export async function registerDiscoveredPlugins(registry: { register: (plugin: Plugin) => Promise<void> }): Promise<void> {
   if (discoveredPlugins.length === 0) {
     console.log('📦 No external plugins to register')
     return

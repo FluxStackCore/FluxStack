@@ -22,7 +22,7 @@ describe('Code Generators', () => {
         context = {
             workingDir: tempDir,
             config: fluxStackConfig,
-            logger: logger as any,
+            logger,
             utils: {
                 createTimer,
                 formatBytes,
@@ -43,7 +43,7 @@ describe('Code Generators', () => {
                     }
                     return result
                 },
-                validateSchema: (_data: any, _schema: any) => {
+                validateSchema: (_data: unknown, _schema: unknown) => {
                     try {
                         return { valid: true, errors: [] }
                     } catch (error) {
@@ -260,7 +260,7 @@ describe('Code Generators', () => {
                 await readFile(controllerPath, 'utf-8')
                 expect.fail('File should not exist in dry run mode')
             } catch (error) {
-                expect((error as any).code).toBe('ENOENT')
+                expect((error as NodeJS.ErrnoException).code).toBe('ENOENT')
             }
         })
     })

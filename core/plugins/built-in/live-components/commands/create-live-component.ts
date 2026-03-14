@@ -218,7 +218,7 @@ export function ${name}Demo() {
         <input {...form.$field('email', { syncOn: 'change', debounce: 500 })} type="email" placeholder="Email" className="w-full px-3 py-2 border rounded-lg" />
         <textarea {...form.$field('message', { syncOn: 'blur' })} placeholder="Mensagem" rows={3} className="w-full px-3 py-2 border rounded-lg" />
         <div className="flex gap-2">
-          <button onClick={async () => { try { await form.$sync(); await form.submit() } catch (e: any) { alert(e.message) }}} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg">Enviar</button>
+          <button onClick={async () => { try { await form.$sync(); await form.submit() } catch (e) { alert((e as Error).message) }}} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg">Enviar</button>
           <button onClick={() => form.reset()} className="px-4 py-2 bg-gray-500 text-white rounded-lg">Limpar</button>
         </div>
       </div>
@@ -327,8 +327,11 @@ export const createLiveComponentCommand: CliCommand = {
     { name: "force", short: "f", description: "Overwrite", type: "boolean" }
   ],
   handler: async (args, options, context) => {
-    const [name] = args;
-    const { type = 'basic', 'no-client': noClient, room, force } = options;
+    const [rawName] = args;
+    const name = rawName as string;
+    const { type: rawType = 'basic', 'no-client': noClient, room: rawRoom, force } = options;
+    const type = rawType as string;
+    const room = rawRoom as string | undefined;
 
     if (!name || !/^[A-Z][a-zA-Z0-9]*$/.test(name)) {
       context.logger.error("❌ Nome inválido. Use PascalCase (ex: MeuComponente)");

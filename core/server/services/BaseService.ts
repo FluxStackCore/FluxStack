@@ -11,7 +11,7 @@
 import type { Logger } from '@core/utils/logger/index'
 
 export interface ServiceContext {
-  config: any
+  config: Record<string, unknown>
   logger: Logger
   services?: ServiceContainer
 }
@@ -22,13 +22,13 @@ export interface ServiceContainer {
 }
 
 export abstract class BaseService {
-  protected config: any
+  protected config: Record<string, unknown>
   protected logger: Logger
   protected services?: ServiceContainer
 
   constructor(context: ServiceContext) {
     this.config = context.config
-    this.logger = context.logger.child({ service: this.constructor.name })
+    this.logger = context.logger.child?.({ service: this.constructor.name }) ?? context.logger
     this.services = context.services
   }
 
@@ -45,14 +45,14 @@ export abstract class BaseService {
   /**
    * Log service operation
    */
-  protected logOperation(operation: string, data?: any) {
+  protected logOperation(operation: string, data?: unknown) {
     this.logger.info(`${operation}`, data)
   }
 
   /**
    * Log service error
    */
-  protected logError(operation: string, error: Error, data?: any) {
+  protected logError(operation: string, error: Error, data?: unknown) {
     this.logger.error(`${operation} failed`, { error: error.message, data })
   }
 
@@ -69,7 +69,7 @@ export abstract class BaseService {
   protected async executeWithLogging<T>(
     operation: string, 
     fn: () => Promise<T> | T,
-    metadata?: any
+    metadata?: unknown
   ): Promise<T> {
     this.logOperation(`Starting ${operation}`, metadata)
     try {
@@ -85,7 +85,7 @@ export abstract class BaseService {
   /**
    * Validate required fields
    */
-  protected validateRequired(data: any, fields: string[]): void {
+  protected validateRequired(data: Record<string, unknown>, fields: string[]): void {
     for (const field of fields) {
       if (!data[field]) {
         throw new Error(`Missing required field: ${field}`)

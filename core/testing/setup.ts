@@ -10,7 +10,7 @@ import { beforeEach, vi } from 'vitest'
  */
 export function setupFluxStackTests() {
   // Mock fetch globally
-  global.fetch = vi.fn() as any
+  global.fetch = vi.fn() as unknown as typeof fetch
 
   // Mock localStorage
   const localStorageMock = {
@@ -59,7 +59,7 @@ export function createMockLogger() {
 /**
  * Create mock service context for testing
  */
-export function createMockServiceContext(overrides: any = {}) {
+export function createMockServiceContext(overrides: Record<string, unknown> = {}) {
   return {
     config: {},
     logger: createMockLogger(),

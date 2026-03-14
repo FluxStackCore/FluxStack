@@ -250,7 +250,7 @@ describe('Helper Utilities', () => {
 
       it('should handle non-existent keys', () => {
         const obj = { a: 1, b: 2 }
-        const result = pick(obj, ['a', 'c'] as any)
+        const result = pick(obj, ['a', 'c'] as unknown as (keyof typeof obj)[])
 
         expect(result).toEqual({ a: 1 })
       })
@@ -306,7 +306,7 @@ describe('Helper Utilities', () => {
       })
 
       it('should return fallback for circular references', () => {
-        const circular: any = { a: 1 }
+        const circular: Record<string, unknown> = { a: 1 }
         circular.self = circular
 
         const result = safeJsonStringify(circular, '{"error": true}')

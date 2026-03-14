@@ -32,7 +32,8 @@ export const createCommand: CLICommand = {
     }
   ],
   handler: async (args, options, context) => {
-    const [projectName, template] = args
+    const projectName = args[0] as string
+    const template = args[1] as string | undefined
 
     if (!/^[a-zA-Z0-9-_]+$/.test(projectName)) {
       console.error("❌ Project name can only contain letters, numbers, hyphens, and underscores")
@@ -41,8 +42,8 @@ export const createCommand: CLICommand = {
 
     try {
       const creator = new ProjectCreator({
-        name: projectName,
-        template: template as 'basic' | 'full' || 'basic'
+        name: projectName as string,
+        template: (template as 'basic' | 'full') || 'basic'
       })
 
       await creator.create()
