@@ -1,6 +1,20 @@
-import type { FluxStack, PluginManifest, PluginLoadResult, PluginDiscoveryOptions } from "./types"
+import type { FluxStack, PluginManifest, PluginLoadResult, PluginDiscoveryOptions, PluginPriority } from "./types"
 
 type FluxStackPlugin = FluxStack.Plugin
+
+const PRIORITY_MAP: Record<string, number> = {
+  highest: 1000,
+  high: 750,
+  normal: 500,
+  low: 250,
+  lowest: 0
+}
+
+function normalizePriority(priority?: number | PluginPriority): number {
+  if (typeof priority === 'number') return priority
+  if (typeof priority === 'string' && priority in PRIORITY_MAP) return PRIORITY_MAP[priority]
+  return 500 // default to normal
+}
 import type { FluxStackConfig } from "@config"
 import type { Logger } from "@core/utils/logger"
 import { FluxStackError } from "@core/utils/errors"
@@ -644,9 +658,11 @@ export class PluginRegistry {
       )
     }
 
-    if (plugin.priority && typeof plugin.priority !== 'number') {
+    if (plugin.priority !== undefined
+      && typeof plugin.priority !== 'number'
+      && !(typeof plugin.priority === 'string' && plugin.priority in PRIORITY_MAP)) {
       throw new FluxStackError(
-        'Plugin priority must be a number',
+        `Plugin priority must be a number or one of: ${Object.keys(PRIORITY_MAP).join(', ')}`,
         'INVALID_PLUGIN_STRUCTURE',
         400
       )
@@ -741,9 +757,7 @@ export class PluginRegistry {
       ready.sort((a, b) => {
         const pluginA = this.plugins.get(a)
         const pluginB = this.plugins.get(b)
-        const priorityA = typeof pluginA?.priority === 'number' ? pluginA.priority : 0
-        const priorityB = typeof pluginB?.priority === 'number' ? pluginB.priority : 0
-        return priorityB - priorityA
+        return normalizePriority(pluginB?.priority) - normalizePriority(pluginA?.priority)
       })
 
       for (const name of ready) {
