@@ -7,6 +7,7 @@ import { ServiceGenerator } from '../service'
 import { ComponentGenerator } from '../component'
 import { RouteGenerator } from '../route'
 import type { GeneratorContext, GeneratorOptions } from '../types'
+import { createHash } from 'crypto'
 import { fluxStackConfig } from '@config'
 import { logger } from '@core/utils/logger'
 import { createTimer, formatBytes, isProduction, isDevelopment } from '@core/utils/helpers'
@@ -29,8 +30,7 @@ describe('Code Generators', () => {
                 isDevelopment,
                 getEnvironment: () => process.env.NODE_ENV || 'development',
                 createHash: (data: string) => {
-                    const crypto = require('crypto')
-                    return crypto.createHash('sha256').update(data).digest('hex')
+                    return createHash('sha256').update(data).digest('hex')
                 },
                 deepMerge: (target: any, source: any) => {
                     const result = { ...target }

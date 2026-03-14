@@ -10,6 +10,7 @@ import { displayStartupBanner, type StartupInfo } from "@core/utils/logger/start
 import { componentRegistry } from "@core/server/live"
 import { FluxStackError } from "@core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/utils/helpers"
+import { createHash } from "crypto"
 import type { Plugin } from "@core/plugins"
 
 export class FluxStackFramework {
@@ -96,8 +97,7 @@ export class FluxStackFramework {
       isDevelopment,
       getEnvironment: () => envInfo.name,
       createHash: (data: string) => {
-        const crypto = require('crypto')
-        return crypto.createHash('sha256').update(data).digest('hex')
+        return createHash('sha256').update(data).digest('hex')
       },
       deepMerge: (target: any, source: any) => {
         const result = { ...target }
@@ -270,7 +270,6 @@ export class FluxStackFramework {
       if (isStatic) {
         set.status = 200
         set.headers['Content-Type'] = 'text/html'
-        set.headers['Content-Length'] = '478' // approximate size of index.html
         set.headers['Cache-Control'] = 'no-cache'
         return ""
       }
