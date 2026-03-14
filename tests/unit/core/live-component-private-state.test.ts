@@ -24,6 +24,9 @@ setLiveComponentContext({
   debugger: { enabled: false, trackStateChange: () => {}, trackAction: () => {}, trackError: () => {} } as any,
 })
 
+// WsSendBatcher in v0.3.0 uses queueMicrotask — flush pending sends
+const flush = () => new Promise<void>(r => queueMicrotask(r))
+
 // ===== Test Components =====
 
 interface ChatState {
@@ -183,6 +186,7 @@ describe('$private - Server-Only State', () => {
       // Set both $private and state
       component.$private.secret = 'hidden'
       component.state.connected = true
+      await flush()
 
       // Only state change should emit
       const messages = getAllSentMessages(ws)
@@ -223,6 +227,7 @@ describe('$private - Server-Only State', () => {
 
     it('should verify $private data is NOT in any message sent to client', async () => {
       await component.executeAction('connect', { token: 'secret-token-xyz' })
+      await flush()
 
       const messages = getAllSentMessages(ws)
 

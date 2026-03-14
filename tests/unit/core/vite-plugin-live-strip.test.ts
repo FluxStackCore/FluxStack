@@ -134,34 +134,35 @@ describe('Vite Plugin - Live Component Server Code Stripping', () => {
       expect(metadata[0].defaultState).toContain('count')
     })
 
-    it('should extract metadata from LiveChat', () => {
+    it('should extract metadata from LiveRoomChat', () => {
       const source = readFileSync(
-        resolve(ROOT, 'app/server/live/LiveChat.ts'),
+        resolve(ROOT, 'app/server/live/LiveRoomChat.ts'),
         'utf-8'
       )
 
       const metadata = extractComponentMetadata(source)
       expect(metadata).toHaveLength(1)
-      expect(metadata[0].className).toBe('LiveChat')
-      expect(metadata[0].componentName).toBe('LiveChat')
+      expect(metadata[0].className).toBe('LiveRoomChat')
+      expect(metadata[0].componentName).toBe('LiveRoomChat')
+      expect(metadata[0].publicActions).toContain('joinRoom')
+      expect(metadata[0].publicActions).toContain('sendMessage')
     })
 
-    it('should extract metadata from LiveTodoList', () => {
+    it('should extract metadata from LiveForm', () => {
       const source = readFileSync(
-        resolve(ROOT, 'app/server/live/LiveTodoList.ts'),
+        resolve(ROOT, 'app/server/live/LiveForm.ts'),
         'utf-8'
       )
 
       const metadata = extractComponentMetadata(source)
       expect(metadata).toHaveLength(1)
-      expect(metadata[0].className).toBe('LiveTodoList')
-      expect(metadata[0].componentName).toBe('LiveTodoList')
-      expect(metadata[0].publicActions).toContain('addTodo')
-      expect(metadata[0].publicActions).toContain('toggleTodo')
-      expect(metadata[0].publicActions).toContain('removeTodo')
-      expect(metadata[0].publicActions).toContain('clearCompleted')
-      expect(metadata[0].defaultState).toContain('todos')
-      expect(metadata[0].defaultState).toContain('totalCreated')
+      expect(metadata[0].className).toBe('LiveForm')
+      expect(metadata[0].componentName).toBe('LiveForm')
+      expect(metadata[0].publicActions).toContain('submit')
+      expect(metadata[0].publicActions).toContain('reset')
+      expect(metadata[0].publicActions).toContain('validate')
+      expect(metadata[0].defaultState).toContain('name')
+      expect(metadata[0].defaultState).toContain('email')
     })
   })
 
@@ -258,17 +259,16 @@ export const CONSTANT = 'hello'
 
     it('should not contain method implementations in stubs', () => {
       const source = readFileSync(
-        resolve(ROOT, 'app/server/live/LiveTodoList.ts'),
+        resolve(ROOT, 'app/server/live/LiveForm.ts'),
         'utf-8'
       )
 
       const stub = generateClientStub(source)
 
-      expect(stub).not.toContain('async addTodo')
-      expect(stub).not.toContain('async toggleTodo')
-      expect(stub).not.toContain('async removeTodo')
+      expect(stub).not.toContain('async submit')
+      expect(stub).not.toContain('async reset')
+      expect(stub).not.toContain('async validate')
       expect(stub).not.toContain('this.setState')
-      expect(stub).not.toContain('this.emitRoomEvent')
     })
   })
 
