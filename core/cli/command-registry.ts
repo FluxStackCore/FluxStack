@@ -3,6 +3,7 @@ import { fluxStackConfig } from "@config"
 import { logger } from "@core/utils/logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
 import { createHash } from "crypto"
+import { createPluginUtils } from "../plugins/config"
 
 export class CliCommandRegistry {
   private commands = new Map<string, CliCommand>()
@@ -35,12 +36,8 @@ export class CliCommandRegistry {
           }
           return result
         },
-        validateSchema: (_data: unknown, _schema: unknown) => {
-          try {
-            return { valid: true, errors: [] }
-          } catch (error) {
-            return { valid: false, errors: [error instanceof Error ? error.message : 'Validation failed'] }
-          }
+        validateSchema: (data: unknown, schema: unknown) => {
+          return createPluginUtils(logger as any).validateSchema(data, schema)
         }
       },
       workingDir: process.cwd(),

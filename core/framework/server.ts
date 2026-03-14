@@ -11,6 +11,7 @@ import { componentRegistry } from "@core/server/live"
 import { FluxStackError } from "@core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/utils/helpers"
 import { createHash } from "crypto"
+import { createPluginUtils } from "@core/plugins/config"
 import type { Plugin } from "@core/plugins"
 
 export class FluxStackFramework {
@@ -110,14 +111,8 @@ export class FluxStackFramework {
         }
         return result
       },
-      validateSchema: (_data: any, _schema: any) => {
-        // Simple validation - in a real implementation you'd use a proper schema validator
-        try {
-          // Basic validation logic
-          return { valid: true, errors: [] }
-        } catch (error) {
-          return { valid: false, errors: [error instanceof Error ? error.message : 'Validation failed'] }
-        }
+      validateSchema: (data: any, schema: any) => {
+        return createPluginUtils(logger as any).validateSchema(data, schema)
       }
     }
 
