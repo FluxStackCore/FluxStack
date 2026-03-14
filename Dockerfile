@@ -8,8 +8,9 @@ FROM oven/bun:1.2-alpine AS deps
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and postinstall script
 COPY package.json bun.lock ./
+COPY scripts/ ./scripts/
 
 # Install production dependencies only
 RUN bun install --production --frozen-lockfile
@@ -21,8 +22,9 @@ FROM oven/bun:1.2-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files and install all dependencies (including dev)
+# Copy package files, postinstall script, and install all dependencies (including dev)
 COPY package.json bun.lock ./
+COPY scripts/ ./scripts/
 RUN bun install --frozen-lockfile
 
 # Copy source code
