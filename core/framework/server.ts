@@ -178,11 +178,6 @@ export class FluxStackFramework {
       environment: envInfo.name,
       port: fullConfig.server.port
     })
-
-    // Initialize automatic plugin discovery in background
-    this.initializeAutomaticPlugins().catch(error => {
-      logger.error('Failed to initialize automatic plugins', { error })
-    })
   }
 
   private async initializeAutomaticPlugins() {
@@ -732,6 +727,11 @@ export class FluxStackFramework {
     }
 
     try {
+      // Initialize automatic plugins before anything else
+      // This was previously fire-and-forget in the constructor, causing a race condition
+      // where listen() could be called before plugin discovery finished (issue #75)
+      await this.initializeAutomaticPlugins()
+
       // Validate plugin dependencies before starting
       const plugins = this.registryInternals.plugins
       for (const [pluginName, plugin] of plugins) {
