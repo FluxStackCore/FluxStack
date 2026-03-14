@@ -11,7 +11,7 @@ on:
         default: 'v1.4.0'
 
 env:
-  BUN_VERSION: '1.1.34'
+  BUN_VERSION: '1.3.2'
 
 jobs:
   # 🔒 Security and dependency audit
