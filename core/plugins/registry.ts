@@ -738,11 +738,12 @@ export class PluginRegistry {
       }
 
       // Sort ready plugins by priority (highest first)
+      const priorityMap: Record<string, number> = { highest: -100, high: -50, normal: 0, low: 50, lowest: 100 }
       ready.sort((a, b) => {
         const pluginA = this.plugins.get(a)
         const pluginB = this.plugins.get(b)
-        const priorityA = typeof pluginA?.priority === 'number' ? pluginA.priority : 0
-        const priorityB = typeof pluginB?.priority === 'number' ? pluginB.priority : 0
+        const priorityA = typeof pluginA?.priority === 'number' ? pluginA.priority : (priorityMap[pluginA?.priority as string] ?? 0)
+        const priorityB = typeof pluginB?.priority === 'number' ? pluginB.priority : (priorityMap[pluginB?.priority as string] ?? 0)
         return priorityB - priorityA
       })
 
