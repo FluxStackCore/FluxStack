@@ -37,6 +37,16 @@ export type {
 import { liveServer, pendingAuthProviders } from './websocket-plugin'
 import type { LiveAuthProvider as _LiveAuthProvider } from '@fluxstack/live'
 
+function requireLiveServer() {
+  if (!liveServer) {
+    throw new Error(
+      'LiveComponents plugin not initialized. ' +
+      'Ensure the live-components plugin is loaded before accessing Live singletons.'
+    )
+  }
+  return liveServer
+}
+
 /**
  * Backward-compatible liveAuthManager.
  * Buffers register() calls that happen before the plugin setup(),
@@ -51,49 +61,49 @@ export const liveAuthManager = {
       pendingAuthProviders.push(provider)
     }
   },
-  get authenticate() { return liveServer!.authManager.authenticate.bind(liveServer!.authManager) },
-  get hasProviders() { return liveServer!.authManager.hasProviders.bind(liveServer!.authManager) },
-  get authorizeRoom() { return liveServer!.authManager.authorizeRoom.bind(liveServer!.authManager) },
-  get authorizeAction() { return liveServer!.authManager.authorizeAction.bind(liveServer!.authManager) },
-  get authorizeComponent() { return liveServer!.authManager.authorizeComponent.bind(liveServer!.authManager) },
+  get authenticate() { return requireLiveServer().authManager.authenticate.bind(requireLiveServer().authManager) },
+  get hasProviders() { return requireLiveServer().authManager.hasProviders.bind(requireLiveServer().authManager) },
+  get authorizeRoom() { return requireLiveServer().authManager.authorizeRoom.bind(requireLiveServer().authManager) },
+  get authorizeAction() { return requireLiveServer().authManager.authorizeAction.bind(requireLiveServer().authManager) },
+  get authorizeComponent() { return requireLiveServer().authManager.authorizeComponent.bind(requireLiveServer().authManager) },
 } as any
 
 /** @deprecated Access via liveServer.registry instead */
 export const componentRegistry = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.registry as any)[prop] }
+  get(_, prop) { return (requireLiveServer().registry as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.connectionManager instead */
 export const connectionManager = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.connectionManager as any)[prop] }
+  get(_, prop) { return (requireLiveServer().connectionManager as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.roomManager instead */
 export const liveRoomManager = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.roomManager as any)[prop] }
+  get(_, prop) { return (requireLiveServer().roomManager as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.roomEvents instead */
 export const roomEvents = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.roomEvents as any)[prop] }
+  get(_, prop) { return (requireLiveServer().roomEvents as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.fileUploadManager instead */
 export const fileUploadManager = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.fileUploadManager as any)[prop] }
+  get(_, prop) { return (requireLiveServer().fileUploadManager as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.performanceMonitor instead */
 export const performanceMonitor = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.performanceMonitor as any)[prop] }
+  get(_, prop) { return (requireLiveServer().performanceMonitor as any)[prop] }
 })
 
 /** @deprecated Access via liveServer.stateSignature instead */
 export const stateSignature = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.stateSignature as any)[prop] }
+  get(_, prop) { return (requireLiveServer().stateSignature as any)[prop] }
 })
 
 // Room state backward compat
 export const roomState = new Proxy({} as any, {
-  get(_, prop) { return (liveServer!.roomManager as any)[prop] }
+  get(_, prop) { return (requireLiveServer().roomManager as any)[prop] }
 })
