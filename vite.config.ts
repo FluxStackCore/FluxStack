@@ -75,7 +75,8 @@ export default defineConfig({
       '/api/': {
         target: 'http://localhost:3000',
         changeOrigin: true,
-        ws: true,
+        // WebSocket goes directly to port 3000 (configured in App.tsx)
+        // to avoid Vite proxy overhead and HMR contention
       },
       '/swagger': {
         target: 'http://localhost:3000',

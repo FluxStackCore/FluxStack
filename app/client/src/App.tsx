@@ -157,8 +157,16 @@ function AppContent() {
 }
 
 function App() {
+  // In dev, connect WebSocket directly to backend (port 3000) to avoid
+  // Vite proxy overhead and HMR WebSocket contention on port 5173.
+  // In production, both are served from the same origin so auto-detect works.
+  const wsUrl = import.meta.env.DEV
+    ? 'ws://localhost:3000/api/live/ws'
+    : undefined
+
   return (
     <LiveComponentsProvider
+      url={wsUrl}
       autoConnect={true}
       reconnectInterval={1000}
       maxReconnectAttempts={5}
