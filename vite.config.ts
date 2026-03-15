@@ -69,6 +69,18 @@ export default defineConfig({
       host: clientConfig.vite.host,
       port: clientConfig.vite.port,
       clientPort: clientConfig.vite.port
+    },
+
+    proxy: {
+      '/api/': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        ws: true,
+      },
+      '/swagger': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     }
   },
 
