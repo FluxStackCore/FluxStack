@@ -145,3 +145,9 @@ core/server/live/auto-generated-components.ts
 app/client/.live-stubs/
 Fluxstack-Desktop
 .claude/settings.local.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

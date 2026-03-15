@@ -85,36 +85,36 @@ export class BuildLogger {
   /**
    * Print a success message
    */
-  success(message: string) {
-    console.log(colors.green + '✓ ' + colors.reset + message)
+  success(message: string, ...args: unknown[]) {
+    console.log(colors.green + '✓ ' + colors.reset + message, ...args)
   }
 
   /**
    * Print an error message
    */
-  error(message: string) {
-    console.log(colors.red + '✗ ' + colors.reset + message)
+  error(message: string, ...args: unknown[]) {
+    console.log(colors.red + '✗ ' + colors.reset + message, ...args)
   }
 
   /**
    * Print a warning message
    */
-  warn(message: string) {
-    console.log(colors.yellow + '⚠ ' + colors.reset + message)
+  warn(message: string, ...args: unknown[]) {
+    console.log(colors.yellow + '⚠ ' + colors.reset + message, ...args)
   }
 
   /**
    * Print an info message
    */
-  info(message: string, icon: string = '→') {
-    console.log(colors.cyan + icon + ' ' + colors.reset + message)
+  info(message: string, ...args: unknown[]) {
+    console.log(colors.cyan + '→ ' + colors.reset + message, ...args)
   }
 
   /**
    * Print a step message
    */
-  step(message: string, icon: string = '▸') {
-    console.log(colors.dim + colors.gray + icon + ' ' + colors.reset + message)
+  step(message: string, ...args: unknown[]) {
+    console.log(colors.dim + colors.gray + '▸ ' + colors.reset + message, ...args)
   }
 
   /**
