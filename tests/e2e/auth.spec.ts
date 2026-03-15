@@ -1,50 +1,43 @@
 import { test, expect } from './fixtures'
 
 test.describe('Auth Demo', () => {
-  // The Auth page has a known component bug: AdminSection accesses
-  // panel.$state.currentRoles.join() before Live proxy state is populated,
-  // which crashes the entire React tree. Tests verify navigation works
-  // and the route exists.
-
-  test('should load auth page without server error', async ({ page }) => {
-    page.on('pageerror', () => {})
-
-    const response = await page.goto('/auth')
-
-    // Page should load successfully (HTTP 200 from Vite SPA)
-    expect(response?.ok()).toBe(true)
-  })
-
-  test('should navigate to auth from homepage', async ({ page }) => {
-    page.on('pageerror', () => {})
-
-    await page.goto('/')
-
-    // The FluxStack heading should be visible
-    await expect(page.getByRole('heading', { name: 'FluxStack' })).toBeVisible()
-
-    // Auth link should exist in the desktop navigation
-    const authLink = page.getByRole('link', { name: 'Auth' })
-    await expect(authLink).toBeVisible({ timeout: 10_000 })
-
-    // Click on Auth link
-    await authLink.click()
-
-    // URL should change to /auth
-    await expect(page).toHaveURL(/\/auth/)
-  })
-
-  test('should serve auth page HTML with root element', async ({ page }) => {
-    page.on('pageerror', () => {})
-
+  test('should render auth demo page', async ({ page }) => {
     await page.goto('/auth')
 
-    // Even though the React tree crashes, the HTML page should contain
-    // the root div and the main.tsx script
-    const rootDiv = page.locator('#root')
-    await expect(rootDiv).toBeAttached({ timeout: 5_000 })
+    await expect(page.getByRole('heading', { name: 'Live Components Auth' })).toBeVisible({ timeout: 10_000 })
 
-    // The page URL should be /auth
-    await expect(page).toHaveURL(/\/auth/)
+    // Auth controls section with token input
+    await expect(page.getByPlaceholder(/Token/)).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('should show auth controls with test tokens', async ({ page }) => {
+    await page.goto('/auth')
+
+    // Wait for auth controls to render
+    await expect(page.getByPlaceholder(/Token/)).toBeVisible({ timeout: 10_000 })
+
+    // "Não autenticado" should be displayed initially
+    await expect(page.getByText(/autenticado/i)).toBeVisible({ timeout: 10_000 })
+
+    // Login button
+    await expect(page.getByRole('button', { name: 'Login' })).toBeVisible()
+  })
+
+  test('should fill token and click login', async ({ page }) => {
+    await page.goto('/auth')
+
+    // Wait for auth controls
+    const tokenInput = page.getByPlaceholder(/Token/)
+    await expect(tokenInput).toBeVisible({ timeout: 10_000 })
+
+    // Type token directly
+    await tokenInput.fill('admin-token')
+    await expect(tokenInput).toHaveValue('admin-token')
+
+    // Click Login
+    await page.getByRole('button', { name: 'Login' }).click()
+
+    // After auth, "Autenticado" status should appear
+    await expect(page.getByText('Autenticado')).toBeVisible({ timeout: 15_000 })
   })
 })

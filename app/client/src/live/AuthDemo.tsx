@@ -126,7 +126,7 @@ function AdminSection() {
             User: <span className="text-emerald-300">{panel.$state.currentUser || '...'}</span>
           </div>
           <div className="text-gray-400">
-            Roles: <span className="text-yellow-300">{panel.$state.currentRoles.join(', ') || '...'}</span>
+            Roles: <span className="text-yellow-300">{panel.$state.currentRoles?.join(', ') || '...'}</span>
           </div>
         </div>
       </div>
@@ -139,7 +139,7 @@ function AdminSection() {
 
       {/* User list */}
       <div className="space-y-2 mb-4">
-        {panel.$state.users.map(user => (
+        {(panel.$state.users ?? []).map(user => (
           <div key={user.id} className="flex items-center justify-between bg-black/20 rounded-lg px-4 py-2">
             <div>
               <span className="text-white font-medium">{user.name}</span>
@@ -174,7 +174,7 @@ function AdminSection() {
       </div>
 
       {/* Audit log */}
-      {panel.$state.audit.length > 0 && (
+      {(panel.$state.audit?.length ?? 0) > 0 && (
         <div className="mt-4 pt-4 border-t border-white/10">
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-sm font-semibold text-gray-300">Audit Log</h4>
@@ -187,7 +187,7 @@ function AdminSection() {
             </button>
           </div>
           <div className="space-y-1 max-h-32 overflow-auto">
-            {panel.$state.audit.map((entry, i) => (
+            {(panel.$state.audit ?? []).map((entry, i) => (
               <div key={i} className="text-xs text-gray-500">
                 <span className="text-gray-400">{new Date(entry.timestamp).toLocaleTimeString()}</span>
                 {' '}<span className="text-blue-300">{entry.action}</span>
