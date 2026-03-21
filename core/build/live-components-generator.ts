@@ -116,27 +116,11 @@ export class LiveComponentsGenerator {
 // Generated at: ${new Date().toISOString()}
 
 ${imports}
-import { componentRegistry } from "@core/server/live"
 
-// Register all components statically for production bundle
-function registerAllComponents() {
-  try {
-    // Auto-generated component registrations
-${registrations}
-    
-    console.log('📝 Live components registered successfully! (${components.length} components)')
-  } catch (error) {
-    console.warn('⚠️ Error registering components:', error)
-  }
-}
-
-// Export registration function to be called after liveServer is initialized
-export { registerAllComponents }
-
-// Export all components to ensure they're included in the bundle
-export {
-${components.map(comp => `  ${comp.className}`).join(',\n')}
-}
+// Component classes array for LiveServer({ components }) option
+export const liveComponentClasses = [
+${components.map(comp => `  ${comp.className},`).join('\n')}
+]
 `
 
     writeFileSync(this.registrationFilePath, fileContent)
