@@ -1,4 +1,4 @@
-import { Elysia } from "elysia"
+import { Elysia, type AnyElysia } from "elysia"
 import type { FluxStackConfig, FluxStackContext } from "@core/types"
 import type { FluxStack, PluginContext, PluginUtils, PluginConfigSchema, PluginHook } from "@core/plugins/types"
 import { PluginRegistry } from "@core/plugins/registry"
@@ -666,7 +666,7 @@ export class FluxStackFramework {
     }
   }
 
-  routes(routeModule: Elysia) {
+  routes(routeModule: AnyElysia) {
     this.app.use(routeModule)
     return this
   }
