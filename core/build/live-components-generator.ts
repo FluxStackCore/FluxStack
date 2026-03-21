@@ -130,11 +130,11 @@ ${registrations}
   }
 }
 
-// Auto-register components
-registerAllComponents()
+// Export registration function to be called after liveServer is initialized
+export { registerAllComponents }
 
 // Export all components to ensure they're included in the bundle
-export { 
+export {
 ${components.map(comp => `  ${comp.className}`).join(',\n')}
 }
 `

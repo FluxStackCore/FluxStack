@@ -4,6 +4,7 @@ import { LiveServer, RoomRegistry } from '@fluxstack/live'
 import type { LiveAuthProvider, LiveRoomClass } from '@fluxstack/live'
 import { ElysiaTransport } from '@fluxstack/live-elysia'
 import type { Plugin, PluginContext } from '@core/plugins/types'
+import { registerAllComponents } from './auto-generated-components'
 import path from 'path'
 import { readdirSync, existsSync } from 'fs'
 
@@ -39,6 +40,9 @@ export const liveComponentsPlugin: Plugin = {
       httpPrefix: '/api/live',
       rooms: [...discoveredRooms, ...pendingRoomClasses],
     })
+
+    // Register auto-generated components now that liveServer exists
+    registerAllComponents()
 
     // Replay any auth providers that were registered before setup()
     for (const provider of pendingAuthProviders) {
