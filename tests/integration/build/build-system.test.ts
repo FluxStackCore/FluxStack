@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { FluxPluginsGenerator } from '@core/build/flux-plugins-generator'
-import { LiveComponentsGenerator } from '@core/build/live-components-generator'
+import { generateLiveComponentsFile } from '@fluxstack/live/build'
 import { TemplateEngine } from '@core/cli/generators/template-engine'
+import { join } from 'path'
+import { existsSync, readFileSync } from 'fs'
 
 describe('Build System - Integration', () => {
   it('flux-plugins-generator produces valid TypeScript', () => {
@@ -24,26 +26,24 @@ describe('Build System - Integration', () => {
     }
   })
 
-  it('live-components-generator discovers components', () => {
-    const generator = new LiveComponentsGenerator()
+  it('generateLiveComponentsFile discovers components', () => {
+    const componentsDir = join(process.cwd(), 'app', 'server', 'live')
+    const outFile = join(process.cwd(), 'core', 'server', 'live', 'auto-generated-components.ts')
 
-    // discoverComponents scans app/server/live/
-    const components = generator.discoverComponents()
+    const count = generateLiveComponentsFile({
+      componentsDir,
+      outFile,
+      importPrefix: '@app/server/live',
+    })
 
-    // Should return an array (may be empty or have components)
-    expect(Array.isArray(components)).toBe(true)
+    // Should find components (9 in the FluxStack app)
+    expect(count).toBeGreaterThan(0)
 
-    // Each component entry should have the correct shape
-    for (const component of components) {
-      expect(component.fileName).toBeDefined()
-      expect(typeof component.fileName).toBe('string')
-      expect(component.className).toBeDefined()
-      expect(typeof component.className).toBe('string')
-      expect(component.componentName).toBeDefined()
-      expect(typeof component.componentName).toBe('string')
-      expect(component.filePath).toBeDefined()
-      expect(component.filePath).toContain('@app/server/live/')
-    }
+    // Generated file should exist and contain valid exports
+    expect(existsSync(outFile)).toBe(true)
+    const content = readFileSync(outFile, 'utf-8')
+    expect(content).toContain('export const liveComponentClasses')
+    expect(content).toContain('@app/server/live/')
   })
 
   it('template engine processes variables correctly', async () => {

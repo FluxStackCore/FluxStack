@@ -4,6 +4,7 @@ import { join } from "path"
 import type { FluxStackConfig } from "../config"
 import type { BundleResult, BundleOptions } from "../types/build"
 import { buildLogger } from "../utils/build-logger"
+import { generateLiveComponentsFile } from "@fluxstack/live/build"
 
 export interface BundlerConfig {
   target: 'bun' | 'node' | 'docker'
@@ -79,11 +80,10 @@ export class Bundler {
     buildLogger.section('Server Build', '⚡')
 
     const startTime = Date.now()
-    let liveComponentsGenerator: unknown = null
 
     try {
-      // Run pre-build steps
-      liveComponentsGenerator = await this.runPreBuildSteps()
+      // Run pre-build steps (component discovery + plugins generation)
+      await this.runPreBuildSteps()
 
       // Ensure output directory exists
       this.ensureOutputDirectory()
@@ -123,7 +123,7 @@ export class Bundler {
         buildLogger.success(`Server bundle completed in ${buildLogger.formatDuration(duration)}`)
 
         // Run post-build cleanup
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
 
         return {
           success: true,
@@ -140,7 +140,7 @@ export class Bundler {
         if (stderr.trim()) buildLogger.error(`stderr:\n${stderr.trim()}`)
 
         // Run post-build cleanup
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
 
         return {
           success: false,
@@ -153,7 +153,7 @@ export class Bundler {
 
       // 🧹 CLEANUP: Restore original files on error
       try {
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
       } catch (cleanupError) {
         buildLogger.warn(`Failed to cleanup generated files: ${cleanupError}`)
       }
@@ -170,11 +170,10 @@ export class Bundler {
     buildLogger.section('Executable Build', '📦')
 
     const startTime = Date.now()
-    let liveComponentsGenerator: unknown = null
 
     try {
-      // Run pre-build steps
-      liveComponentsGenerator = await this.runPreBuildSteps()
+      // Run pre-build steps (component discovery + plugins generation)
+      await this.runPreBuildSteps()
 
       // Ensure output directory exists
       this.ensureOutputDirectory()
@@ -255,7 +254,7 @@ export class Bundler {
         buildLogger.success(`Executable compiled in ${buildLogger.formatDuration(duration)}`)
 
         // Run post-build cleanup
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
 
         return {
           success: true,
@@ -267,7 +266,7 @@ export class Bundler {
         buildLogger.error("Executable compilation failed")
 
         // Run post-build cleanup
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
 
         const stderr = await new Response(buildProcess.stderr).text()
         return {
@@ -281,7 +280,7 @@ export class Bundler {
 
       // 🧹 CLEANUP: Restore original files on error
       try {
-        await this.runPostBuildCleanup(liveComponentsGenerator)
+        await this.runPostBuildCleanup()
       } catch (cleanupError) {
         buildLogger.warn(`Failed to cleanup generated files: ${cleanupError}`)
       }
@@ -320,30 +319,38 @@ export class Bundler {
   }
 
   /**
-   * Run pre-build steps (Live Components and Plugins generation)
+   * Run pre-build steps (component discovery + plugins generation)
    */
-  private async runPreBuildSteps(): Promise<unknown> {
+  private async runPreBuildSteps(): Promise<void> {
     // 🚀 PRE-BUILD: Auto-generate Live Components registration
-    const generatorModule = await import('./live-components-generator')
-    const liveComponentsGenerator = generatorModule.liveComponentsGenerator
-    await liveComponentsGenerator.preBuild()
+    this.discoverLiveComponents()
 
     // 🔌 PRE-BUILD: Auto-generate FluxStack Plugins registration
     const pluginsGeneratorModule = await import('./flux-plugins-generator')
     const fluxPluginsGenerator = pluginsGeneratorModule.fluxPluginsGenerator
     await fluxPluginsGenerator.preBuild()
+  }
 
-    return liveComponentsGenerator
+  /**
+   * Scan and generate the Live Components registration file.
+   */
+  private discoverLiveComponents(): void {
+    const count = generateLiveComponentsFile({
+      componentsDir: join(process.cwd(), 'app', 'server', 'live'),
+      outFile: join(process.cwd(), 'core', 'server', 'live', 'auto-generated-components.ts'),
+      importPrefix: '@app/server/live',
+    })
+    if (count >= 0) {
+      buildLogger.success(`Discovered ${count} Live Components`)
+    } else {
+      buildLogger.warn('No app/server/live/ directory found, skipping component discovery')
+    }
   }
 
   /**
    * Run post-build cleanup
    */
-  private async runPostBuildCleanup(liveComponentsGenerator: unknown): Promise<void> {
-    if (liveComponentsGenerator && typeof liveComponentsGenerator === 'object' && 'postBuild' in liveComponentsGenerator) {
-      await (liveComponentsGenerator as { postBuild: (keep: boolean) => Promise<void> }).postBuild(false)
-    }
-
+  private async runPostBuildCleanup(): Promise<void> {
     const pluginsGeneratorModule = await import('./flux-plugins-generator')
     const fluxPluginsGenerator = pluginsGeneratorModule.fluxPluginsGenerator
     await fluxPluginsGenerator.postBuild(false)
