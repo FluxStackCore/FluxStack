@@ -9,7 +9,7 @@ type Plugin = FluxStack.Plugin
 import { Elysia, t } from "elysia"
 import { CryptoAuthService, AuthMiddleware } from "./server"
 import { CryptoAuthLiveProvider } from "./server/CryptoAuthLiveProvider"
-import { liveAuthManager } from "@core/server/live"
+import { registerAuthProvider } from "@core/server/live"
 import { makeProtectedRouteCommand } from "./cli/make-protected-route.command"
 
 // ✅ Plugin carrega sua própria configuração (da pasta config/ do plugin)
@@ -91,7 +91,7 @@ export const cryptoAuthPlugin: Plugin = {
     ;(global as any).cryptoAuthMiddleware = authMiddleware
 
     // 🔒 Register as LiveAuthProvider for Live Components WebSocket auth
-    liveAuthManager.register(new CryptoAuthLiveProvider(authService))
+    registerAuthProvider(new CryptoAuthLiveProvider(authService))
     context.logger.info('🔒 Crypto Auth registered as Live Components auth provider')
 
     // Store plugin info for table display
