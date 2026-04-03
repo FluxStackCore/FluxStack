@@ -8,7 +8,7 @@ on:
   push:
     paths:
       - 'package.json'
-      - 'bun.lockb'
+      - 'bun.lock'
 
 env:
   BUN_VERSION: '1.3.2'
@@ -207,7 +207,7 @@ jobs:
           
           # Create backup
           cp package.json package.json.backup
-          cp bun.lockb bun.lockb.backup
+          cp bun.lock bun.lock.backup
           
           # Update dependencies (patch and minor only)
           bun update --save
