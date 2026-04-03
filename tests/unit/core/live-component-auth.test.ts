@@ -314,60 +314,60 @@ describe('LiveAuthManager', () => {
   })
 
   describe('Component Authorization', () => {
-    it('should allow public component (no auth config)', () => {
+    it('should allow public component (no auth config)', async () => {
       const ctx = ANONYMOUS_CONTEXT
-      const result = manager.authorizeComponent(ctx, undefined)
+      const result = await manager.authorizeComponent(ctx, undefined)
       expect(result.allowed).toBe(true)
     })
 
-    it('should deny unauthenticated user on required component', () => {
+    it('should deny unauthenticated user on required component', async () => {
       const ctx = ANONYMOUS_CONTEXT
-      const result = manager.authorizeComponent(ctx, { required: true })
+      const result = await manager.authorizeComponent(ctx, { required: true })
       expect(result.allowed).toBe(false)
       expect(result.reason).toContain('Authentication required')
     })
 
-    it('should allow authenticated user on required component', () => {
+    it('should allow authenticated user on required component', async () => {
       const ctx = new AuthenticatedContext({ id: 'user-1' })
-      const result = manager.authorizeComponent(ctx, { required: true })
+      const result = await manager.authorizeComponent(ctx, { required: true })
       expect(result.allowed).toBe(true)
     })
 
-    it('should deny user without required role', () => {
+    it('should deny user without required role', async () => {
       const ctx = new AuthenticatedContext({ id: 'user-1', roles: ['user'] })
-      const result = manager.authorizeComponent(ctx, { roles: ['admin'] })
+      const result = await manager.authorizeComponent(ctx, { roles: ['admin'] })
       expect(result.allowed).toBe(false)
       expect(result.reason).toContain('Insufficient roles')
     })
 
-    it('should allow user with any of the required roles (OR logic)', () => {
+    it('should allow user with any of the required roles (OR logic)', async () => {
       const ctx = new AuthenticatedContext({ id: 'user-1', roles: ['moderator'] })
-      const result = manager.authorizeComponent(ctx, { roles: ['admin', 'moderator'] })
+      const result = await manager.authorizeComponent(ctx, { roles: ['admin', 'moderator'] })
       expect(result.allowed).toBe(true)
     })
 
-    it('should deny user without all required permissions', () => {
+    it('should deny user without all required permissions', async () => {
       const ctx = new AuthenticatedContext({ id: 'user-1', permissions: ['chat.read'] })
-      const result = manager.authorizeComponent(ctx, { permissions: ['chat.read', 'chat.write'] })
+      const result = await manager.authorizeComponent(ctx, { permissions: ['chat.read', 'chat.write'] })
       expect(result.allowed).toBe(false)
       expect(result.reason).toContain('Insufficient permissions')
     })
 
-    it('should allow user with all required permissions (AND logic)', () => {
+    it('should allow user with all required permissions (AND logic)', async () => {
       const ctx = new AuthenticatedContext({ id: 'user-1', permissions: ['chat.read', 'chat.write'] })
-      const result = manager.authorizeComponent(ctx, { permissions: ['chat.read', 'chat.write'] })
+      const result = await manager.authorizeComponent(ctx, { permissions: ['chat.read', 'chat.write'] })
       expect(result.allowed).toBe(true)
     })
 
-    it('should deny anonymous for role-protected component', () => {
+    it('should deny anonymous for role-protected component', async () => {
       const ctx = ANONYMOUS_CONTEXT
-      const result = manager.authorizeComponent(ctx, { roles: ['admin'] })
+      const result = await manager.authorizeComponent(ctx, { roles: ['admin'] })
       expect(result.allowed).toBe(false)
     })
 
-    it('should deny anonymous for permission-protected component', () => {
+    it('should deny anonymous for permission-protected component', async () => {
       const ctx = ANONYMOUS_CONTEXT
-      const result = manager.authorizeComponent(ctx, { permissions: ['chat.read'] })
+      const result = await manager.authorizeComponent(ctx, { permissions: ['chat.read'] })
       expect(result.allowed).toBe(false)
     })
   })
@@ -528,43 +528,43 @@ describe('ComponentRegistry Auth Integration', () => {
   })
 
   describe('Mount authorization flow', () => {
-    it('should allow anonymous on public component', () => {
-      const result = manager.authorizeComponent(ANONYMOUS_CONTEXT, PublicComponent.auth)
+    it('should allow anonymous on public component', async () => {
+      const result = await manager.authorizeComponent(ANONYMOUS_CONTEXT, PublicComponent.auth)
       expect(result.allowed).toBe(true)
     })
 
-    it('should deny anonymous on protected component', () => {
-      const result = manager.authorizeComponent(ANONYMOUS_CONTEXT, ProtectedComponent.auth)
+    it('should deny anonymous on protected component', async () => {
+      const result = await manager.authorizeComponent(ANONYMOUS_CONTEXT, ProtectedComponent.auth)
       expect(result.allowed).toBe(false)
     })
 
     it('should allow authenticated user on protected component', async () => {
       const ctx = await manager.authenticate({ token: 'user-token' })
-      const result = manager.authorizeComponent(ctx, ProtectedComponent.auth)
+      const result = await manager.authorizeComponent(ctx, ProtectedComponent.auth)
       expect(result.allowed).toBe(true)
     })
 
     it('should deny non-admin on admin component', async () => {
       const ctx = await manager.authenticate({ token: 'user-token' })
-      const result = manager.authorizeComponent(ctx, AdminComponent.auth)
+      const result = await manager.authorizeComponent(ctx, AdminComponent.auth)
       expect(result.allowed).toBe(false)
     })
 
     it('should allow admin on admin component', async () => {
       const ctx = await manager.authenticate({ token: 'admin-token' })
-      const result = manager.authorizeComponent(ctx, AdminComponent.auth)
+      const result = await manager.authorizeComponent(ctx, AdminComponent.auth)
       expect(result.allowed).toBe(true)
     })
 
     it('should deny user without all required permissions', async () => {
       const ctx = await manager.authenticate({ token: 'user-token' }) // only chat.read
-      const result = manager.authorizeComponent(ctx, PermissionComponent.auth)
+      const result = await manager.authorizeComponent(ctx, PermissionComponent.auth)
       expect(result.allowed).toBe(false)
     })
 
     it('should allow user with all required permissions', async () => {
       const ctx = await manager.authenticate({ token: 'admin-token' }) // has chat.read + chat.write
-      const result = manager.authorizeComponent(ctx, PermissionComponent.auth)
+      const result = await manager.authorizeComponent(ctx, PermissionComponent.auth)
       expect(result.allowed).toBe(true)
     })
   })
