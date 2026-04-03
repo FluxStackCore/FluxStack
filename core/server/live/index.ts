@@ -24,6 +24,7 @@ export { AuthenticatedContext, AnonymousContext, ANONYMOUS_CONTEXT } from '@flux
 export type {
   LiveAuthProvider,
   LiveAuthCredentials,
+  LiveAuthSession,
   LiveAuthUser,
   LiveAuthContext,
   LiveComponentAuth,

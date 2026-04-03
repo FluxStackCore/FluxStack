@@ -80,9 +80,9 @@ export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
   async getAuthInfo() {
     return {
       authenticated: this.$auth.authenticated,
-      userId: this.$auth.user?.id,
-      roles: this.$auth.user?.roles || [],
-      permissions: this.$auth.user?.permissions || [],
+      userId: this.$auth.session?.id,
+      roles: this.$auth.session?.roles || [],
+      permissions: this.$auth.session?.permissions || [],
       isAdmin: this.$auth.hasRole('admin'),
     }
   }
@@ -93,12 +93,12 @@ export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
    */
   async init() {
     this.setState({
-      currentUser: this.$auth.user?.id || null,
-      currentRoles: this.$auth.user?.roles || [],
+      currentUser: this.$auth.session?.id || null,
+      currentRoles: this.$auth.session?.roles || [],
       isAdmin: this.$auth.hasRole('admin'),
     })
 
-    this.addAudit('LOGIN', this.$auth.user?.id || 'unknown')
+    this.addAudit('LOGIN', this.$auth.session?.id || 'unknown')
 
     return { success: true }
   }
@@ -125,7 +125,7 @@ export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
       users: [...this.state.users, user],
     })
 
-    this.addAudit('ADD_USER', this.$auth.user?.id || 'unknown', user.name)
+    this.addAudit('ADD_USER', this.$auth.session?.id || 'unknown', user.name)
 
     return { success: true, user }
   }
@@ -144,7 +144,7 @@ export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
       users: this.state.users.filter(u => u.id !== payload.userId),
     })
 
-    this.addAudit('DELETE_USER', this.$auth.user?.id || 'unknown', user.name)
+    this.addAudit('DELETE_USER', this.$auth.session?.id || 'unknown', user.name)
 
     return { success: true }
   }

@@ -75,7 +75,7 @@ export class LiveProtectedChat extends LiveComponent<ProtectedChatState> {
     this.$room(payload.room).join()
 
     // 🔒 Usar $auth para identificar o usuário
-    const userId = this.$auth.user?.id || this.userId || 'anonymous'
+    const userId = this.$auth.session?.id || this.userId || 'anonymous'
     const isAdmin = this.$auth.hasRole('admin')
 
     this.setState({
@@ -96,7 +96,7 @@ export class LiveProtectedChat extends LiveComponent<ProtectedChatState> {
 
     const message: ChatMessage = {
       id: Date.now(),
-      userId: this.$auth.user?.id || this.userId || 'unknown',
+      userId: this.$auth.session?.id || this.userId || 'unknown',
       text: payload.text.trim(),
       timestamp: Date.now(),
       isAdmin: this.$auth.hasRole('admin'),
@@ -142,9 +142,9 @@ export class LiveProtectedChat extends LiveComponent<ProtectedChatState> {
   async getAuthInfo() {
     return {
       authenticated: this.$auth.authenticated,
-      userId: this.$auth.user?.id,
-      roles: this.$auth.user?.roles,
-      permissions: this.$auth.user?.permissions,
+      userId: this.$auth.session?.id,
+      roles: this.$auth.session?.roles,
+      permissions: this.$auth.session?.permissions,
       isAdmin: this.$auth.hasRole('admin'),
     }
   }

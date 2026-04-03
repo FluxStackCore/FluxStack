@@ -1,40 +1,95 @@
 # Live Components Authentication
 
-**Version:** 1.14.0 | **Updated:** 2025-02-12
+**Version:** 1.16.0 | **Updated:** 2026-03-25
 
 ## Quick Facts
 
 - **`publicActions` is the foundation** - Only whitelisted methods can be called remotely
-- Declarative auth configuration via `static auth` and `static actionAuth`
-- Role-based access control (RBAC) with OR logic
-- Permission-based access control with AND logic
+- Declarative auth via `static auth` and `static actionAuth`
+- Custom `authorize()` function for any logic (DB checks, plans, feature flags)
+- Role-based (OR logic) and permission-based (AND logic) access control
+- `$auth.session` — generic session data (user, bot, device, service — dev defines)
+- Token always sent inside WebSocket (never in URL)
 - Auto re-mount when authentication changes
-- Pluggable auth providers (JWT, Crypto, Custom)
-- `$auth` helper available in component actions
+- `$auth` available on frontend with session data from server
 
-## Server-Side: Protected Components
+## Auth Approaches
 
-### Basic Protection (Auth Required)
+Two ways to handle auth — use either or both:
+
+### 1. Provider + `authenticate()` (framework-managed)
+
+Global auth for the WebSocket connection. All components share the same `$auth`.
 
 ```typescript
-// app/server/live/ProtectedChat.ts
-import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth } from '@core/server/live/auth/types'
-
-export class ProtectedChat extends LiveComponent<typeof ProtectedChat.defaultState> {
-  static componentName = 'ProtectedChat'
-  static publicActions = ['sendMessage'] as const  // 🔒 REQUIRED
-  static defaultState = {
-    messages: [] as string[]
+// Server: create provider
+class JWTProvider implements LiveAuthProvider {
+  readonly name = 'jwt'
+  async authenticate(credentials: LiveAuthCredentials) {
+    const decoded = jwt.verify(credentials.token, SECRET)
+    return new AuthenticatedContext({
+      id: decoded.sub,
+      name: decoded.name,
+      plan: decoded.plan,
+      roles: decoded.roles,
+      permissions: decoded.permissions,
+    })
   }
+}
 
-  // Auth required to mount this component
-  static auth: LiveComponentAuth = {
-    required: true
+// Server: register
+liveAuthManager.register(new JWTProvider())
+
+// Client: login
+const { authenticate } = useLiveComponents()
+await authenticate({ token: jwtToken })
+```
+
+### 2. Action + `$private` (component-managed)
+
+Auth inside the component itself. No provider needed.
+
+```typescript
+// Server
+export class LiveChat extends LiveComponent<
+  { messages: Message[] },               // state: client reads/writes
+  { loggedIn: boolean; odId: string }    // $private: invisible to client
+> {
+  static publicActions = ['login', 'sendMessage'] as const
+
+  async login(payload: { email: string; password: string }) {
+    const user = await db.findByEmail(payload.email)
+    if (!user) return { success: false }
+    this.$private.loggedIn = true
+    this.$private.odId = user.id
+    return { success: true, name: user.name }
   }
 
   async sendMessage(payload: { text: string }) {
-    // Only authenticated users can call this
+    if (!this.$private.loggedIn) throw new Error('Not authenticated')
+    // ...
+  }
+}
+
+// Client
+const chat = Live.use(LiveChat)
+const result = await chat.login({ email, password })
+```
+
+## Server-Side: Protected Components
+
+### Basic Protection
+
+```typescript
+export class ProtectedChat extends LiveComponent<State> {
+  static componentName = 'ProtectedChat'
+  static publicActions = ['sendMessage'] as const
+  static defaultState = { messages: [] as string[] }
+
+  static auth = { required: true }
+
+  async sendMessage(payload: { text: string }) {
+    const userId = this.$auth.session?.id
     return { success: true }
   }
 }
@@ -43,26 +98,16 @@ export class ProtectedChat extends LiveComponent<typeof ProtectedChat.defaultSta
 ### Role-Based Protection
 
 ```typescript
-// app/server/live/AdminPanel.ts
-import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth } from '@core/server/live/auth/types'
-
-export class AdminPanel extends LiveComponent<typeof AdminPanel.defaultState> {
+export class AdminPanel extends LiveComponent<State> {
   static componentName = 'AdminPanel'
-  static publicActions = ['deleteUser'] as const  // 🔒 REQUIRED
-  static defaultState = {
-    users: [] as { id: string; name: string; role: string }[]
-  }
+  static publicActions = ['deleteUser'] as const
+  static defaultState = { users: [] }
 
-  // Requires auth + admin OR moderator role (OR logic)
-  static auth: LiveComponentAuth = {
-    required: true,
-    roles: ['admin', 'moderator']
-  }
+  // OR logic: admin OR moderator
+  static auth = { required: true, roles: ['admin', 'moderator'] }
 
   async deleteUser(payload: { userId: string }) {
-    // User info available via $auth
-    console.log(`User ${this.$auth.user?.id} deleting ${payload.userId}`)
+    console.log(`${this.$auth.session?.id} deleting ${payload.userId}`)
     return { success: true }
   }
 }
@@ -71,21 +116,35 @@ export class AdminPanel extends LiveComponent<typeof AdminPanel.defaultState> {
 ### Permission-Based Protection
 
 ```typescript
-// app/server/live/ContentEditor.ts
-import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth } from '@core/server/live/auth/types'
-
-export class ContentEditor extends LiveComponent<typeof ContentEditor.defaultState> {
+export class ContentEditor extends LiveComponent<State> {
   static componentName = 'ContentEditor'
-  static publicActions = ['editContent', 'saveContent'] as const  // 🔒 REQUIRED
-  static defaultState = {
-    content: ''
-  }
+  static publicActions = ['editContent'] as const
+  static defaultState = { content: '' }
 
-  // Requires ALL permissions (AND logic)
-  static auth: LiveComponentAuth = {
+  // AND logic: ALL permissions required
+  static auth = { required: true, permissions: ['content.read', 'content.write'] }
+}
+```
+
+### Custom `authorize()` Function
+
+For any logic beyond roles/permissions — DB lookups, plan checks, feature flags, etc.
+
+```typescript
+export class ProDashboard extends LiveComponent<State> {
+  static componentName = 'ProDashboard'
+  static publicActions = ['getData'] as const
+
+  static auth = {
     required: true,
-    permissions: ['content.read', 'content.write']
+    // Runs AFTER declarative checks (required, roles, permissions)
+    authorize: async (auth) => {
+      const plan = await db.getUserPlan(auth.session?.id)
+      if (plan !== 'pro') {
+        return { allowed: false, reason: 'Pro plan required' }
+      }
+      return true
+    }
   }
 }
 ```
@@ -93,95 +152,91 @@ export class ContentEditor extends LiveComponent<typeof ContentEditor.defaultSta
 ### Per-Action Protection
 
 ```typescript
-// app/server/live/ModerationPanel.ts
-import { LiveComponent } from '@core/types/types'
-import type { LiveComponentAuth, LiveActionAuthMap } from '@core/server/live/auth/types'
-
-export class ModerationPanel extends LiveComponent<typeof ModerationPanel.defaultState> {
+export class ModerationPanel extends LiveComponent<State> {
   static componentName = 'ModerationPanel'
-  static publicActions = ['getReports', 'deleteReport', 'banUser'] as const  // 🔒 REQUIRED
-  static defaultState = {
-    reports: [] as any[]
-  }
+  static publicActions = ['getReports', 'deleteReport', 'banUser'] as const
 
-  // Component-level: any authenticated user
-  static auth: LiveComponentAuth = {
-    required: true
-  }
+  static auth = { required: true }
 
-  // Per-action auth (works together with publicActions)
-  static actionAuth: LiveActionAuthMap = {
+  static actionAuth = {
     deleteReport: { permissions: ['reports.delete'] },
-    banUser: { roles: ['admin', 'moderator'] }
+    banUser: { roles: ['admin', 'moderator'] },
   }
 
-  // Anyone authenticated can view
-  async getReports() {
-    return { reports: this.state.reports }
-  }
-
-  // Requires reports.delete permission
-  async deleteReport(payload: { reportId: string }) {
-    return { success: true }
-  }
-
-  // Requires admin OR moderator role
-  async banUser(payload: { userId: string }) {
-    return { success: true }
+  // Action authorize receives the payload
+  static actionAuth = {
+    editProfile: {
+      authorize: (auth, payload) => auth.session?.id === payload.userId
+    },
+    adminDelete: {
+      roles: ['admin'],
+      authorize: async (auth, payload) => {
+        if (payload.itemId === 'protected') {
+          return { allowed: false, reason: 'Item is protected' }
+        }
+        return true
+      }
+    },
   }
 }
 ```
 
-## Using $auth in Actions
+### Reusable Auth Rules
 
-The `$auth` helper provides access to the authenticated user context:
+Auth configs are plain objects — compose and reuse them:
+
+```typescript
+// auth/rules.ts
+export const adminOnly = { required: true, roles: ['admin'] }
+export const proOnly = {
+  required: true,
+  authorize: async (auth) => {
+    const plan = await db.getUserPlan(auth.session?.id)
+    return plan === 'pro'
+  }
+}
+export const ownerOnly = (field = 'userId') => ({
+  authorize: (auth, payload) => auth.session?.id === payload?.[field]
+})
+
+// Components import and use
+export class LiveAdminPanel extends LiveComponent<State> {
+  static auth = adminOnly
+  static actionAuth = { delete: ownerOnly('targetUserId') }
+}
+```
+
+## Using `$auth` in Actions
 
 ```typescript
 export class MyComponent extends LiveComponent<State> {
   async myAction() {
-    // Check if authenticated
-    if (!this.$auth.authenticated) {
-      throw new Error('Not authenticated')
-    }
+    // Session data (shape defined by your provider)
+    const id = this.$auth.session?.id
+    const name = this.$auth.session?.name
+    const plan = this.$auth.session?.plan
 
-    // Get user info
-    const userId = this.$auth.user?.id
-    const userName = this.$auth.user?.name
+    // Built-in helpers
+    this.$auth.authenticated          // boolean
+    this.$auth.hasRole('admin')       // boolean
+    this.$auth.hasAnyRole(['admin', 'mod'])
+    this.$auth.hasAllRoles(['user', 'verified'])
+    this.$auth.hasPermission('chat.write')
+    this.$auth.hasAllPermissions(['users.read', 'users.write'])
+    this.$auth.hasAnyPermission(['chat.read', 'chat.write'])
 
-    // Check roles
-    if (this.$auth.hasRole('admin')) {
-      // Admin-only logic
-    }
-
-    if (this.$auth.hasAnyRole(['admin', 'moderator'])) {
-      // Admin OR moderator logic
-    }
-
-    // Check permissions
-    if (this.$auth.hasPermission('users.delete')) {
-      // Has specific permission
-    }
-
-    if (this.$auth.hasAllPermissions(['users.read', 'users.write'])) {
-      // Has ALL permissions
-    }
-
-    return { userId }
+    return { id }
   }
 }
 ```
 
-### $auth API
+### `$auth` API
 
 ```typescript
 interface LiveAuthContext {
   readonly authenticated: boolean
-  readonly user?: {
-    id: string
-    roles?: string[]
-    permissions?: string[]
-    [key: string]: unknown  // Custom fields
-  }
+  readonly session?: LiveAuthSession  // dev defines the shape
+  readonly user?: LiveAuthSession     // deprecated alias for session
   readonly token?: string
   readonly authenticatedAt?: number
 
@@ -192,93 +247,76 @@ interface LiveAuthContext {
   hasAnyPermission(permissions: string[]): boolean
   hasAllPermissions(permissions: string[]): boolean
 }
+
+interface LiveAuthSession {
+  id: string
+  roles?: string[]
+  permissions?: string[]
+  [key: string]: unknown  // dev adds any fields
+}
 ```
+
+## State Security Levels
+
+```
+this.state       → client reads AND writes (bidirectional sync)
+this.$private    → client NEVER sees (server-only)
+this.$auth       → set by framework, immutable, read-only
+```
+
+Use `$private` for sensitive flags (loggedIn, internal IDs). Use `state` for display data. Never trust `state` for security — the client can send `PROPERTY_UPDATE` to modify it.
 
 ## Client-Side: Authentication
 
 ### Authenticate on Connection
 
-Pass auth credentials when the WebSocket connects:
-
-```typescript
-// app/client/src/App.tsx
-import { LiveComponentsProvider } from '@/core/client'
-
-function App() {
-  const token = localStorage.getItem('auth_token')
-
-  return (
-    <LiveComponentsProvider
-      auth={{ token }}  // Sent as query param on connect
-      autoConnect={true}
-    >
-      <AppContent />
-    </LiveComponentsProvider>
-  )
-}
+```tsx
+<LiveComponentsProvider
+  auth={{ token }}  // Sent via AUTH message inside WebSocket (never in URL)
+  autoConnect={true}
+>
+  <App />
+</LiveComponentsProvider>
 ```
 
 ### Dynamic Authentication
 
-Authenticate after connection via `useLiveComponents`:
-
-```typescript
-import { useLiveComponents } from '@/core/client'
-
+```tsx
 function LoginForm() {
-  const { authenticated, authenticate } = useLiveComponents()
-  const [token, setToken] = useState('')
+  const { authenticated, authenticate, $auth } = useLiveComponents()
 
   const handleLogin = async () => {
     const success = await authenticate({ token })
-    if (success) {
-      // Components with auth errors will auto re-mount
-      console.log('Authenticated!')
-    }
+    // Components with AUTH_DENIED auto re-mount
   }
 
-  return (
-    <div>
-      <p>Status: {authenticated ? 'Logged in' : 'Not logged in'}</p>
-      <input value={token} onChange={e => setToken(e.target.value)} />
-      <button onClick={handleLogin}>Login</button>
-    </div>
-  )
+  // Session data from the server
+  console.log($auth.session?.name)
+
+  const handleLogout = () => reconnect() // reconnect without token = anonymous
 }
 ```
 
-### Checking Auth Status in Components
+### Auth in Component Proxy
 
-```typescript
-import { Live } from '@/core/client'
-import { AdminPanel } from '@server/live/AdminPanel'
+```tsx
+const panel = Live.use(AdminPanel)
 
-function AdminSection() {
-  const panel = Live.use(AdminPanel)
+panel.$authenticated        // boolean
+panel.$auth.authenticated   // boolean
+panel.$auth.session         // { id, name, roles, ... } or null
 
-  // Check if authenticated on WebSocket level
-  if (!panel.$authenticated) {
-    return <p>Please log in</p>
-  }
-
-  // Check for auth errors
-  if (panel.$error?.includes('AUTH_DENIED')) {
-    return <p>Access denied: {panel.$error}</p>
-  }
-
-  return <div>{/* Admin content */}</div>
+if (panel.$error?.includes('AUTH_DENIED')) {
+  return <p>Access denied</p>
 }
 ```
 
 ### Auto Re-mount on Auth Change
 
-When authentication changes from `false` to `true`, components that failed with `AUTH_DENIED` automatically retry mounting:
-
-```typescript
-// No manual code needed!
-// 1. User tries to mount AdminPanel → AUTH_DENIED
-// 2. User calls authenticate({ token: 'admin-token' })
-// 3. AdminPanel automatically re-mounts with auth context
+```
+1. Live.use(AdminPanel) → AUTH_DENIED (not logged in)
+2. authenticate({ token: 'admin-token' })
+3. AdminPanel re-mounts automatically
 ```
 
 ## Auth Providers
@@ -286,13 +324,8 @@ When authentication changes from `false` to `true`, components that failed with 
 ### Creating a Custom Provider
 
 ```typescript
-// app/server/auth/MyAuthProvider.ts
-import type {
-  LiveAuthProvider,
-  LiveAuthCredentials,
-  LiveAuthContext
-} from '@core/server/live/auth/types'
-import { AuthenticatedContext } from '@core/server/live/auth/LiveAuthContext'
+import type { LiveAuthProvider, LiveAuthCredentials, LiveAuthContext } from '@fluxstack/live'
+import { AuthenticatedContext } from '@fluxstack/live'
 
 export class MyAuthProvider implements LiveAuthProvider {
   readonly name = 'my-auth'
@@ -301,165 +334,129 @@ export class MyAuthProvider implements LiveAuthProvider {
     const token = credentials.token as string
     if (!token) return null
 
-    // Validate token (JWT decode, database lookup, etc.)
     const user = await validateToken(token)
     if (!user) return null
 
-    return new AuthenticatedContext(
-      {
-        id: user.id,
-        name: user.name,
-        roles: user.roles,
-        permissions: user.permissions
-      },
-      token
-    )
+    // Everything here goes to $auth.session
+    return new AuthenticatedContext({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      plan: user.plan,
+      roles: user.roles,
+      permissions: user.permissions,
+    }, token)
   }
 
-  // Optional: Custom action authorization
-  async authorizeAction(
-    context: LiveAuthContext,
-    componentName: string,
-    action: string
-  ): Promise<boolean> {
-    // Custom logic (rate limiting, business rules, etc.)
+  // Optional: custom action authorization
+  async authorizeAction(context: LiveAuthContext, componentName: string, action: string): Promise<boolean> {
     return true
   }
 
-  // Optional: Custom room authorization
-  async authorizeRoom(
-    context: LiveAuthContext,
-    roomId: string
-  ): Promise<boolean> {
-    // Example: VIP rooms require premium role
-    if (roomId.startsWith('vip-') && !context.hasRole('premium')) {
-      return false
-    }
+  // Optional: custom room authorization
+  async authorizeRoom(context: LiveAuthContext, roomId: string): Promise<boolean> {
+    if (roomId.startsWith('vip-') && !context.hasRole('premium')) return false
     return true
   }
 }
+```
+
+### Non-User Sessions (Bots, Devices, Services)
+
+The session is generic — not limited to users:
+
+```typescript
+// Bot provider
+return new AuthenticatedContext({
+  id: 'bot-1',
+  type: 'bot',
+  botName: 'NotifyBot',
+  allowedChannels: ['general', 'alerts'],
+  roles: ['bot'],
+})
+
+// Device/IoT provider
+return new AuthenticatedContext({
+  id: 'sensor-42',
+  type: 'device',
+  model: 'TempSensor-v3',
+  location: { lat: -23.5, lng: -46.6 },
+  roles: ['device'],
+})
 ```
 
 ### Registering Providers
 
 ```typescript
 // app/server/index.ts
-import { liveAuthManager } from '@core/server/live/auth'
-import { MyAuthProvider } from './auth/MyAuthProvider'
-
-// Register provider
+import { liveAuthManager } from '@core/server/live'
 liveAuthManager.register(new MyAuthProvider())
-
-// Optional: Set as default (first registered is default)
-liveAuthManager.setDefault('my-auth')
 ```
 
-### Built-in DevAuthProvider (Development)
+## Security Layers (Action Execution Order)
 
-For testing, a `DevAuthProvider` with simple tokens is available:
+1. **Blocklist** - Internal methods (destroy, setState, emit) always blocked
+2. **Private methods** - `_x` or `#x` blocked
+3. **publicActions** - Must be in whitelist (mandatory)
+4. **actionAuth** - Declarative roles/permissions + custom `authorize()`
+5. **Method exists** - Must exist on instance
+6. **Object.prototype** - toString, valueOf blocked
 
-```typescript
-// Tokens available in development:
-// - 'admin-token' → role: admin, all permissions
-// - 'user-token'  → role: user, basic permissions
-// - 'mod-token'   → role: moderator
+## Auth Verification Cascade
 
-// Already registered in dev mode automatically
+### Mount (component):
+```
+1. static auth.required?      → authenticated?
+2. static auth.roles?         → hasAnyRole() (OR)
+3. static auth.permissions?   → hasAllPermissions() (AND)
+4. static auth.authorize?     → custom function
+   All pass → mount allowed
 ```
 
-## Auth Flow Diagram
-
+### Action:
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     CLIENT                                  │
-├─────────────────────────────────────────────────────────────┤
-│  1. Connect WebSocket (optional: ?token=xxx)                │
-│  2. authenticate({ token }) → AUTH message                  │
-│  3. Live.use(ProtectedComponent) → COMPONENT_MOUNT          │
-│  4. If AUTH_DENIED, wait for auth change                    │
-│  5. Auth changes → auto re-mount                            │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                     SERVER                                  │
-├─────────────────────────────────────────────────────────────┤
-│  1. WebSocket connect → store authContext on ws.data        │
-│  2. AUTH message → liveAuthManager.authenticate()           │
-│  3. COMPONENT_MOUNT → check static auth config              │
-│  4. CALL_ACTION → check blocklist → publicActions → actionAuth │
-│  5. Component has access to this.$auth                      │
-└─────────────────────────────────────────────────────────────┘
+1. actionAuth[action].roles?       → hasAnyRole() (OR)
+2. actionAuth[action].permissions? → hasAllPermissions() (AND)
+3. actionAuth[action].authorize?   → custom function(auth, payload)
+4. provider.authorizeAction?       → if provider implements
+   All pass → action allowed
 ```
 
 ## Configuration Types
 
 ```typescript
-// Component-level auth
 interface LiveComponentAuth {
-  required?: boolean      // Must be authenticated to mount
-  roles?: string[]        // Required roles (OR logic - any role)
-  permissions?: string[]  // Required permissions (AND logic - all)
+  required?: boolean
+  roles?: string[]
+  permissions?: string[]
+  authorize?: (auth: LiveAuthContext) => boolean | { allowed: boolean; reason?: string } | Promise<...>
 }
 
-// Action-level auth
 interface LiveActionAuth {
-  roles?: string[]        // Required roles (OR logic)
-  permissions?: string[]  // Required permissions (AND logic)
+  roles?: string[]
+  permissions?: string[]
+  authorize?: (auth: LiveAuthContext, payload: unknown) => boolean | { allowed: boolean; reason?: string } | Promise<...>
 }
 
 type LiveActionAuthMap = Record<string, LiveActionAuth>
-
-// Credentials from client
-interface LiveAuthCredentials {
-  token?: string
-  publicKey?: string      // For crypto auth
-  signature?: string      // For crypto auth
-  timestamp?: number
-  nonce?: string
-  [key: string]: unknown  // Custom fields
-}
 ```
-
-## Security Layers (Action Execution Order)
-
-When a client calls an action, the server checks in this order:
-
-1. **Blocklist** - Internal methods (destroy, setState, emit, etc.) are always blocked
-2. **Private methods** - Methods starting with `_` or `#` are blocked
-3. **publicActions** - Action must be in the whitelist (mandatory, no fallback)
-4. **actionAuth** - Per-action role/permission check (if defined)
-5. **Method exists** - Action must exist on the component instance
-6. **Object.prototype** - Blocks toString, valueOf, hasOwnProperty
 
 ## Critical Rules
 
 **ALWAYS:**
-- Define `static publicActions` listing all client-callable methods (MANDATORY)
+- Define `static publicActions` (MANDATORY — without it, ALL actions are denied)
 - Define `static auth` for protected components
-- Define `static actionAuth` for protected actions
-- Use `$auth.hasRole()` / `$auth.hasPermission()` in action logic
+- Use `$private` for sensitive data, never `state`
 - Register auth providers before server starts
 - Handle `AUTH_DENIED` errors in client UI
 
 **NEVER:**
-- Omit `publicActions` (component will deny ALL remote actions)
-- Store sensitive data in component state
-- Trust client-side auth checks alone (always verify server-side)
+- Store auth flags in `state` (client can modify via PROPERTY_UPDATE)
+- Trust client-side auth checks alone
 - Expose tokens in error messages
-- Skip auth on actions that modify data
-
-**AUTH LOGIC:**
-```typescript
-// Roles: OR logic (any role grants access)
-roles: ['admin', 'moderator']  // admin OR moderator
-
-// Permissions: AND logic (all permissions required)
-permissions: ['users.read', 'users.write']  // BOTH required
-```
 
 ## Related
 
 - [Live Components](./live-components.md) - Base component documentation
 - [Live Rooms](./live-rooms.md) - Room-based communication
-- [Plugin System](../core/plugin-system.md) - Auth as plugin

@@ -48,6 +48,7 @@ export type {
   LiveActionAuthMap,
   LiveAuthProvider,
   LiveAuthCredentials,
+  LiveAuthSession,
   LiveAuthUser,
   LiveAuthResult,
 } from '@fluxstack/live'
