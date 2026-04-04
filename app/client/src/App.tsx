@@ -11,6 +11,8 @@ import { AuthDemo } from './live/AuthDemo'
 import { PingPongDemo } from './live/PingPongDemo'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { LiveErrorBoundary } from './components/LiveErrorBoundary'
 import { HomePage } from './pages/HomePage'
 import { ApiTestPage } from './pages/ApiTestPage'
 
@@ -90,7 +92,9 @@ function AppContent() {
             <DemoPage
               note={<>? Este formul?rio usa <code className="text-purple-400">Live.use()</code> - cada campo sincroniza automaticamente com o servidor!</>}
             >
-              <FormDemo />
+              <LiveErrorBoundary>
+                <FormDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -98,7 +102,9 @@ function AppContent() {
           path="/counter"
           element={
             <DemoPage>
-              <CounterDemo />
+              <LiveErrorBoundary>
+                <CounterDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -106,7 +112,9 @@ function AppContent() {
           path="/upload"
           element={
             <DemoPage>
-              <UploadDemo />
+              <LiveErrorBoundary>
+                <UploadDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -116,7 +124,9 @@ function AppContent() {
             <DemoPage
               note={<>Contador compartilhado usando <code className="text-purple-400">LiveRoom</code> - abra em varias abas!</>}
             >
-              <SharedCounterDemo />
+              <LiveErrorBoundary>
+                <SharedCounterDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -126,7 +136,9 @@ function AppContent() {
             <DemoPage
               note={<>Chat com múltiplas salas usando o sistema <code className="text-purple-400">$room</code>.</>}
             >
-              <RoomChatDemo />
+              <LiveErrorBoundary>
+                <RoomChatDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -136,7 +148,9 @@ function AppContent() {
             <DemoPage
               note={<>🔒 Sistema de autenticação declarativo para Live Components com <code className="text-purple-400">$auth</code>!</>}
             >
-              <AuthDemo />
+              <LiveErrorBoundary>
+                <AuthDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
@@ -146,7 +160,9 @@ function AppContent() {
             <DemoPage
               note={<>Latency demo com <code className="text-cyan-400">msgpack</code> binary codec - mensagens binárias no WebSocket!</>}
             >
-              <PingPongDemo />
+              <LiveErrorBoundary>
+                <PingPongDemo />
+              </LiveErrorBoundary>
             </DemoPage>
           }
         />
