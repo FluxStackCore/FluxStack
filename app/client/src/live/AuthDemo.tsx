@@ -10,7 +10,6 @@
 
 import { useState } from 'react'
 import { Live, useLiveComponents } from '@/core/client'
-import type { LiveAuthOptions } from '@/core/client'
 import { LiveCounter } from '@server/live/LiveCounter'
 import { LiveAdminPanel } from '@server/live/LiveAdminPanel'
 

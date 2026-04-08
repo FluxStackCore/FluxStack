@@ -16,6 +16,8 @@ import {
   guest,
   buildRequestContext,
 } from '@server/auth'
+import type { Guard } from '@server/auth'
+import { classifyAuthError } from '@server/auth/errors'
 import { authConfig } from '@config/system/auth.config'
 
 // ===== Schemas TypeBox (para validação + Swagger) =====
@@ -87,9 +89,8 @@ export const authRoutes = new Elysia({
       // Solução: usar o InMemoryProvider diretamente ou o guard.
       // Por segurança, vamos usar attempt após criar o user.
 
-      // Buscar provider do auth manager config
-      const providers = (authManager as any).providerInstances as Map<string, any>
-      const provider = providers.get(providerName)
+      // Buscar provider via public API
+      const provider = authManager.getProvider(providerName)
 
       if (!provider) {
         set.status = 500
@@ -118,12 +119,13 @@ export const authRoutes = new Elysia({
         success: true as const,
         user: user.toJSON() as any,
       }
-    } catch (error: any) {
-      set.status = 422
+    } catch (error: unknown) {
+      const classified = classifyAuthError(error)
+      set.status = classified.status as 422 | 500
       return {
         success: false as const,
-        error: 'RegistrationFailed',
-        message: error.message ?? 'Failed to register user',
+        error: classified.error,
+        message: classified.message,
       }
     }
   }, {
@@ -187,26 +189,32 @@ export const authRoutes = new Elysia({
       await rateLimiter.clear(throttleKey)
 
       // Montar response
-      const response: any = {
+      const response: {
+        success: true
+        user: any
+        token?: string
+      } = {
         success: true as const,
         user: user.toJSON(),
       }
 
       // Se for token guard, incluir token na response
       if ('getLastGeneratedToken' in guard) {
-        const token = (guard as any).getLastGeneratedToken()
+        const tokenGuard = guard as Guard & { getLastGeneratedToken(): string | null }
+        const token = tokenGuard.getLastGeneratedToken()
         if (token) {
           response.token = token
         }
       }
 
       return response
-    } catch (error: any) {
-      set.status = 500
+    } catch (error: unknown) {
+      const classified = classifyAuthError(error)
+      set.status = classified.status as 500
       return {
         success: false as const,
-        error: 'LoginFailed',
-        message: error.message ?? 'An unexpected error occurred.',
+        error: classified.error,
+        message: classified.message,
       }
     }
   }, {
@@ -226,7 +234,7 @@ export const authRoutes = new Elysia({
   // ───── Logout ─────
   .use(auth())
   .post('/logout', async (ctx) => {
-    const { auth: guard } = ctx as any
+    const guard = (ctx as unknown as { auth: Guard | null }).auth
 
     try {
       if (guard) {
@@ -237,12 +245,13 @@ export const authRoutes = new Elysia({
         success: true as const,
         message: 'Logged out successfully.',
       }
-    } catch (error: any) {
-      (ctx as any).set.status = 500
+    } catch (error: unknown) {
+      const classified = classifyAuthError(error)
+      ctx.set.status = classified.status as 500
       return {
         success: false as const,
-        error: 'LogoutFailed',
-        message: error.message ?? 'Failed to logout.',
+        error: classified.error,
+        message: classified.message,
       }
     }
   }, {
@@ -261,11 +270,11 @@ export const authRoutes = new Elysia({
 
   // ───── Me (current user) ─────
   .get('/me', async (ctx) => {
-    const { user } = ctx as any
+    const user = (ctx as unknown as { user: { toJSON(): Record<string, unknown> } }).user
 
     return {
       success: true as const,
-      user: user.toJSON(),
+      user: user.toJSON() as any,
     }
   }, {
     response: {

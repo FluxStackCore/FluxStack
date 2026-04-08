@@ -87,7 +87,7 @@ export function FormDemo() {
                 alert(err.message || 'Erro ao enviar')
               }
             }}
-            disabled={!form.$connected}
+            disabled={!form.$connected || form.$loading}
             className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50"
           >
             {form.$loading ? 'Enviando...' : 'Enviar'}

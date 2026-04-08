@@ -72,7 +72,10 @@ export function PingPongDemo() {
       intervalRef.current = setInterval(sendPing, 500)
     }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (intervalRef.current != null) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
   }, [autoPing, live.$connected, sendPing])
 

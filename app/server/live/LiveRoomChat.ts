@@ -38,20 +38,28 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
     // Load existing custom rooms from directory state
     this.setState({ customRooms: dir.state.rooms || [] })
 
-    // Listen for new rooms being added
-    const unsubAdd = dir.on('room:added', (entry: DirectoryEntry) => {
-      const current = this.state.customRooms.filter(r => r.id !== entry.id)
-      this.setState({ customRooms: [...current, entry] })
-    })
+    // Listen for directory events with safe cleanup on error
+    const unsubs: (() => void)[] = []
+    try {
+      // Listen for new rooms being added
+      unsubs.push(dir.on('room:added', (entry: DirectoryEntry) => {
+        const current = this.state.customRooms.filter(r => r.id !== entry.id)
+        this.setState({ customRooms: [...current, entry] })
+      }))
 
-    // Listen for rooms being removed
-    const unsubRemove = dir.on('room:removed', (data: { id: string }) => {
-      this.setState({
-        customRooms: this.state.customRooms.filter(r => r.id !== data.id)
-      })
-    })
+      // Listen for rooms being removed
+      unsubs.push(dir.on('room:removed', (data: { id: string }) => {
+        this.setState({
+          customRooms: this.state.customRooms.filter(r => r.id !== data.id)
+        })
+      }))
 
-    this.directoryUnsubs = [unsubAdd, unsubRemove]
+      this.directoryUnsubs = unsubs
+    } catch (error) {
+      // Cleanup any listeners that were successfully registered
+      unsubs.forEach(fn => fn())
+      throw error
+    }
   }
 
   async createRoom(payload: { roomId: string; roomName: string; password?: string }) {
@@ -83,14 +91,21 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
       createdBy: this.state.username || 'Anonymous'
     })
 
-    // Listen for messages
-    const unsub = room.on('chat:message', (msg: ChatMessage) => {
-      const msgs = this.state.messages[roomId] || []
-      this.setState({
-        messages: { ...this.state.messages, [roomId]: [...msgs, msg].slice(-100) }
+    // Listen for messages with safe cleanup
+    let unsub: (() => void) | undefined
+    try {
+      unsub = room.on('chat:message', (msg: ChatMessage) => {
+        const msgs = this.state.messages[roomId] || []
+        this.setState({
+          messages: { ...this.state.messages, [roomId]: [...msgs, msg].slice(-100) }
+        })
       })
-    })
-    this.roomListeners.set(roomId, [unsub])
+      this.roomListeners.set(roomId, [unsub])
+    } catch (error) {
+      unsub?.()
+      room.leave()
+      throw error
+    }
 
     this.setState({
       activeRoom: roomId,
@@ -118,14 +133,21 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
       return { success: false, error: 'Senha incorreta' }
     }
 
-    // Listen for chat messages from other members
-    const unsub = room.on('chat:message', (msg: ChatMessage) => {
-      const msgs = this.state.messages[roomId] || []
-      this.setState({
-        messages: { ...this.state.messages, [roomId]: [...msgs, msg].slice(-100) }
+    // Listen for chat messages from other members with safe cleanup
+    let unsub: (() => void) | undefined
+    try {
+      unsub = room.on('chat:message', (msg: ChatMessage) => {
+        const msgs = this.state.messages[roomId] || []
+        this.setState({
+          messages: { ...this.state.messages, [roomId]: [...msgs, msg].slice(-100) }
+        })
       })
-    })
-    this.roomListeners.set(roomId, [unsub])
+      this.roomListeners.set(roomId, [unsub])
+    } catch (error) {
+      unsub?.()
+      room.leave()
+      throw error
+    }
 
     // Update component state — load existing messages from room state
     this.setState({
