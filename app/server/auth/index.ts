@@ -138,7 +138,7 @@ export function initAuth(): {
   // 6. Conectar middleware
   setAuthManagerForMiddleware(authManagerInstance)
 
-  console.log(`🔐 Auth system initialized (guard: ${authConfig.defaults.guard}, hash: ${authConfig.passwords.hashAlgorithm})`)
+  if (process.env.NODE_ENV !== 'production') console.log(`🔐 Auth system initialized (guard: ${authConfig.defaults.guard}, hash: ${authConfig.passwords.hashAlgorithm})`)
 
   return {
     authManager: authManagerInstance,

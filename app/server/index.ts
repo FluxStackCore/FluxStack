@@ -25,7 +25,7 @@ import { initAuth } from "@server/auth"
 
 // Registrar provider de desenvolvimento (tokens simples para testes)
 registerAuthProvider(new DevAuthProvider())
-console.log('🔓 DevAuthProvider registered')
+if (process.env.NODE_ENV !== 'production') console.log('🔓 DevAuthProvider registered')
 
 // Inicializar sistema de autenticação
 initAuth()

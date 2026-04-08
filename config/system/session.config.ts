@@ -16,8 +16,8 @@ const sessionConfigSchema = {
   cookieName: config.string('SESSION_COOKIE', 'fluxstack_session'),
   /** Cookie httpOnly (default: true) */
   httpOnly: config.boolean('SESSION_HTTP_ONLY', true),
-  /** Cookie secure - true em produção (default: false) */
-  secure: config.boolean('SESSION_SECURE', false),
+  /** Cookie secure - auto-detects production (default: true in production, false in dev) */
+  secure: config.boolean('SESSION_SECURE', process.env.NODE_ENV === 'production'),
   /** Cookie sameSite */
   sameSite: config.enum('SESSION_SAME_SITE', ['strict', 'lax', 'none'] as const, 'lax'),
   /** Cookie path */
