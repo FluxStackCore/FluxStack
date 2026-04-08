@@ -16,7 +16,7 @@ import {
   guest,
   buildRequestContext,
 } from '@server/auth'
-import type { Guard } from '@server/auth'
+import type { Guard, Authenticatable } from '@server/auth'
 import { classifyAuthError } from '@server/auth/errors'
 import { authConfig } from '@config/system/auth.config'
 
@@ -117,7 +117,7 @@ export const authRoutes = new Elysia({
       set.status = 201
       return {
         success: true as const,
-        user: user.toJSON() as any,
+        user: user.toJSON(),
       }
     } catch (error: unknown) {
       const classified = classifyAuthError(error)
@@ -191,7 +191,7 @@ export const authRoutes = new Elysia({
       // Montar response
       const response: {
         success: true
-        user: any
+        user: ReturnType<typeof user.toJSON>
         token?: string
       } = {
         success: true as const,
@@ -270,11 +270,11 @@ export const authRoutes = new Elysia({
 
   // ───── Me (current user) ─────
   .get('/me', async (ctx) => {
-    const user = (ctx as unknown as { user: { toJSON(): Record<string, unknown> } }).user
+    const user = (ctx as unknown as { user: Authenticatable }).user
 
     return {
       success: true as const,
-      user: user.toJSON() as any,
+      user: user.toJSON(),
     }
   }, {
     response: {

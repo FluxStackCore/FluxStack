@@ -62,7 +62,7 @@ export class InMemoryUser implements Authenticatable {
     this.rememberToken = token
   }
 
-  toJSON(): Record<string, unknown> {
+  toJSON() {
     return {
       id: this.id,
       name: this.name,
