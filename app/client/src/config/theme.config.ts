@@ -96,30 +96,7 @@ export const DEFAULT_OFFSETS: Required<HarmonyOffsets> = {
 }
 
 export const themeConfig: ThemeConfig = {
-  // ── Choose your mode ──────────────────────────────────
   mode: 'fixed',
-  hue: 270, // purple
-
-  // ── Custom mode — define your own harmony ─────────────
-  // mode: 'custom',
-  // hue: 270,
-  // offsets: {
-  //   secondary:  +50,   // more pink
-  //   tertiary:   -45,   // deeper indigo
-  //   complement: +160,  // warm complement
-  //   accent:     +100,  // shifted accent
-  // },
-
-  // ── Or absolute hues ──────────────────────────────────
-  // mode: 'custom',
-  // palette: {
-  //   primary:    270,  // purple
-  //   secondary:  350,  // hot pink
-  //   tertiary:   200,  // sky blue
-  //   complement:  60,  // yellow
-  //   accent:     150,  // mint
-  // },
-
-  // Show color wheel picker (🎨)
+  hue: 270,  // purple
   showPicker: import.meta.env.DEV,
 }
