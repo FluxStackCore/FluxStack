@@ -78,6 +78,8 @@ export function SSRLayout({ children, activeRoute = '/' }: { children?: ReactNod
       {/* Main content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
+        {/* SPA outlet — React client mounts interactive content here */}
+        <div id="spa-outlet" />
       </main>
 
       {/* Footer */}

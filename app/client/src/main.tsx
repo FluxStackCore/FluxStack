@@ -1,25 +1,22 @@
 import { StrictMode } from 'react'
-import { createRoot, hydrateRoot } from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router'
 import './index.css'
 import App from './App.tsx'
 
-const rootElement = document.getElementById('root')!
+// SSR + SPA hybrid:
+// If server rendered a shell with #spa-outlet, mount React content there
+// and skip the client-side AppLayout (SSR already has header/nav/footer).
+const spaOutlet = document.getElementById('spa-outlet')
+const mountTarget = spaOutlet || document.getElementById('root')!
 
-// Check if this page was server-side rendered
-const isSSRPage = rootElement.children.length > 0
+// Tell App whether we're inside SSR shell (skip AppLayout) or standalone
+;(window as any).__SSR_SHELL__ = !!spaOutlet
 
-// SSR pages: the server already rendered the HTML.
-// Don't replace it with the SPA — let the static HTML stay.
-// Only mount React on non-SSR routes (SPA pages like /counter, /form, etc.)
-// Navigation from SSR page to SPA page will do a full page load (normal <a> tags).
-if (!isSSRPage) {
-  const app = (
-    <StrictMode>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </StrictMode>
-  )
-  createRoot(rootElement).render(app)
-}
+createRoot(mountTarget).render(
+  <StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
+)

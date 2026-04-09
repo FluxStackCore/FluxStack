@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route } from 'react-router'
+import { Routes, Route, Outlet } from 'react-router'
 import { api } from './lib/eden-api'
 import { LiveComponentsProvider, useLiveComponents } from '@/core/client'
 import { executeHook } from './lib/plugin-hooks'
@@ -109,9 +109,12 @@ function AppContent() {
     setIsLoading(false)
   }
 
+  // When inside SSR shell, skip AppLayout (SSR already rendered header/nav/footer)
+  const isSSRShell = typeof window !== 'undefined' && (window as any).__SSR_SHELL__
+
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route element={isSSRShell ? <Outlet /> : <AppLayout />}>
         <Route path="/" element={<HomePage apiStatus={apiStatus} />} />
         <Route
           path="/api-test"
