@@ -3,4 +3,4 @@
  * Single source of truth for version number
  * Auto-synced with package.json
  */
-export const FLUXSTACK_VERSION = '1.17.1'
+export const FLUXSTACK_VERSION = '1.18.0'
