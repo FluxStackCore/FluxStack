@@ -97,7 +97,9 @@ function renderMetaTags(meta: SSRMeta, path: string): string {
   const description = meta.description || ''
 
   // Basic meta
-  tags.push(`<title>${escapeHtml(title)}</title>`)
+  if (meta.title) {
+    tags.push(`<title>${escapeHtml(title)}</title>`)
+  }
   if (description) {
     tags.push(`<meta name="description" content="${escapeHtml(description)}" />`)
   }
@@ -190,17 +192,18 @@ function loadHtmlTemplate(): string {
 function buildSSRPage(bodyHtml: string, meta: SSRMeta): string {
   let html = loadHtmlTemplate()
 
-  // Inject meta tags before </head>
-  const metaTags = renderMetaTags(meta, '') + `\n    <meta name="generator" content="FluxStack ${FLUXSTACK_VERSION}" />`
-  html = html.replace('</head>', `    ${metaTags}\n  </head>`)
-
-  // Replace <title> if meta has one
+  // Replace existing <title> with SSR title first (before adding meta tags)
   if (meta.title) {
     html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
   }
 
-  // Inject SSR body into <div id="root">
-  html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`)
+  // Inject meta tags before </head> (without duplicate title)
+  const metaTagsWithoutTitle = renderMetaTags({ ...meta, title: undefined }, '')
+  const generator = `<meta name="generator" content="FluxStack ${FLUXSTACK_VERSION}" />`
+  html = html.replace('</head>', `    ${metaTagsWithoutTitle}\n    ${generator}\n  </head>`)
+
+  // Inject SSR body into <div id="root"> and mark as SSR for client detection
+  html = html.replace('<div id="root"></div>', `<div id="root" data-ssr="true">${bodyHtml}</div>`)
 
   return html
 }

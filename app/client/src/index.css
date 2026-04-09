@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@source "../../../app/server/ssr";
 
 /* Base styles */
 * {

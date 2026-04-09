@@ -6,28 +6,20 @@ import App from './App.tsx'
 
 const rootElement = document.getElementById('root')!
 
-const app = (
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>
-)
+// Check if this page was server-side rendered
+const isSSRPage = rootElement.children.length > 0
 
-// SSR Hydration Strategy:
-// If root has SSR content, use createRoot (replace) instead of hydrateRoot.
-// This avoids hydration mismatch errors since SSR pages (LandingPage, AboutPage)
-// are different components than what App.tsx renders.
-// The user sees SSR HTML instantly, then React replaces it with the full SPA.
-// For true hydration (same component on server and client), the SSR page
-// must render the exact same component tree as App.tsx.
-const hasSSRContent = rootElement.hasAttribute('data-ssr') ||
-  rootElement.innerHTML.trim().length > 0
-
-if (hasSSRContent && rootElement.hasAttribute('data-ssr')) {
-  // True hydration — SSR rendered the same component tree
-  hydrateRoot(rootElement, app)
-} else {
-  // Replace mode — SSR content is different from client App, or no SSR
+// SSR pages: the server already rendered the HTML.
+// Don't replace it with the SPA — let the static HTML stay.
+// Only mount React on non-SSR routes (SPA pages like /counter, /form, etc.)
+// Navigation from SSR page to SPA page will do a full page load (normal <a> tags).
+if (!isSSRPage) {
+  const app = (
+    <StrictMode>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </StrictMode>
+  )
   createRoot(rootElement).render(app)
 }
