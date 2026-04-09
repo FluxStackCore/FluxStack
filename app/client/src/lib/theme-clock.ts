@@ -101,45 +101,49 @@ export function generatePalette(date = new Date()): ColorPalette {
   else if (hours >= 19 && hours < 22) period = 'evening'
   else period = 'dusk'
 
-  // Harmony offsets
-  const h2 = normalizeHue(baseHue + 40)   // analogous
-  const h3 = normalizeHue(baseHue - 30)   // analogous opposite
-  const hComp = normalizeHue(baseHue + 180) // complementary
-  const hAccent = normalizeHue(baseHue + 120) // triadic
+  return buildPaletteFromHues(baseHue, period)
+}
+
+/**
+ * Build palette from individual hue values
+ * Used by all modes: auto, fixed, custom
+ */
+export function buildPaletteFromHues(
+  baseHue: number,
+  period: ColorPalette['period'] = 'midday',
+  hues?: { secondary?: number; tertiary?: number; complement?: number; accent?: number }
+): ColorPalette {
+  const h2 = normalizeHue(hues?.secondary ?? baseHue + 40)
+  const h3 = normalizeHue(hues?.tertiary ?? baseHue - 30)
+  const hComp = normalizeHue(hues?.complement ?? baseHue + 180)
+  const hAccent = normalizeHue(hues?.accent ?? baseHue + 120)
 
   return {
     baseHue,
     period,
 
-    // Vibrant colors (high chroma)
     primary:     oklch(65, 0.25, baseHue),
     secondary:   oklch(70, 0.20, h2),
     tertiary:    oklch(60, 0.22, h3),
     complement:  oklch(68, 0.18, hComp),
     accent:      oklch(72, 0.20, hAccent),
 
-    // Muted versions (lower chroma, for backgrounds/hover)
     primaryMuted:   oklch(65, 0.25, baseHue, 0.15),
     secondaryMuted: oklch(70, 0.20, h2, 0.10),
 
-    // Glows (for shadows, drop-shadows)
     primaryGlow:   oklch(65, 0.25, baseHue, 0.3),
     secondaryGlow: oklch(70, 0.20, h2, 0.2),
 
-    // Background accents (very subtle)
     bgAccent:  oklch(65, 0.25, baseHue, 0.08),
     bgAccent2: oklch(70, 0.20, h2, 0.05),
 
-    // Text colors
     textPrimary:   oklch(80, 0.15, baseHue),
     textSecondary: oklch(75, 0.12, h2),
     textMuted:     oklch(55, 0.05, baseHue),
 
-    // Borders
     border:       oklch(65, 0.25, baseHue, 0.12),
     borderActive: oklch(65, 0.25, baseHue, 0.3),
 
-    // Gradients
     gradientPrimary: `linear-gradient(to right, ${oklch(65, 0.25, baseHue)}, ${oklch(70, 0.20, h2)})`,
     gradientBg:      `linear-gradient(135deg, ${oklch(65, 0.25, baseHue, 0.05)}, ${oklch(70, 0.20, hComp, 0.03)})`,
   }

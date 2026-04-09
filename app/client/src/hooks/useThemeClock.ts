@@ -1,29 +1,57 @@
 /**
  * React hook for the palette system — respects theme.config.ts
  *
- * - 'auto' mode: palette shifts with time of day (updates every 30s)
- * - 'fixed' mode: palette stays on the configured hue
+ * Modes:
+ * - 'auto'   → palette shifts with time (updates every 30s)
+ * - 'fixed'  → palette stays on configured hue with default offsets
+ * - 'custom' → palette uses custom offsets or absolute hue positions
  */
 import { useState, useEffect } from 'react'
-import { generatePalette, generatePaletteForHue, applyPalette, type ColorPalette } from '../lib/theme-clock'
-import { themeConfig } from '../config/theme.config'
+import { generatePalette, buildPaletteFromHues, applyPalette, type ColorPalette } from '../lib/theme-clock'
+import { themeConfig, DEFAULT_OFFSETS } from '../config/theme.config'
 
-function getInitialPalette(): ColorPalette {
-  if (themeConfig.mode === 'fixed' && themeConfig.hue !== undefined) {
-    return generatePaletteForHue(themeConfig.hue)
+function getConfiguredPalette(): ColorPalette {
+  const { mode, hue, offsets, palette } = themeConfig
+
+  if (mode === 'custom') {
+    // Absolute palette — each hue is defined explicitly
+    if (palette) {
+      return buildPaletteFromHues(palette.primary, 'midday', {
+        secondary: palette.secondary,
+        tertiary: palette.tertiary,
+        complement: palette.complement,
+        accent: palette.accent,
+      })
+    }
+
+    // Offsets from base hue
+    if (hue !== undefined) {
+      const o = { ...DEFAULT_OFFSETS, ...offsets }
+      return buildPaletteFromHues(hue, 'midday', {
+        secondary: hue + o.secondary,
+        tertiary: hue + o.tertiary,
+        complement: hue + o.complement,
+        accent: hue + o.accent,
+      })
+    }
   }
+
+  if (mode === 'fixed' && hue !== undefined) {
+    return buildPaletteFromHues(hue, 'midday')
+  }
+
+  // Auto mode
   return generatePalette()
 }
 
 export function useThemeClock(): ColorPalette {
-  const [palette, setPalette] = useState<ColorPalette>(getInitialPalette)
+  const [palette, setPalette] = useState<ColorPalette>(getConfiguredPalette)
 
   useEffect(() => {
-    const initial = getInitialPalette()
+    const initial = getConfiguredPalette()
     setPalette(initial)
     applyPalette(initial)
 
-    // Only run interval in auto mode
     if (themeConfig.mode === 'auto') {
       const interval = setInterval(() => {
         const p = generatePalette()

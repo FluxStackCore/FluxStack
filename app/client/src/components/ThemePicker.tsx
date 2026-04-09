@@ -155,6 +155,29 @@ export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
         <div className="h-5 rounded-lg" style={{ background: palette.gradientPrimary }} />
       </div>
 
+      {/* Copy Config button */}
+      {manualHue !== null && (
+        <div className="px-4 pb-2">
+          <button
+            onClick={() => {
+              const hue = Math.round(manualHue)
+              const config = `// Paste in app/client/src/config/theme.config.ts
+export const themeConfig = {
+  mode: 'fixed',
+  hue: ${hue},
+  showPicker: false,
+}`
+              navigator.clipboard.writeText(config)
+              alert('Config copied! Paste in theme.config.ts')
+            }}
+            className="w-full py-1.5 rounded-xl text-xs transition-all hover:opacity-80 border"
+            style={{ borderColor: palette.border, color: palette.textSecondary }}
+          >
+            📋 Copy Config
+          </button>
+        </div>
+      )}
+
       {/* Auto button */}
       {manualHue !== null && (
         <div className="px-4 pb-4">
