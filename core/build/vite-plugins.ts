@@ -11,7 +11,8 @@ import { resolve } from 'path'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import checker from 'vite-plugin-checker'
 import { liveStripPlugin } from '@fluxstack/live/build'
-const isDevelopment = process.env.NODE_ENV !== 'production'
+import { env } from '@fluxstack/config'
+const isDevelopment = env.get('NODE_ENV', 'development') === 'development'
 
 export function fluxstackVitePlugins(): Plugin[] {
   return [

@@ -9,10 +9,13 @@
 
 import type { FluxStackConfig } from '@config'
 import { fluxStackConfig } from '@config'
+import { env } from '@fluxstack/config'
+
+const nodeEnv = (): string => env.get('NODE_ENV', 'development')
 const helpers = {
-  isDevelopment: () => process.env.NODE_ENV !== 'production',
-  isProduction: () => process.env.NODE_ENV === 'production',
-  isTest: () => process.env.NODE_ENV === 'test',
+  isDevelopment: () => nodeEnv() === 'development',
+  isProduction: () => nodeEnv() === 'production',
+  isTest: () => nodeEnv() === 'test',
 }
 import { logger } from '../utils/logger'
 
