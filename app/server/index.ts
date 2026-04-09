@@ -14,6 +14,7 @@ import { FluxStackFramework } from "@core/server"
 import { vitePlugin } from "@core/plugins/built-in/vite"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
 import { ssrPlugin } from "@core/plugins/built-in/ssr"
+import "./ssr-routes" // Register SSR routes for public pages
 import { liveComponentsPlugin, registerAuthProvider } from "@core/server/live"
 import { appInstance } from "@server/app"
 import { appConfig } from "@config"
