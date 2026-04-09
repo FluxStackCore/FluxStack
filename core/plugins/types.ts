@@ -33,12 +33,28 @@ export type PluginHook =
 
 export type PluginPriority = 'highest' | 'high' | 'normal' | 'low' | 'lowest' | number
 
+export interface PluginClientHooksAPI {
+  /**
+   * Register JavaScript code to be executed on the client at a specific hook point.
+   *
+   * Built-in hook points:
+   * - 'onEdenInit'    — runs after the Eden Treaty client is created
+   * - 'onLiveConnect'  — runs when the LiveComponents WebSocket connects
+   *
+   * @param hookName - The hook point name
+   * @param jsCode - JavaScript code string to execute on the client
+   */
+  register(hookName: string, jsCode: string): void
+}
+
 export interface PluginContext {
   config: FluxStackConfig
   logger: Logger
   app: unknown // Elysia app
   utils: PluginUtils
   registry?: unknown // Plugin registry reference
+  /** Register client-side JS hooks that plugins can inject */
+  clientHooks: PluginClientHooksAPI
 }
 
 export interface PluginUtils {

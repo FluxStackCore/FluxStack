@@ -24,6 +24,7 @@ import type { Logger } from "@core/utils/logger"
 import { PluginRegistry } from "./registry"
 import { createPluginUtils } from "./config"
 import { FluxStackError } from "@core/utils/errors"
+import { pluginClientHooks } from "@core/server/plugin-client-hooks"
 import { EventEmitter } from "events"
 
 /**
@@ -505,7 +506,10 @@ export class PluginManager extends EventEmitter {
       logger: this.logger.child ? this.logger.child({ plugin: plugin.name }) : this.logger,
       app: this.app,
       utils: createPluginUtils(this.logger),
-      registry: this.registry
+      registry: this.registry,
+      clientHooks: {
+        register: (hookName: string, jsCode: string) => pluginClientHooks.register(hookName, jsCode)
+      }
     }
 
     this.contexts.set(plugin.name, context)

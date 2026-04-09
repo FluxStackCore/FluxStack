@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia"
 import { usersRoutes } from "./users.routes"
 import { roomRoutes } from "./room.routes"
 import { authRoutes } from "./auth.routes"
+import { pluginClientHooks } from "@core/server/plugin-client-hooks"
 
 export const apiRoutes = new Elysia({ prefix: "/api" })
   .get("/", () => ({ message: "🔥 Hot Reload funcionando! FluxStack API v1.4.0 ⚡" }), {
@@ -32,6 +33,14 @@ export const apiRoutes = new Elysia({ prefix: "/api" })
       tags: ['Health'],
       summary: 'Health Check',
       description: 'Returns the current health status of the API server'
+    }
+  })
+  // Plugin client hooks endpoint
+  .get("/__plugins/client-hooks", () => pluginClientHooks.getSignedResponse(), {
+    detail: {
+      tags: ['Plugins'],
+      summary: 'Get plugin client hooks',
+      description: 'Returns JavaScript code registered by server-side plugins to be executed on the client'
     }
   })
   // Register routes

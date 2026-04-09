@@ -8,6 +8,7 @@
 
 import { createEdenClient, getErrorMessage } from '@/core/client/api'
 import type { App } from '@server/app'
+import { executeHook } from './plugin-hooks'
 
 /**
  * API client with full type inference from server routes
@@ -68,6 +69,11 @@ export const api = createEdenClient<App>({
   // ── Logging ─────────────────────────────────────────────────────────
   // Force enable/disable logging (default: auto based on DEV mode)
   // enableLogging: true,
+})
+
+// Execute plugin hooks after Eden client is created
+executeHook('onEdenInit', { eden: api }).catch(() => {
+  // Silently ignore — hooks are best-effort
 })
 
 // Re-export utility for convenience

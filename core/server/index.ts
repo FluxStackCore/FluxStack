@@ -12,4 +12,7 @@ export { LiveComponent } from "../types/types"
 // Static Files Plugin
 export { staticFilesPlugin } from "./plugins/static-files-plugin"
 
+// Plugin Client Hooks
+export { pluginClientHooks } from "./plugin-client-hooks"
+
 export * from "../types/types"
