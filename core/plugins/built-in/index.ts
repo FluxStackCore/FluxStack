@@ -9,11 +9,13 @@
 import { swaggerPlugin } from './swagger'
 import { vitePlugin } from './vite'
 import { monitoringPlugin } from './monitoring'
+import { ssrPlugin } from './ssr'
 
 // Export individual plugins
 export { swaggerPlugin } from './swagger'
 export { vitePlugin } from './vite'
 export { monitoringPlugin } from './monitoring'
+export { ssrPlugin, registerSSRRoute, getSSRRoutes, clearSSRCache } from './ssr'
 
 // Deprecated: staticPlugin is now merged into vitePlugin (auto-detects dev/prod)
 /** @deprecated Use vitePlugin instead - it now handles both dev and prod */
@@ -24,7 +26,8 @@ export const builtInPlugins = {
   swagger: swaggerPlugin,
   vite: vitePlugin,
   static: staticPlugin,
-  monitoring: monitoringPlugin
+  monitoring: monitoringPlugin,
+  ssr: ssrPlugin,
 } as const
 
 // Export as an array for easy registration
