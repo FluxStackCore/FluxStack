@@ -1,15 +1,9 @@
 /**
  * ThemePicker — floating panel with interactive color wheel
- *
- * Features:
- * - Color wheel with draggable base hue (like Adobe Color)
- * - Harmony mode selector (analogous, complementary, triadic, etc.)
- * - Palette swatches showing current harmony colors
- * - Auto mode (time-based) vs manual override
  */
 import { useState, useCallback } from 'react'
-import { generatePalette, applyPalette, type ColorPalette } from '../lib/theme-clock'
-import { ColorWheel, type HarmonyMode } from './ColorWheel'
+import { buildPaletteFromHues, applyPalette, type ColorPalette } from '../lib/theme-clock'
+import { ColorWheel, generateHuesFromMode, type HarmonyMode } from './ColorWheel'
 
 interface ThemePickerProps {
   palette: ColorPalette
@@ -22,38 +16,87 @@ const harmonyModes: { mode: HarmonyMode; label: string; icon: string }[] = [
   { mode: 'triadic', label: 'Triádico', icon: '△' },
   { mode: 'split-complementary', label: 'Split', icon: '⋔' },
   { mode: 'square', label: 'Quadrado', icon: '◻' },
-  { mode: 'monochromatic', label: 'Mono', icon: '●' },
+  { mode: 'custom', label: 'Custom', icon: '✦' },
 ]
+
+function huesToPalette(hues: number[]): ColorPalette {
+  return buildPaletteFromHues(hues[0], 'midday', {
+    secondary: hues[1],
+    tertiary: hues[2],
+    complement: hues[3],
+    accent: hues[4],
+  })
+}
 
 export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
   const [open, setOpen] = useState(false)
-  const [manualHue, setManualHue] = useState<number | null>(null)
   const [harmonyMode, setHarmonyMode] = useState<HarmonyMode>('analogous')
+  const [hues, setHues] = useState<number[]>(() => generateHuesFromMode(palette.baseHue, 'analogous'))
+  const [isManual, setIsManual] = useState(false)
 
-  const handleHueChange = useCallback((hue: number) => {
-    setManualHue(hue)
-    const totalMinutes = ((hue - 270 + 360) % 360) / 360 * 1440
-    const fakeDate = new Date()
-    fakeDate.setHours(Math.floor(totalMinutes / 60), Math.floor(totalMinutes % 60))
-    const p = generatePalette(fakeDate)
+  const handleHueChange = useCallback((index: number, hue: number) => {
+    setIsManual(true)
+    setHues(prev => {
+      const next = [...prev]
+      next[index] = hue
+      return next
+    })
+    // Build palette from current hues with the new one
+    const updated = [...hues]
+    updated[index] = hue
+    // Pad to 5 hues
+    while (updated.length < 5) updated.push(updated[0])
+    const p = huesToPalette(updated)
     applyPalette(p)
     onOverride(p)
-  }, [onOverride])
+  }, [hues, onOverride])
+
+  const handleModeChange = useCallback((mode: HarmonyMode) => {
+    setHarmonyMode(mode)
+    const baseHue = hues[0] ?? palette.baseHue
+    const newHues = generateHuesFromMode(baseHue, mode)
+    // Pad to 5 for custom
+    while (newHues.length < 5) newHues.push(baseHue)
+    setHues(newHues)
+    if (isManual) {
+      const p = huesToPalette(newHues)
+      applyPalette(p)
+      onOverride(p)
+    }
+  }, [hues, palette.baseHue, isManual, onOverride])
 
   const handleAuto = useCallback(() => {
-    setManualHue(null)
+    setIsManual(false)
     onOverride(null)
   }, [onOverride])
 
-  const swatches = [
-    { label: 'Primary', color: palette.primary },
-    { label: 'Secondary', color: palette.secondary },
-    { label: 'Tertiary', color: palette.tertiary },
-    { label: 'Complement', color: palette.complement },
-    { label: 'Accent', color: palette.accent },
-  ]
+  const copyConfig = useCallback(() => {
+    const h = hues.map(h => Math.round(h))
+    const config = harmonyMode === 'custom'
+      ? `export const themeConfig = {
+  mode: 'custom' as const,
+  palette: {
+    primary:    ${h[0]},
+    secondary:  ${h[1]},
+    tertiary:   ${h[2]},
+    complement: ${h[3]},
+    accent:     ${h[4]},
+  },
+  showPicker: false,
+}`
+      : `export const themeConfig = {
+  mode: 'fixed' as const,
+  hue: ${h[0]},
+  showPicker: false,
+}`
+    navigator.clipboard.writeText(config)
+  }, [hues, harmonyMode])
 
-  // Closed state — floating button
+  const swatchLabels = ['Primary', 'Secondary', 'Tertiary', 'Complement', 'Accent']
+  const displayHues = [...hues]
+  while (displayHues.length < 5) displayHues.push(displayHues[0] ?? 0)
+  const displayPalette = isManual ? huesToPalette(displayHues) : palette
+
   if (!open) {
     return (
       <button
@@ -71,122 +114,100 @@ export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
     <div
       className="fixed bottom-4 right-4 z-50 rounded-2xl shadow-2xl overflow-hidden"
       style={{
-        backgroundColor: `oklch(10% 0.015 ${palette.baseHue})`,
-        border: `1px solid ${palette.border}`,
+        backgroundColor: `oklch(10% 0.015 ${displayPalette.baseHue})`,
+        border: `1px solid ${displayPalette.border}`,
         width: '320px',
       }}
     >
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3"
-        style={{ borderBottom: `1px solid ${palette.border}` }}
+      <div className="flex items-center justify-between px-4 py-2.5"
+        style={{ borderBottom: `1px solid ${displayPalette.border}` }}
       >
         <div className="flex items-center gap-2">
           <span>🎨</span>
           <span className="text-white text-sm font-semibold">Color Wheel</span>
-          <span
-            className="text-xs px-2 py-0.5 rounded-full"
-            style={{ backgroundColor: palette.primaryMuted, color: palette.textPrimary }}
-          >
-            {manualHue !== null ? `${Math.round(manualHue)}°` : palette.period}
-          </span>
+          {isManual && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: displayPalette.primaryMuted, color: displayPalette.textPrimary }}
+            >
+              {harmonyMode === 'custom' ? 'custom' : Math.round(hues[0]) + '°'}
+            </span>
+          )}
         </div>
-        <button
-          onClick={() => setOpen(false)}
+        <button onClick={() => setOpen(false)}
           className="text-gray-500 hover:text-white transition-colors text-lg leading-none w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10"
-        >
-          ×
-        </button>
+        >×</button>
       </div>
 
       {/* Color Wheel */}
-      <div className="flex justify-center py-4">
+      <div className="flex justify-center py-3">
         <ColorWheel
-          baseHue={manualHue ?? palette.baseHue}
+          hues={displayHues}
           mode={harmonyMode}
-          size={220}
+          size={210}
           onChange={handleHueChange}
         />
       </div>
 
       {/* Harmony Mode Selector */}
-      <div className="px-4 pb-3">
-        <div className="flex gap-1">
+      <div className="px-3 pb-2">
+        <div className="flex gap-0.5">
           {harmonyModes.map(({ mode, label, icon }) => (
             <button
               key={mode}
-              onClick={() => setHarmonyMode(mode)}
+              onClick={() => handleModeChange(mode)}
               className={`flex-1 py-1.5 rounded-lg text-xs transition-all ${
                 harmonyMode === mode ? 'font-medium' : 'text-gray-500 hover:text-white'
               }`}
               style={harmonyMode === mode ? {
-                backgroundColor: palette.primaryMuted,
-                color: palette.textPrimary,
+                backgroundColor: displayPalette.primaryMuted,
+                color: displayPalette.textPrimary,
               } : undefined}
               title={label}
             >
-              <div>{icon}</div>
+              {icon}
             </button>
           ))}
         </div>
-        <div className="text-center text-[10px] text-gray-500 mt-1">
+        <div className="text-center text-[10px] text-gray-500 mt-0.5">
           {harmonyModes.find(m => m.mode === harmonyMode)?.label}
+          {harmonyMode === 'custom' && ' — drag each dot'}
         </div>
       </div>
 
-      {/* Swatches */}
-      <div className="px-4 pb-3">
-        <div className="flex gap-1.5">
-          {swatches.map(s => (
-            <div key={s.label} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className="w-full h-7 rounded-lg transition-all"
-                style={{ backgroundColor: s.color }}
-                title={s.label}
-              />
-              <span className="text-[8px] text-gray-600">{s.label}</span>
+      {/* Swatches with hue labels */}
+      <div className="px-3 pb-2">
+        <div className="flex gap-1">
+          {displayHues.slice(0, 5).map((h, i) => (
+            <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+              <div className="w-full h-6 rounded-lg" style={{ backgroundColor: `oklch(65% 0.25 ${h})` }} title={swatchLabels[i]} />
+              <span className="text-[8px] text-gray-600">{Math.round(h)}°</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Gradient preview */}
-      <div className="px-4 pb-3">
-        <div className="h-5 rounded-lg" style={{ background: palette.gradientPrimary }} />
+      <div className="px-3 pb-2">
+        <div className="h-4 rounded-lg" style={{ background: displayPalette.gradientPrimary }} />
       </div>
 
-      {/* Copy Config button */}
-      {manualHue !== null && (
-        <div className="px-4 pb-2">
+      {/* Actions */}
+      {isManual && (
+        <div className="px-3 pb-3 flex gap-2">
           <button
-            onClick={() => {
-              const hue = Math.round(manualHue)
-              const config = `// Paste in app/client/src/config/theme.config.ts
-export const themeConfig = {
-  mode: 'fixed',
-  hue: ${hue},
-  showPicker: false,
-}`
-              navigator.clipboard.writeText(config)
-              alert('Config copied! Paste in theme.config.ts')
-            }}
-            className="w-full py-1.5 rounded-xl text-xs transition-all hover:opacity-80 border"
-            style={{ borderColor: palette.border, color: palette.textSecondary }}
+            onClick={copyConfig}
+            className="flex-1 py-1.5 rounded-xl text-xs transition-all hover:opacity-80 border"
+            style={{ borderColor: displayPalette.border, color: displayPalette.textSecondary }}
           >
-            📋 Copy Config
+            📋 Copy
           </button>
-        </div>
-      )}
-
-      {/* Auto button */}
-      {manualHue !== null && (
-        <div className="px-4 pb-4">
           <button
             onClick={handleAuto}
-            className="w-full py-2 rounded-xl text-sm font-medium transition-all hover:opacity-80"
-            style={{ backgroundColor: palette.primaryMuted, color: palette.textPrimary }}
+            className="flex-1 py-1.5 rounded-xl text-xs transition-all hover:opacity-80"
+            style={{ backgroundColor: displayPalette.primaryMuted, color: displayPalette.textPrimary }}
           >
-            ↻ Auto ({palette.period})
+            ↻ Auto
           </button>
         </div>
       )}

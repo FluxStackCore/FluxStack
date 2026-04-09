@@ -1,24 +1,26 @@
 /**
  * ColorWheel — Interactive color wheel like Adobe Color
  *
- * Features:
- * - Circular hue wheel with draggable base point
- * - Harmony dots (analogous, complementary, triadic, etc.)
- * - Visual connection lines between harmony points
- * - Click/drag to change base hue
+ * Modes:
+ * - Preset harmonies: all dots move together based on base hue
+ * - Custom: each dot is independently draggable
  */
 import { useRef, useState, useCallback, useEffect } from 'react'
 
-export type HarmonyMode = 'analogous' | 'complementary' | 'triadic' | 'split-complementary' | 'square' | 'monochromatic'
+export type HarmonyMode = 'analogous' | 'complementary' | 'triadic' | 'split-complementary' | 'square' | 'monochromatic' | 'custom'
 
 interface ColorWheelProps {
-  baseHue: number
+  /** Hues for each point: [primary, secondary, tertiary, complement, accent] */
+  hues: number[]
   mode: HarmonyMode
   size?: number
-  onChange: (hue: number) => void
+  /** Called when any hue changes. index = which point, hue = new value */
+  onChange: (index: number, hue: number) => void
 }
 
-/** Get harmony hue offsets for each mode */
+const POINT_LABELS = ['P', 'S', 'T', 'C', 'A']
+
+/** Get harmony offsets for preset modes */
 function getHarmonyOffsets(mode: HarmonyMode): number[] {
   switch (mode) {
     case 'analogous':           return [0, -30, 30, -60, 60]
@@ -27,59 +29,88 @@ function getHarmonyOffsets(mode: HarmonyMode): number[] {
     case 'split-complementary': return [0, 150, 210]
     case 'square':              return [0, 90, 180, 270]
     case 'monochromatic':       return [0]
+    case 'custom':              return [0, 40, -30, 180, 120] // defaults, but each is independent
   }
 }
 
-/** Convert hue to position on the wheel */
-function hueToXY(hue: number, radius: number, cx: number, cy: number): { x: number; y: number } {
-  const rad = ((hue - 90) * Math.PI) / 180 // -90 so 0° is at top
-  return {
-    x: cx + radius * Math.cos(rad),
-    y: cy + radius * Math.sin(rad),
-  }
+/** Get number of points for each mode */
+export function getPointCount(mode: HarmonyMode): number {
+  return getHarmonyOffsets(mode).length
 }
 
-/** Convert mouse position to hue */
+/** Generate initial hues from base hue and mode */
+export function generateHuesFromMode(baseHue: number, mode: HarmonyMode): number[] {
+  return getHarmonyOffsets(mode).map(o => ((baseHue + o) % 360 + 360) % 360)
+}
+
+function hueToXY(hue: number, radius: number, cx: number, cy: number) {
+  const rad = ((hue - 90) * Math.PI) / 180
+  return { x: cx + radius * Math.cos(rad), y: cy + radius * Math.sin(rad) }
+}
+
 function xyToHue(x: number, y: number, cx: number, cy: number): number {
-  const rad = Math.atan2(y - cy, x - cx)
-  return ((rad * 180) / Math.PI + 90 + 360) % 360
+  return ((Math.atan2(y - cy, x - cx) * 180) / Math.PI + 90 + 360) % 360
 }
 
-export function ColorWheel({ baseHue, mode, size = 200, onChange }: ColorWheelProps) {
+export function ColorWheel({ hues, mode, size = 220, onChange }: ColorWheelProps) {
   const svgRef = useRef<SVGSVGElement>(null)
-  const [dragging, setDragging] = useState(false)
+  const [dragging, setDragging] = useState<number | null>(null) // index of dragged point
 
   const cx = size / 2
   const cy = size / 2
   const outerR = size / 2 - 8
   const innerR = outerR - 24
-  const dotR = outerR - 12 // radius where dots sit (middle of ring)
+  const dotR = outerR - 12
 
-  const offsets = getHarmonyOffsets(mode)
-  const harmonyHues = offsets.map(o => (baseHue + o + 360) % 360)
+  const isCustom = mode === 'custom'
 
-  const getMouseHue = useCallback((e: React.MouseEvent | MouseEvent) => {
+  const getMouseHue = useCallback((e: MouseEvent | React.MouseEvent) => {
     const svg = svgRef.current
-    if (!svg) return baseHue
+    if (!svg) return 0
     const rect = svg.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    return xyToHue(x, y, cx, cy)
-  }, [baseHue, cx, cy])
+    return xyToHue(e.clientX - rect.left, e.clientY - rect.top, cx, cy)
+  }, [cx, cy])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  // Mouse down on a specific point
+  const handlePointDown = useCallback((e: React.MouseEvent, index: number) => {
     e.preventDefault()
-    setDragging(true)
-    onChange(getMouseHue(e))
-  }, [getMouseHue, onChange])
+    e.stopPropagation()
+    setDragging(index)
+  }, [])
+
+  // Mouse down on wheel background — moves the base (index 0)
+  const handleWheelDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setDragging(0)
+    const hue = getMouseHue(e)
+    if (isCustom) {
+      onChange(0, hue)
+    } else {
+      // In preset mode, move all points relative to base
+      const delta = hue - hues[0]
+      for (let i = 0; i < hues.length; i++) {
+        onChange(i, ((hues[i] + delta) % 360 + 360) % 360)
+      }
+    }
+  }, [getMouseHue, hues, isCustom, onChange])
 
   useEffect(() => {
-    if (!dragging) return
+    if (dragging === null) return
 
     const handleMove = (e: MouseEvent) => {
-      onChange(getMouseHue(e))
+      const hue = getMouseHue(e)
+      if (isCustom) {
+        // Custom mode: move only the dragged point
+        onChange(dragging, hue)
+      } else {
+        // Preset mode: move all points relative to base
+        const delta = hue - hues[0]
+        for (let i = 0; i < hues.length; i++) {
+          onChange(i, ((hues[i] + delta) % 360 + 360) % 360)
+        }
+      }
     }
-    const handleUp = () => setDragging(false)
+    const handleUp = () => setDragging(null)
 
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
@@ -87,45 +118,27 @@ export function ColorWheel({ baseHue, mode, size = 200, onChange }: ColorWheelPr
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseup', handleUp)
     }
-  }, [dragging, getMouseHue, onChange])
-
-  // Generate conic gradient stops for the wheel
-  const wheelStops = Array.from({ length: 13 }, (_, i) => {
-    const h = (i / 12) * 360
-    return `oklch(70% 0.2 ${h}) ${(i / 12) * 100}%`
-  }).join(', ')
+  }, [dragging, getMouseHue, hues, isCustom, onChange])
 
   return (
     <svg
       ref={svgRef}
       width={size}
       height={size}
-      onMouseDown={handleMouseDown}
-      style={{ cursor: dragging ? 'grabbing' : 'pointer', userSelect: 'none' }}
+      onMouseDown={handleWheelDown}
+      style={{ cursor: dragging !== null ? 'grabbing' : 'pointer', userSelect: 'none' }}
     >
-      {/* Hue ring using many arc segments */}
+      {/* Hue ring segments */}
       {Array.from({ length: 72 }, (_, i) => {
-        const startAngle = (i / 72) * 360
-        const endAngle = ((i + 1) / 72) * 360
-        const startRad = ((startAngle - 90) * Math.PI) / 180
-        const endRad = ((endAngle - 90) * Math.PI) / 180
-
-        const x1o = cx + outerR * Math.cos(startRad)
-        const y1o = cy + outerR * Math.sin(startRad)
-        const x2o = cx + outerR * Math.cos(endRad)
-        const y2o = cy + outerR * Math.sin(endRad)
-        const x1i = cx + innerR * Math.cos(endRad)
-        const y1i = cy + innerR * Math.sin(endRad)
-        const x2i = cx + innerR * Math.cos(startRad)
-        const y2i = cy + innerR * Math.sin(startRad)
-
-        const hue = startAngle
+        const a1 = (i / 72) * 360
+        const a2 = ((i + 1) / 72) * 360
+        const r1 = ((a1 - 90) * Math.PI) / 180
+        const r2 = ((a2 - 90) * Math.PI) / 180
         return (
           <path
             key={i}
-            d={`M ${x1o} ${y1o} A ${outerR} ${outerR} 0 0 1 ${x2o} ${y2o} L ${x1i} ${y1i} A ${innerR} ${innerR} 0 0 0 ${x2i} ${y2i} Z`}
-            fill={`oklch(70% 0.22 ${hue})`}
-            stroke="none"
+            d={`M ${cx + outerR * Math.cos(r1)} ${cy + outerR * Math.sin(r1)} A ${outerR} ${outerR} 0 0 1 ${cx + outerR * Math.cos(r2)} ${cy + outerR * Math.sin(r2)} L ${cx + innerR * Math.cos(r2)} ${cy + innerR * Math.sin(r2)} A ${innerR} ${innerR} 0 0 0 ${cx + innerR * Math.cos(r1)} ${cy + innerR * Math.sin(r1)} Z`}
+            fill={`oklch(70% 0.22 ${a1})`}
           />
         )
       })}
@@ -133,55 +146,45 @@ export function ColorWheel({ baseHue, mode, size = 200, onChange }: ColorWheelPr
       {/* Inner dark circle */}
       <circle cx={cx} cy={cy} r={innerR - 2} fill="#0a0a1a" />
 
-      {/* Connection lines between harmony points */}
-      {harmonyHues.length > 1 && (
+      {/* Connection lines */}
+      {hues.length > 1 && (
         <polygon
-          points={harmonyHues.map(h => {
-            const p = hueToXY(h, dotR * 0.6, cx, cy)
+          points={hues.map(h => {
+            const p = hueToXY(h, dotR * 0.55, cx, cy)
             return `${p.x},${p.y}`
           }).join(' ')}
-          fill="none"
-          stroke="rgba(255,255,255,0.15)"
+          fill={`oklch(65% 0.15 ${hues[0]} / 0.08)`}
+          stroke="rgba(255,255,255,0.12)"
           strokeWidth="1"
         />
       )}
 
-      {/* Center preview — shows blended color */}
-      <circle
-        cx={cx} cy={cy} r={innerR * 0.4}
-        fill={`oklch(65% 0.25 ${baseHue})`}
-        opacity="0.8"
-      />
-      <text
-        x={cx} y={cy}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fill="white"
-        fontSize="11"
-        fontWeight="600"
-      >
-        {Math.round(baseHue)}°
+      {/* Center color preview */}
+      <circle cx={cx} cy={cy} r={innerR * 0.35} fill={`oklch(65% 0.25 ${hues[0]})`} opacity="0.8" />
+      <text x={cx} y={cy - 6} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="11" fontWeight="700">
+        {Math.round(hues[0])}°
+      </text>
+      <text x={cx} y={cy + 8} textAnchor="middle" dominantBaseline="central" fill="rgba(255,255,255,0.5)" fontSize="8">
+        {isCustom ? 'CUSTOM' : mode.toUpperCase()}
       </text>
 
-      {/* Harmony dots */}
-      {harmonyHues.map((hue, i) => {
+      {/* Harmony dots — each draggable in custom mode */}
+      {hues.map((hue, i) => {
         const pos = hueToXY(hue, dotR, cx, cy)
         const isBase = i === 0
+        const isDraggable = isCustom || isBase
+        const r = isBase ? 9 : 7
         return (
-          <g key={i}>
-            {/* Glow */}
-            <circle
-              cx={pos.x} cy={pos.y} r={isBase ? 10 : 7}
-              fill={`oklch(65% 0.25 ${hue} / 0.4)`}
-              filter="blur(2px)"
-            />
-            {/* Dot */}
-            <circle
-              cx={pos.x} cy={pos.y} r={isBase ? 8 : 6}
-              fill={`oklch(65% 0.25 ${hue})`}
-              stroke="white"
-              strokeWidth={isBase ? 2.5 : 1.5}
-            />
+          <g
+            key={i}
+            onMouseDown={isDraggable ? (e) => handlePointDown(e, i) : undefined}
+            style={{ cursor: isDraggable ? 'grab' : 'default' }}
+          >
+            <circle cx={pos.x} cy={pos.y} r={r + 3} fill={`oklch(65% 0.25 ${hue} / 0.3)`} />
+            <circle cx={pos.x} cy={pos.y} r={r} fill={`oklch(65% 0.25 ${hue})`} stroke="white" strokeWidth={isBase ? 2.5 : 1.5} />
+            <text x={pos.x} y={pos.y} textAnchor="middle" dominantBaseline="central" fill="white" fontSize="7" fontWeight="600" pointerEvents="none">
+              {POINT_LABELS[i] || ''}
+            </text>
           </g>
         )
       })}
