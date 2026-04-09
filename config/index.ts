@@ -47,7 +47,7 @@ export { sessionConfig } from './system/session.config'
 export { fluxStackConfig, config as fluxConfig, type FluxStackConfig } from './fluxstack.config'
 
 // Plugin configs (re-exported for convenience)
-export { cryptoAuthConfig } from '../plugins/crypto-auth/config'
+export { cryptoAuthConfig } from '@fluxstack/plugin-crypto-auth/config'
 
 // ============================================================================
 // 📝 TYPE EXPORTS
@@ -86,7 +86,7 @@ export type { AuthConfig } from './system/auth.config'
 export type { SessionConfig } from './system/session.config'
 
 // Plugin types
-export type { CryptoAuthConfig } from '../plugins/crypto-auth/config'
+export type { CryptoAuthConfig } from '@fluxstack/plugin-crypto-auth/config'
 
 // ============================================================================
 // 🎯 UNIFIED CONFIG OBJECT
@@ -105,7 +105,7 @@ import { databaseConfig } from './system/database.config'
 import { servicesConfig } from './system/services.config'
 import { authConfig } from './system/auth.config'
 import { sessionConfig } from './system/session.config'
-import { cryptoAuthConfig } from '../plugins/crypto-auth/config'
+import { cryptoAuthConfig } from '@fluxstack/plugin-crypto-auth/config'
 
 /**
  * All configs in one object
