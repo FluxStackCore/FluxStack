@@ -149,15 +149,21 @@ export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
 
   const showConfig = useCallback(() => {
     const h = hues.map(h => Math.round(h))
+    // Calculate relative offset from primary, normalized to -180..+180
+    const offset = (target: number) => {
+      let d = ((target - h[0]) % 360 + 540) % 360 - 180
+      return d >= 0 ? `+${d}°` : `${d}°`
+    }
+
     configRef.current = harmonyMode === 'custom'
       ? `export const themeConfig: ThemeConfig = {
   mode: 'custom',
   palette: {
-    primary:    ${h[0]},  // ${getHueName(h[0])}
-    secondary:  ${h[1]},  // ${getHueName(h[1])}
-    tertiary:   ${h[2]},  // ${getHueName(h[2])}
-    complement: ${h[3]},  // ${getHueName(h[3])}
-    accent:     ${h[4]},  // ${getHueName(h[4])}
+    primary:    ${h[0]},  // ${getHueName(h[0])} (base)
+    secondary:  ${h[1]},  // ${getHueName(h[1])} (${offset(h[1])} from primary)
+    tertiary:   ${h[2]},  // ${getHueName(h[2])} (${offset(h[2])} from primary)
+    complement: ${h[3]},  // ${getHueName(h[3])} (${offset(h[3])} from primary)
+    accent:     ${h[4]},  // ${getHueName(h[4])} (${offset(h[4])} from primary)
   },
   showPicker: false,
 }`
@@ -269,25 +275,25 @@ export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
         <div className="h-4 rounded-lg" style={{ background: displayPalette.gradientPrimary }} />
       </div>
 
-      {/* Actions */}
-      {isManual && (
-        <div className="px-3 pb-3 flex gap-2">
-          <button
-            onClick={showConfig}
-            className="flex-1 py-1.5 rounded-xl text-xs transition-all hover:opacity-80 border"
-            style={{ borderColor: displayPalette.border, color: displayPalette.textSecondary }}
-          >
-            📋 Copy
-          </button>
+      {/* Actions — always visible */}
+      <div className="px-3 pb-3 flex gap-2">
+        <button
+          onClick={showConfig}
+          className="flex-1 py-1.5 rounded-xl text-xs transition-all hover:opacity-80"
+          style={{ backgroundColor: displayPalette.primaryMuted, color: displayPalette.textPrimary }}
+        >
+          📋 Fixar Tema
+        </button>
+        {isManual && (
           <button
             onClick={handleAuto}
-            className="flex-1 py-1.5 rounded-xl text-xs transition-all hover:opacity-80"
-            style={{ backgroundColor: displayPalette.primaryMuted, color: displayPalette.textPrimary }}
+            className="px-3 py-1.5 rounded-xl text-xs transition-all hover:opacity-80 border"
+            style={{ borderColor: displayPalette.border, color: displayPalette.textSecondary }}
           >
-            ↻ Auto
+            ↻
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {showConfigModal && (
         <ConfigModal
