@@ -115,19 +115,19 @@ export function PingPongDemo() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 w-full">
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-white tabular-nums">
             {avgRtt != null ? `${avgRtt}ms` : '--'}
           </div>
           <div className="text-xs text-gray-500 mt-1">AVG RTT</div>
         </div>
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-emerald-400 tabular-nums">
             {minRtt != null ? `${minRtt}ms` : '--'}
           </div>
           <div className="text-xs text-gray-500 mt-1">MIN RTT</div>
         </div>
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-red-400 tabular-nums">
             {maxRtt != null ? `${maxRtt}ms` : '--'}
           </div>

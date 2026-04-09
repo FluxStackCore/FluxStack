@@ -18,7 +18,7 @@ export function FormDemo() {
         </p>
         <button
           onClick={() => form.reset()}
-          className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all"
+          className="mt-4 btn-theme"
         >
           Novo Formulário
         </button>
@@ -46,7 +46,7 @@ export function FormDemo() {
           <input
             {...form.$field('name', { syncOn: 'blur' })}
             placeholder="Seu nome"
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none"
+            className="w-full input-theme"
           />
         </div>
 
@@ -59,7 +59,7 @@ export function FormDemo() {
             {...form.$field('email', { syncOn: 'change', debounce: 500 })}
             type="email"
             placeholder="seu@email.com"
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none"
+            className="w-full input-theme"
           />
         </div>
 
@@ -72,7 +72,7 @@ export function FormDemo() {
             {...form.$field('message', { syncOn: 'blur' })}
             rows={3}
             placeholder="Sua mensagem..."
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none resize-none"
+            className="w-full input-theme resize-none"
           />
         </div>
 
@@ -94,7 +94,7 @@ export function FormDemo() {
           </button>
           <button
             onClick={() => form.reset()}
-            className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-all"
+            className="px-4 py-3 btn-theme-ghost"
           >
             Limpar
           </button>

@@ -47,6 +47,107 @@
 .hover\:bg-theme:hover       { background-color: var(--theme-primary); }
 .hover\:shadow-theme:hover   { box-shadow: 0 8px 24px var(--theme-primary-glow); }
 
+/* ===== Themed component classes ===== */
+
+/* Primary button — filled with theme color */
+.btn-theme {
+  background-color: var(--theme-primary);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+  box-shadow: 0 4px 14px var(--theme-primary-glow);
+}
+.btn-theme:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 24px var(--theme-primary-glow);
+}
+.btn-theme:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Outline button — border with theme color */
+.btn-theme-outline {
+  background-color: var(--theme-primary-muted);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-border-active);
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+.btn-theme-outline:hover {
+  background-color: var(--theme-primary);
+  color: white;
+}
+
+/* Ghost button — subtle theme tint */
+.btn-theme-ghost {
+  background-color: transparent;
+  color: var(--theme-text-primary);
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+.btn-theme-ghost:hover {
+  background-color: var(--theme-primary-muted);
+}
+
+/* Themed input */
+.input-theme {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  color: white;
+  font-size: 0.875rem;
+  transition: border-color 0.15s;
+  outline: none;
+}
+.input-theme:focus {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px var(--theme-primary-glow);
+}
+.input-theme::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Themed card */
+.card-theme {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+}
+.card-theme:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: var(--theme-border-active);
+}
+
+/* Themed badge/tag */
+.badge-theme {
+  background-color: var(--theme-primary-muted);
+  color: var(--theme-text-primary);
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Themed scrollbar */
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border) !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-border-active) !important;
+}
+
 /* Base styles */
 * {
   box-sizing: border-box;

@@ -98,7 +98,7 @@ export function CounterDemo() {
           <button
             onClick={handleReset}
             disabled={counter.$loading}
-            className="px-6 h-14 flex items-center justify-center text-sm bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-300 rounded-xl transition-all disabled:opacity-50"
+            className="px-6 h-14 flex items-center justify-center text-sm btn-theme-outline disabled:opacity-50"
           >
             Reset
           </button>
@@ -165,7 +165,7 @@ export function CounterDemo() {
           <button
             onClick={handleReset}
             disabled={localCounter.$loading}
-            className="px-6 h-14 flex items-center justify-center text-sm bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-300 rounded-xl transition-all disabled:opacity-50"
+            className="px-6 h-14 flex items-center justify-center text-sm btn-theme-outline disabled:opacity-50"
           >
             Reset
           </button>
