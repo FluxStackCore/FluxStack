@@ -146,6 +146,17 @@ export function generatePalette(date = new Date()): ColorPalette {
 }
 
 /**
+ * Generate palette for a specific hue (fixed mode)
+ */
+export function generatePaletteForHue(hue: number): ColorPalette {
+  // Create a fake date that produces this hue
+  const totalMinutes = ((hue - 270 + 360) % 360) / 360 * 1440
+  const fakeDate = new Date()
+  fakeDate.setHours(Math.floor(totalMinutes / 60), Math.floor(totalMinutes % 60))
+  return generatePalette(fakeDate)
+}
+
+/**
  * Apply palette to CSS custom properties on :root
  */
 export function applyPalette(palette: ColorPalette): void {

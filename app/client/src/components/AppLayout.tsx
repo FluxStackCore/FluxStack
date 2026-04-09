@@ -6,6 +6,7 @@ import faviconSvg from '@client/src/assets/fluxstack-static.svg?raw'
 import { useThemeClock } from '../hooks/useThemeClock'
 import { ThemePicker } from './ThemePicker'
 import type { ColorPalette } from '../lib/theme-clock'
+import { themeConfig } from '../config/theme.config'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -77,7 +78,7 @@ export function AppLayout() {
   }, [location.pathname, theme.baseHue])
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] text-white flex flex-col">
+    <div className="min-h-screen text-white flex flex-col" style={{ backgroundColor: `oklch(8% 0.02 ${theme.baseHue})` }}>
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0a0a1a]/80 border-b border-white/[0.06]">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-wide">
@@ -245,7 +246,7 @@ export function AppLayout() {
         </div>
       </footer>
 
-      <ThemePicker palette={theme} onOverride={setOverrideTheme} />
+      {themeConfig.showPicker && <ThemePicker palette={theme} onOverride={setOverrideTheme} />}
     </div>
   )
 }
