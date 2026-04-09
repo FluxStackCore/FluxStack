@@ -1,6 +1,6 @@
 {
   "name": "create-fluxstack",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "description": "⚡ Revolutionary full-stack TypeScript framework with Declarative Config System, Elysia + React + Bun",
   "keywords": [
     "framework",
