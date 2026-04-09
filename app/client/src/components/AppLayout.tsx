@@ -3,6 +3,9 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
 import FluxStackLogo from '@client/src/assets/fluxstack.svg'
 import faviconSvg from '@client/src/assets/fluxstack-static.svg?raw'
+import { useThemeClock } from '../hooks/useThemeClock'
+import { ThemePicker } from './ThemePicker'
+import type { ColorPalette } from '../lib/theme-clock'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -36,13 +39,16 @@ const faviconUrlCache = new Map<string, string>()
 export function AppLayout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const autoTheme = useThemeClock()
+  const [overrideTheme, setOverrideTheme] = useState<ColorPalette | null>(null)
+  const theme = overrideTheme || autoTheme
 
   useEffect(() => {
     const current = navItems.find(item => item.to === location.pathname)
     document.title = current ? `${current.label} - FluxStack` : 'FluxStack'
 
-    // Dynamic favicon with hue-rotate (cached per hue value)
-    const hue = routeFlameHue[location.pathname] || '0deg'
+    // Dynamic favicon with hue-rotate based on theme clock
+    const hue = `${Math.round(theme.baseHue - 270)}deg`
     let url = faviconUrlCache.get(hue)
     if (!url) {
       // Evict oldest entry if cache is full, revoking blob URL to free memory
@@ -68,7 +74,7 @@ export function AppLayout() {
     }
     link.type = 'image/svg+xml'
     link.href = url
-  }, [location.pathname])
+  }, [location.pathname, theme.baseHue])
 
   return (
     <div className="min-h-screen bg-[#0a0a1a] text-white flex flex-col">
@@ -78,10 +84,17 @@ export function AppLayout() {
             <img
               src={FluxStackLogo}
               alt="FluxStack"
-              className="w-9 h-9 transition-[filter] duration-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]"
-              style={{ filter: `hue-rotate(${routeFlameHue[location.pathname] || '0deg'})` }}
+              className="w-9 h-9 transition-[filter] duration-500"
+              style={{
+                filter: `hue-rotate(${theme.baseHue - 270}deg) drop-shadow(0 0 8px ${theme.primaryGlow})`,
+              }}
             />
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">FluxStack</span>
+            <span
+              className="bg-clip-text text-transparent"
+              style={{ backgroundImage: theme.gradientPrimary }}
+            >
+              FluxStack
+            </span>
           </Link>
 
           {/* Desktop nav */}
@@ -94,9 +107,13 @@ export function AppLayout() {
                   to={item.to}
                   className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
                     active
-                      ? 'bg-purple-500/20 text-purple-300 font-medium'
+                      ? 'font-medium'
                       : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
                   }`}
+                  style={active ? {
+                    backgroundColor: theme.primaryMuted,
+                    color: theme.textPrimary,
+                  } : undefined}
                 >
                   {item.label}
                 </Link>
@@ -158,9 +175,13 @@ export function AppLayout() {
                     onClick={() => setMenuOpen(false)}
                     className={`px-3 py-2 rounded-lg text-sm transition-all ${
                       active
-                        ? 'bg-purple-500/20 text-purple-300 font-medium'
+                        ? 'font-medium'
                         : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
                     }`}
+                    style={active ? {
+                      backgroundColor: theme.primaryMuted,
+                      color: theme.textPrimary,
+                    } : undefined}
                   >
                     {item.label}
                   </Link>
@@ -216,10 +237,15 @@ export function AppLayout() {
       <footer className="border-t border-white/[0.06] py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-500 text-sm">
-            Built with <span className="text-purple-400">FluxStack</span> — Bun + Elysia + React
+            Built with <span style={{ color: theme.primary }}>FluxStack</span> — Bun + Elysia + React
+          </p>
+          <p className="text-gray-600 text-xs mt-1">
+            🎨 <span style={{ color: theme.primary }}>{theme.period}</span> palette — colors shift with the time of day
           </p>
         </div>
       </footer>
+
+      <ThemePicker palette={theme} onOverride={setOverrideTheme} />
     </div>
   )
 }

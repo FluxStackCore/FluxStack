@@ -168,7 +168,7 @@ export function LiveUploadWidget({
           </div>
           <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all"
+              className="h-full bg-theme-gradient transition-all"
               style={{ width: `${live.$state.progress}%` }}
             />
           </div>

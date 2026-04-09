@@ -75,7 +75,7 @@ export function CounterDemo() {
         </div>
 
         <div className="text-center mb-6 sm:mb-8 flex-1 flex flex-col justify-center">
-          <div className="text-6xl sm:text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <div className="text-6xl sm:text-8xl font-bold bg-theme-gradient bg-clip-text text-transparent">
             {counter.$state.count}
           </div>
 
@@ -114,13 +114,13 @@ export function CounterDemo() {
 
         {counter.$loading && (
           <div className="flex justify-center mt-4">
-            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-theme border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
         <div className="mt-8 pt-6 border-t border-white/10">
           <p className="text-gray-500 text-xs text-center">
-            ✨ Usando <code className="text-purple-400">Room Events</code>
+            ✨ Usando <code className="text-theme">Room Events</code>
           </p>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function CounterDemo() {
 
         {localCounter.$loading && (
           <div className="flex justify-center mt-4">
-            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-theme border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

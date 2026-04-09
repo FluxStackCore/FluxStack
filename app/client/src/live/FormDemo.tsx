@@ -41,12 +41,12 @@ export function FormDemo() {
         {/* Nome - sync on blur */}
         <div>
           <label className="block text-gray-300 text-sm mb-1">
-            Nome <span className="text-purple-400 text-xs">(sync: blur)</span>
+            Nome <span className="text-theme text-xs">(sync: blur)</span>
           </label>
           <input
             {...form.$field('name', { syncOn: 'blur' })}
             placeholder="Seu nome"
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none"
           />
         </div>
 
@@ -59,7 +59,7 @@ export function FormDemo() {
             {...form.$field('email', { syncOn: 'change', debounce: 500 })}
             type="email"
             placeholder="seu@email.com"
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none"
           />
         </div>
 
@@ -72,7 +72,7 @@ export function FormDemo() {
             {...form.$field('message', { syncOn: 'blur' })}
             rows={3}
             placeholder="Sua mensagem..."
-            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none resize-none"
+            className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-500 focus:border-theme focus:outline-none resize-none"
           />
         </div>
 
@@ -88,7 +88,7 @@ export function FormDemo() {
               }
             }}
             disabled={!form.$connected || form.$loading}
-            className="flex-1 px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-purple-500/30 transition-all disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-theme-gradient text-white rounded-lg font-medium hover:shadow-theme transition-all disabled:opacity-50"
           >
             {form.$loading ? 'Enviando...' : 'Enviar'}
           </button>
@@ -103,7 +103,7 @@ export function FormDemo() {
 
       {/* Legenda */}
       <div className="mt-4 p-3 bg-white/5 rounded-lg text-xs text-gray-400 space-y-1">
-        <p><span className="text-purple-400">blur:</span> Sincroniza ao sair do campo</p>
+        <p><span className="text-theme">blur:</span> Sincroniza ao sair do campo</p>
         <p><span className="text-blue-400">500ms:</span> Sincroniza 500ms após parar de digitar</p>
       </div>
 

@@ -69,14 +69,14 @@ export function SharedCounterDemo() {
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
           <span className="text-sm text-gray-400">{onlineCount} online</span>
         </div>
-        <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20">
-          <span className="text-xs text-purple-300">{username}</span>
+        <div className="px-3 py-1 rounded-full bg-theme-accent border border-theme">
+          <span className="text-xs text-theme">{username}</span>
         </div>
       </div>
 
       {/* Counter Display */}
       <div className="relative">
-        <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-3xl" />
+        <div className="absolute inset-0 bg-theme-muted rounded-full blur-3xl" />
         <div className="relative bg-gray-800/50 border border-white/10 rounded-3xl px-16 py-10 flex flex-col items-center">
           <span className={`text-7xl font-black tabular-nums transition-colors ${
             count > 0 ? 'text-emerald-400' : count < 0 ? 'text-red-400' : 'text-white'
@@ -128,8 +128,8 @@ export function SharedCounterDemo() {
 
       {/* Info */}
       <div className="text-center text-xs text-gray-600 space-y-1">
-        <p>Powered by <code className="text-purple-400">LiveRoom</code> + <code className="text-purple-400">CounterRoom</code></p>
-        <p>Estado via component state + eventos via <code className="text-cyan-400">$room().on()</code></p>
+        <p>Powered by <code className="text-theme">LiveRoom</code> + <code className="text-theme">CounterRoom</code></p>
+        <p>Estado via component state + eventos via <code className="text-theme-secondary">$room().on()</code></p>
       </div>
 
       {/* CSS animation */}

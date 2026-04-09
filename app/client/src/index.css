@@ -1,5 +1,52 @@
 @import "tailwindcss";
 
+/* ===== Theme Clock CSS Variables ===== */
+/* Default values (overridden at runtime by theme-clock.ts) */
+:root {
+  --theme-hue: 270;
+  --theme-primary: oklch(65% 0.25 270);
+  --theme-secondary: oklch(70% 0.20 310);
+  --theme-tertiary: oklch(60% 0.22 240);
+  --theme-complement: oklch(68% 0.18 90);
+  --theme-accent: oklch(72% 0.20 30);
+  --theme-primary-muted: oklch(65% 0.25 270 / 0.15);
+  --theme-secondary-muted: oklch(70% 0.20 310 / 0.10);
+  --theme-primary-glow: oklch(65% 0.25 270 / 0.3);
+  --theme-secondary-glow: oklch(70% 0.20 310 / 0.2);
+  --theme-bg-accent: oklch(65% 0.25 270 / 0.08);
+  --theme-bg-accent2: oklch(70% 0.20 310 / 0.05);
+  --theme-text-primary: oklch(80% 0.15 270);
+  --theme-text-secondary: oklch(75% 0.12 310);
+  --theme-text-muted: oklch(55% 0.05 270);
+  --theme-border: oklch(65% 0.25 270 / 0.12);
+  --theme-border-active: oklch(65% 0.25 270 / 0.3);
+}
+
+/* ===== Theme utility classes ===== */
+/* Use these instead of fixed purple-500 etc. for dynamic theming */
+.text-theme           { color: var(--theme-primary); }
+.text-theme-secondary { color: var(--theme-secondary); }
+.text-theme-muted     { color: var(--theme-text-muted); }
+.bg-theme             { background-color: var(--theme-primary); }
+.bg-theme-muted       { background-color: var(--theme-primary-muted); }
+.bg-theme-accent      { background-color: var(--theme-bg-accent); }
+.border-theme         { border-color: var(--theme-border); }
+.border-theme-active  { border-color: var(--theme-border-active); }
+.shadow-theme         { box-shadow: 0 4px 14px var(--theme-primary-glow); }
+.glow-theme           { filter: drop-shadow(0 0 12px var(--theme-primary-glow)); }
+
+.bg-theme-gradient {
+  background-image: var(--theme-gradient-primary,
+    linear-gradient(to right, var(--theme-primary), var(--theme-secondary)));
+}
+
+/* Hover variants */
+.hover\:bg-theme-muted:hover { background-color: var(--theme-primary-muted); }
+.hover\:border-theme:hover   { border-color: var(--theme-border-active); }
+.hover\:text-theme:hover     { color: var(--theme-primary); }
+.hover\:bg-theme:hover       { background-color: var(--theme-primary); }
+.hover\:shadow-theme:hover   { box-shadow: 0 8px 24px var(--theme-primary-glow); }
+
 /* Base styles */
 * {
   box-sizing: border-box;
