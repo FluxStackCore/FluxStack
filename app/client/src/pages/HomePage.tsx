@@ -20,7 +20,7 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent tracking-tight leading-none">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent tracking-tight leading-none">
           FluxStack
         </h1>
 

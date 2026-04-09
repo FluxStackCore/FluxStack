@@ -71,17 +71,17 @@ export function AppLayout() {
   }, [location.pathname])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-900/60 border-b border-white/10">
+    <div className="min-h-screen bg-[#0a0a1a] text-white flex flex-col">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0a0a1a]/80 border-b border-white/[0.06]">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 text-white font-semibold tracking-wide">
+          <Link to="/" className="flex items-center gap-2 font-semibold tracking-wide">
             <img
               src={FluxStackLogo}
               alt="FluxStack"
               className="w-9 h-9 transition-[filter] duration-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.5)]"
               style={{ filter: `hue-rotate(${routeFlameHue[location.pathname] || '0deg'})` }}
             />
-            FluxStack
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">FluxStack</span>
           </Link>
 
           {/* Desktop nav */}
@@ -94,8 +94,8 @@ export function AppLayout() {
                   to={item.to}
                   className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
                     active
-                      ? 'bg-white/15 text-white'
-                      : 'text-gray-300 hover:bg-white/10'
+                      ? 'bg-purple-500/20 text-purple-300 font-medium'
+                      : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
                   }`}
                 >
                   {item.label}
@@ -109,7 +109,7 @@ export function AppLayout() {
               href="https://live-docs.marcosbrendon.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 border border-purple-500/30 text-purple-200 rounded-lg text-sm hover:bg-purple-500/30 transition-all"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 border border-purple-500/20 text-purple-300 rounded-xl text-sm hover:bg-purple-500/30 transition-all"
             >
               <FaBook />
               Live Docs
@@ -118,7 +118,7 @@ export function AppLayout() {
               href="/swagger"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded-lg text-sm hover:bg-white/20 transition-all"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
             >
               <FaBook />
               API Docs
@@ -127,7 +127,7 @@ export function AppLayout() {
               href="https://github.com/MarcosBrendonDePaula/FluxStack"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 border border-white/20 text-white rounded-lg text-sm hover:bg-white/20 transition-all"
+              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
             >
               <FaGithub />
               GitHub
@@ -136,7 +136,7 @@ export function AppLayout() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+              className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
               aria-label="Toggle menu"
             >
               {menuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
@@ -146,7 +146,7 @@ export function AppLayout() {
 
         {/* Mobile nav */}
         {menuOpen && (
-          <div className="md:hidden border-t border-white/10 bg-slate-900/90 backdrop-blur-md">
+          <div className="md:hidden border-t border-white/[0.06] bg-[#0a0a1a]/90 backdrop-blur-xl">
             <nav className="container mx-auto px-4 py-3 flex gap-4 relative">
               <div className="flex flex-col gap-1 flex-1">
               {navItems.map((item) => {
@@ -158,20 +158,20 @@ export function AppLayout() {
                     onClick={() => setMenuOpen(false)}
                     className={`px-3 py-2 rounded-lg text-sm transition-all ${
                       active
-                        ? 'bg-white/15 text-white'
-                        : 'text-gray-300 hover:bg-white/10'
+                        ? 'bg-purple-500/20 text-purple-300 font-medium'
+                        : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
                     }`}
                   >
                     {item.label}
                   </Link>
                 )
               })}
-              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/10">
+              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/[0.06]">
                 <a
                   href="https://live-docs.marcosbrendon.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-purple-500/20 border border-purple-500/30 text-purple-200 rounded-lg text-sm hover:bg-purple-500/30 transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-purple-500/20 border border-purple-500/20 text-purple-300 rounded-xl text-sm hover:bg-purple-500/30 transition-all"
                 >
                   <FaBook />
                   Live Docs
@@ -180,7 +180,7 @@ export function AppLayout() {
                   href="/swagger"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/10 border border-white/20 text-white rounded-lg text-sm hover:bg-white/20 transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
                 >
                   <FaBook />
                   API Docs
@@ -189,7 +189,7 @@ export function AppLayout() {
                   href="https://github.com/MarcosBrendonDePaula/FluxStack"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/10 border border-white/20 text-white rounded-lg text-sm hover:bg-white/20 transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
                 >
                   <FaGithub />
                   GitHub
@@ -209,7 +209,17 @@ export function AppLayout() {
         )}
       </header>
 
-      <Outlet />
+      <main className="flex-1">
+        <Outlet />
+      </main>
+
+      <footer className="border-t border-white/[0.06] py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <p className="text-gray-500 text-sm">
+            Built with <span className="text-purple-400">FluxStack</span> — Bun + Elysia + React
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }
