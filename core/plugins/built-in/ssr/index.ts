@@ -168,71 +168,67 @@ export const ssrPlugin: Plugin = {
 
   setup: async (context: PluginContext) => {
     context.logger.info(`SSR plugin loaded (${ssrRoutes.size} routes registered)`)
+  },
 
-    // Register SSR routes on the Elysia app
-    const app = context.app as any
-    for (const [path, routeConfig] of ssrRoutes) {
-      app.get(path, async ({ headers }: { headers: Record<string, string | undefined> }) => {
-        const userAgent = headers['user-agent']
-        const forceSSR = (routeConfig as any).forceSSR === true
+  // Use onBeforeRoute hook — runs BEFORE Vite proxy in the FluxStack pipeline
+  // SSR plugin has priority 850 > Vite 800, so this runs first
+  onBeforeRoute: async (ctx: any) => {
+    if (ssrRoutes.size === 0) return
 
-        // Only SSR for bots unless forceSSR is true
-        if (!forceSSR && !isBot(userAgent)) {
-          return // Fall through to SPA (Vite/static handler)
-        }
+    const path = ctx.path
+    const routeConfig = ssrRoutes.get(path)
+    if (!routeConfig) {
+      return
+    }
 
-        // Check cache
-        const cached = renderCache.get(path)
-        if (cached && cached.expiry > Date.now()) {
-          return new Response(cached.html, {
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'X-SSR': 'cached',
-            },
-          })
-        }
+    // Headers may be Record<string, string> or Headers object
+    const headers = ctx.headers || {}
+    const userAgent = headers['user-agent'] || headers['User-Agent'] || ''
+    const forceSSR = (routeConfig as any).forceSSR === true
 
-        try {
-          // Resolve component
-          const componentResult = routeConfig.component()
-          let Component: React.ComponentType<any>
+    if (!forceSSR && !isBot(userAgent)) return
 
-          if (componentResult instanceof Promise) {
-            const mod = await componentResult
-            Component = (mod as any).default || mod
-          } else {
-            Component = componentResult as React.ComponentType<any>
-          }
-
-          // Render to string
-          const element = createElement(Component)
-          const bodyHtml = renderToString(element)
-          const meta = routeConfig.meta || {}
-          const fullHtml = buildSSRPage(bodyHtml, meta)
-
-          // Cache
-          const cacheTtl = routeConfig.cacheTtl ?? 300
-          if (cacheTtl > 0) {
-            renderCache.set(path, {
-              html: fullHtml,
-              expiry: Date.now() + cacheTtl * 1000,
-            })
-          }
-
-          return new Response(fullHtml, {
-            headers: {
-              'Content-Type': 'text/html; charset=utf-8',
-              'X-SSR': 'rendered',
-              'Cache-Control': cacheTtl > 0 ? `public, max-age=${cacheTtl}` : 'no-cache',
-            },
-          })
-        } catch (error: any) {
-          context.logger.warn(`SSR failed for ${path}: ${error.message}`)
-          return // Fall through to SPA
-        }
+    // Check cache
+    const cached = renderCache.get(path)
+    if (cached && cached.expiry > Date.now()) {
+      ctx.handled = true
+      ctx.response = new Response(cached.html, {
+        headers: { 'Content-Type': 'text/html; charset=utf-8', 'X-SSR': 'cached' },
       })
+      return
+    }
 
-      context.logger.info(`SSR route registered: ${path}`)
+    try {
+      const componentResult = routeConfig.component()
+      let Component: React.ComponentType<any>
+
+      if (componentResult instanceof Promise) {
+        const mod = await componentResult
+        Component = (mod as any).default || mod
+      } else {
+        Component = componentResult as React.ComponentType<any>
+      }
+
+      const element = createElement(Component)
+      const bodyHtml = renderToString(element)
+      const meta = routeConfig.meta || {}
+      const fullHtml = buildSSRPage(bodyHtml, meta)
+
+      const cacheTtl = routeConfig.cacheTtl ?? 300
+      if (cacheTtl > 0) {
+        renderCache.set(path, { html: fullHtml, expiry: Date.now() + cacheTtl * 1000 })
+      }
+
+      ctx.handled = true
+      ctx.response = new Response(fullHtml, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'X-SSR': 'rendered',
+          'Cache-Control': cacheTtl > 0 ? `public, max-age=${cacheTtl}` : 'no-cache',
+        },
+      })
+    } catch (error: any) {
+      console.warn(`[SSR] Failed to render ${path}: ${error.message}`)
     }
   },
 }
