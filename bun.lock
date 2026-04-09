@@ -8,10 +8,10 @@
         "@elysiajs/eden": "^1.3.2",
         "@elysiajs/swagger": "^1.3.1",
         "@fluxstack/config": "^1.0.0",
-        "@fluxstack/live": "^0.5.1",
-        "@fluxstack/live-client": "^0.5.1",
-        "@fluxstack/live-elysia": "^0.5.1",
-        "@fluxstack/live-react": "^0.5.1",
+        "@fluxstack/live": "^0.6.0",
+        "@fluxstack/live-client": "^0.6.0",
+        "@fluxstack/live-elysia": "^0.6.0",
+        "@fluxstack/live-react": "^0.6.0",
         "@fluxstack/plugin-crypto-auth": "^1.0.0",
         "@fluxstack/plugin-csrf-protection": "^1.1.0",
         "@vitejs/plugin-react": "^4.6.0",
@@ -205,13 +205,13 @@
 
     "@fluxstack/config": ["@fluxstack/config@1.0.0", "", {}, "sha512-4w8Mt4cuKszKeFJWH5PD1nbLzKu+v2ZfbRpNElout8GirjfgdYls5GMHFrHPxbWWb6iFLnZj5hicVpJiVXIsJQ=="],
 
-    "@fluxstack/live": ["@fluxstack/live@0.5.1", "", { "peerDependencies": { "zod": "^4.3.6" } }, "sha512-6v/W4PmJBWcN1JCZ8nyISOVL4rkl56p1rY8LHa8vc194XWHiIfhpbPXxcpGR0xbX1yGEzqkTGf3MSz1C8jBOYA=="],
+    "@fluxstack/live": ["@fluxstack/live@0.6.0", "", { "peerDependencies": { "zod": "^4.3.6" } }, "sha512-adjshRfs6z+zlRZ2IVwguaKnSo8Py1KqaN1KtSAkZVIAzkiqv6En74/zhzPqXPINX/yjt4OSrXK/U4UjPHcT4Q=="],
 
-    "@fluxstack/live-client": ["@fluxstack/live-client@0.5.1", "", { "dependencies": { "@fluxstack/live": "^0.5.1" } }, "sha512-DH8kSFChdpOuaafop3gNsmMIOf00LyVXn2PKNFHMSTkGVLj8SIooozZ7xscflrLXQQLhB5E4x4ejpzmc/A/3tA=="],
+    "@fluxstack/live-client": ["@fluxstack/live-client@0.6.0", "", { "dependencies": { "@fluxstack/live": "^0.6.0" } }, "sha512-FKpcyRrsg4kXf18Im8FfaV3Dio3e6tMFcuVcgR2MJvrhtH/f9wHXjGuKXpkH5f7ccjdChLnDl7zV08EX5deAsw=="],
 
-    "@fluxstack/live-elysia": ["@fluxstack/live-elysia@0.5.1", "", { "dependencies": { "@fluxstack/live": "^0.5.1" }, "peerDependencies": { "elysia": ">=1.0.0" } }, "sha512-+MKQa6mC5Cbyvu/EGJgY094Go1mc78+J9TBzDXfQwtn0T3xJr6e28D0SFVRSkGI5m0DYUge69D7FpDL3gboqZg=="],
+    "@fluxstack/live-elysia": ["@fluxstack/live-elysia@0.6.0", "", { "dependencies": { "@fluxstack/live": "^0.6.0" }, "peerDependencies": { "elysia": ">=1.0.0" } }, "sha512-7AubkhtxZuy0qTS9RkgZbX8E2gci3b3IXFHjl8bJHa3CuUVylCy+jBGtDWw0QB3cCmWuoQMzOjECWYQof+wWng=="],
 
-    "@fluxstack/live-react": ["@fluxstack/live-react@0.5.1", "", { "dependencies": { "@fluxstack/live": "^0.5.1", "@fluxstack/live-client": "^0.5.1" }, "peerDependencies": { "react": ">=18.0.0", "zustand": ">=4.0.0" } }, "sha512-gPZt/4X7Tx4Ale2seNp5bBbBaWMAcJXtiZ2faqKeiq69sa0vFN/doz2tkIolhrv/E7nWk8bFZcq8+fPKBXLAIw=="],
+    "@fluxstack/live-react": ["@fluxstack/live-react@0.6.0", "", { "dependencies": { "@fluxstack/live": "^0.6.0", "@fluxstack/live-client": "^0.6.0" }, "peerDependencies": { "react": ">=18.0.0", "zustand": ">=4.0.0" } }, "sha512-fBKj9G1yR1DgPg6YmY5a0lfZ6Wpr/pw8ipBH2r8oP8wBCr/OH5B/41vNzus+ueAU17kcWbn8aPQwKlboW3QYjg=="],
 
     "@fluxstack/plugin-crypto-auth": ["@fluxstack/plugin-crypto-auth@1.0.0", "", { "peerDependencies": { "@fluxstack/config": "^1.0.0", "@fluxstack/live": "^0.5.0", "@noble/curves": "^1.2.0", "@noble/hashes": "^1.3.0", "elysia": "^1.4.0" } }, "sha512-PtkD4lZwCY6sjyy/F+EIvbHMTnDlVNjX9teNhYlXH3/eodEb2vuD3TusgZtd8IyghG9Zfra4y/OLLzKkyQZdvA=="],
 
