@@ -79,27 +79,29 @@ export function ColorWheel({ hues, mode, size = 220, onChange }: ColorWheelProps
   }, [])
 
   // Mouse down on wheel background — moves the base (index 0)
+  // Click on wheel background = rotate ALL points together (preserving relative positions)
   const handleWheelDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    setDragging(0)
+    setDragging(-1) // -1 = rotate all
     const hue = getMouseHue(e)
-    if (isCustom) {
-      onChange(0, hue)
-    } else {
-      // In preset mode, move all points relative to base
-      const delta = hue - hues[0]
-      for (let i = 0; i < hues.length; i++) {
-        onChange(i, ((hues[i] + delta) % 360 + 360) % 360)
-      }
+    const delta = hue - hues[0]
+    for (let i = 0; i < hues.length; i++) {
+      onChange(i, ((hues[i] + delta) % 360 + 360) % 360)
     }
-  }, [getMouseHue, hues, isCustom, onChange])
+  }, [getMouseHue, hues, onChange])
 
   useEffect(() => {
     if (dragging === null) return
 
     const handleMove = (e: MouseEvent) => {
       const hue = getMouseHue(e)
-      if (isCustom) {
+      if (dragging === -1) {
+        // Rotate all points together (background drag)
+        const delta = hue - hues[0]
+        for (let i = 0; i < hues.length; i++) {
+          onChange(i, ((hues[i] + delta) % 360 + 360) % 360)
+        }
+      } else if (isCustom) {
         // Custom mode: move only the dragged point
         onChange(dragging, hue)
       } else {

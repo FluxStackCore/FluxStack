@@ -171,7 +171,7 @@ export function ThemePicker({ palette, onOverride }: ThemePickerProps) {
         </div>
         <div className="text-center text-[10px] text-gray-500 mt-0.5">
           {harmonyModes.find(m => m.mode === harmonyMode)?.label}
-          {harmonyMode === 'custom' && ' — drag each dot'}
+          {harmonyMode === 'custom' && ' — dot = move one · ring = rotate all'}
         </div>
       </div>
 
