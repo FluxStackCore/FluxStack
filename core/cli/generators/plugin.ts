@@ -111,7 +111,7 @@ export class PluginGenerator implements Generator {
  * Declarative config using FluxStack config system
  */
 
-import { defineConfig, config } from '@core/utils/config-schema'
+import { defineConfig, config } from '@fluxstack/config'
 
 const {{camelName}}ConfigSchema = {
   // Enable/disable plugin

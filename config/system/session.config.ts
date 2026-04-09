@@ -5,7 +5,7 @@
  * Inspirado no config/session.php do Laravel.
  */
 
-import { defineConfig, config } from '@core/utils/config-schema'
+import { defineConfig, config } from '@fluxstack/config'
 
 const sessionConfigSchema = {
   /** Driver de sessão (memory = processo, extensível para redis, database) */

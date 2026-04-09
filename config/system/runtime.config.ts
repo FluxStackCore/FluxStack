@@ -3,7 +3,7 @@
  * Configs that can be reloaded without server restart
  */
 
-import { defineReactiveConfig, config } from '@core/utils/config-schema'
+import { defineReactiveConfig, config } from '@fluxstack/config'
 
 /**
  * Runtime app configuration
