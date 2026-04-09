@@ -157,6 +157,7 @@ export class FluxStackFramework {
     })
 
     this.setupCors()
+    this.setupSecurityHeaders()
     this.setupHeadHandler()
     this.setupElysiaHeadBugFilter()
     this.setupHooks()
@@ -231,6 +232,17 @@ export class FluxStackFramework {
         set.status = 200
         return ""
       })
+  }
+
+  private setupSecurityHeaders() {
+    // Security headers middleware — protects against common web vulnerabilities
+    this.app.onBeforeHandle(({ set }) => {
+      set.headers['X-Content-Type-Options'] = 'nosniff'
+      set.headers['X-Frame-Options'] = 'DENY'
+      set.headers['X-XSS-Protection'] = '0' // Deprecated, CSP is better
+      set.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+      // CSP is intentionally not set here — apps should configure it per their needs
+    })
   }
 
   private setupHeadHandler() {

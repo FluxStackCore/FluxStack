@@ -1,62 +1,66 @@
 // Tests verifying security fixes in FluxStack backend
 import { describe, it, expect } from 'vitest'
-import { createHash, timingSafeEqual } from 'crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 
-// ===== ChatRoom password hashing =====
-// We test the hashing logic directly since ChatRoom requires LiveRoom runtime
+// ===== ChatRoom password hashing with salt =====
+// We replicate the salted hashing logic from ChatRoom to test it directly
 
-describe('ChatRoom password fix verification', () => {
-  // Same logic as ChatRoom.hashPassword
+describe('ChatRoom salted password fix verification', () => {
+  // New salted hashPassword — mirrors ChatRoom.hashPassword after fix
   function hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex')
+    const salt = randomBytes(16).toString('hex')
+    const hash = createHash('sha256').update(salt + password).digest('hex')
+    return salt + ':' + hash
   }
 
-  function safeCompare(a: string, b: string): boolean {
-    const bufA = Buffer.from(a, 'hex')
-    const bufB = Buffer.from(b, 'hex')
+  function verifyPassword(password: string, stored: string): boolean {
+    const [salt, hash] = stored.split(':')
+    if (!salt || !hash) return false
+    const computed = createHash('sha256').update(salt + password).digest('hex')
+    const bufA = Buffer.from(computed, 'hex')
+    const bufB = Buffer.from(hash, 'hex')
     if (bufA.length !== bufB.length) return false
     return timingSafeEqual(bufA, bufB)
   }
 
-  it('should hash passwords instead of storing plain-text', () => {
+  it('should hash passwords with a salt (format: salt:hash)', () => {
     const password = 'mySecret123'
     const hashed = hashPassword(password)
 
-    // Hash should NOT equal the plain-text password
-    expect(hashed).not.toBe(password)
-    // Hash should be a 64-char hex string (SHA-256)
-    expect(hashed).toMatch(/^[a-f0-9]{64}$/)
+    // Should contain a colon separating salt from hash
+    expect(hashed).toContain(':')
+    const [salt, hash] = hashed.split(':')
+    // Salt is 32 hex chars (16 bytes)
+    expect(salt).toMatch(/^[a-f0-9]{32}$/)
+    // Hash is 64 hex chars (SHA-256)
+    expect(hash).toMatch(/^[a-f0-9]{64}$/)
   })
 
-  it('should produce consistent hashes for same input', () => {
-    const hash1 = hashPassword('test')
-    const hash2 = hashPassword('test')
-    expect(hash1).toBe(hash2)
-  })
-
-  it('should produce different hashes for different inputs', () => {
-    const hash1 = hashPassword('password1')
-    const hash2 = hashPassword('password2')
+  it('should produce DIFFERENT hashes for the same password (salt is random)', () => {
+    const hash1 = hashPassword('samePassword')
+    const hash2 = hashPassword('samePassword')
+    // The full stored string must differ because salt differs
     expect(hash1).not.toBe(hash2)
   })
 
-  it('should validate correct password via safeCompare', () => {
+  it('should verify correct password against salted hash', () => {
     const password = 'correctHorse'
     const stored = hashPassword(password)
-    const provided = hashPassword(password)
-    expect(safeCompare(provided, stored)).toBe(true)
+    expect(verifyPassword(password, stored)).toBe(true)
   })
 
-  it('should reject wrong password via safeCompare', () => {
+  it('should reject wrong password against salted hash', () => {
     const stored = hashPassword('correctPassword')
-    const provided = hashPassword('wrongPassword')
-    expect(safeCompare(provided, stored)).toBe(false)
+    expect(verifyPassword('wrongPassword', stored)).toBe(false)
   })
 
   it('should reject empty password', () => {
     const stored = hashPassword('secret')
-    const provided = hashPassword('')
-    expect(safeCompare(provided, stored)).toBe(false)
+    expect(verifyPassword('', stored)).toBe(false)
+  })
+
+  it('should reject malformed stored hash (no colon)', () => {
+    expect(verifyPassword('anything', 'nocolonhere')).toBe(false)
   })
 })
 

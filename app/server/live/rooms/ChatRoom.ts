@@ -2,7 +2,7 @@
 
 import { LiveRoom } from '@fluxstack/live'
 import type { RoomJoinContext, RoomLeaveContext } from '@fluxstack/live'
-import { createHash, timingSafeEqual } from 'crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 
 export interface ChatMessage {
   id: string
@@ -33,15 +33,20 @@ export class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
   static defaultMeta: ChatMeta = { password: null, createdBy: null }
   static $options = { maxMembers: 100 }
 
-  /** Hash a password using SHA-256. */
+  /** Hash a password using SHA-256 with a random salt. Returns "salt:hash". */
   private static hashPassword(password: string): string {
-    return createHash('sha256').update(password).digest('hex')
+    const salt = randomBytes(16).toString('hex')
+    const hash = createHash('sha256').update(salt + password).digest('hex')
+    return salt + ':' + hash
   }
 
-  /** Constant-time comparison of two hex strings. */
-  private static safeCompare(a: string, b: string): boolean {
-    const bufA = Buffer.from(a, 'hex')
-    const bufB = Buffer.from(b, 'hex')
+  /** Verify a password against a stored "salt:hash" string using constant-time comparison. */
+  private static verifyPassword(password: string, stored: string): boolean {
+    const [salt, hash] = stored.split(':')
+    if (!salt || !hash) return false
+    const computed = createHash('sha256').update(salt + password).digest('hex')
+    const bufA = Buffer.from(computed, 'hex')
+    const bufB = Buffer.from(hash, 'hex')
     if (bufA.length !== bufB.length) return false
     return timingSafeEqual(bufA, bufB)
   }
@@ -56,7 +61,7 @@ export class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
     // Validate password if room is protected
     if (this.meta.password) {
       const provided = ctx.payload?.password
-      if (!provided || !ChatRoom.safeCompare(ChatRoom.hashPassword(provided), this.meta.password)) {
+      if (!provided || !ChatRoom.verifyPassword(provided, this.meta.password)) {
         return false // Rejected — wrong or missing password
       }
     }
