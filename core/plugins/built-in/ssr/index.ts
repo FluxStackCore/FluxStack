@@ -29,6 +29,8 @@ import type { FluxStack, PluginContext } from "@core/plugins/types"
 import { FLUXSTACK_VERSION } from "@core/utils/version"
 import { renderToString } from 'react-dom/server'
 import { createElement } from 'react'
+import { existsSync, readFileSync } from 'fs'
+import { join } from 'path'
 
 type Plugin = FluxStack.Plugin
 
@@ -49,6 +51,12 @@ export interface SSRRouteConfig {
   meta?: SSRMeta
   /** Cache TTL in seconds. 0 = no cache. Default: 300 (5 min) */
   cacheTtl?: number
+  /**
+   * Force SSR for ALL users, not just bots.
+   * When true, every request to this route gets server-rendered HTML.
+   * When false (default), only bots receive SSR — normal users get the SPA.
+   */
+  forceSSR?: boolean
 }
 
 // Registry of SSR routes
@@ -138,22 +146,63 @@ function escapeHtml(str: string): string {
 /**
  * Build full HTML page with SSR content
  */
-function buildSSRPage(bodyHtml: string, meta: SSRMeta, cssLinks: string[] = []): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    ${renderMetaTags(meta, '')}
-    ${cssLinks.map(href => `<link rel="stylesheet" href="${href}" />`).join('\n    ')}
-    <meta name="generator" content="FluxStack ${FLUXSTACK_VERSION}" />
-  </head>
-  <body>
-    <div id="root">${bodyHtml}</div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>`
+const IS_DEV = process.env.NODE_ENV !== 'production'
+
+/** Cached HTML template */
+let cachedTemplate: string | null = null
+
+/**
+ * Load the base HTML template from the React app.
+ * In dev: reads app/client/index.html and adds Vite client script
+ * In prod: reads dist/client/index.html (already has hashed assets)
+ */
+function loadHtmlTemplate(): string {
+  if (cachedTemplate) return cachedTemplate
+
+  const devPath = join(process.cwd(), 'app', 'client', 'index.html')
+  const prodPath = join(process.cwd(), 'dist', 'client', 'index.html')
+  const templatePath = IS_DEV ? devPath : prodPath
+
+  if (!existsSync(templatePath)) {
+    // Fallback minimal template
+    cachedTemplate = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /></head><body><div id="root"><!--ssr-outlet--></div></body></html>`
+    return cachedTemplate
+  }
+
+  let html = readFileSync(templatePath, 'utf-8')
+
+  if (IS_DEV) {
+    // In dev: inject Vite client + CSS import before closing </head>
+    // Assets are proxied through Elysia (port 3000) → Vite (port 5173)
+    const viteScripts = `<script type="module" src="/@vite/client"></script>\n    <script type="module">import "/src/index.css";</script>`
+    html = html.replace('</head>', `    ${viteScripts}\n  </head>`)
+  }
+
+  cachedTemplate = html
+  return cachedTemplate
+}
+
+/**
+ * Build SSR page by injecting rendered HTML + meta tags into the base template.
+ * Reuses the actual index.html from the React app so all styles, scripts,
+ * and assets are automatically included.
+ */
+function buildSSRPage(bodyHtml: string, meta: SSRMeta): string {
+  let html = loadHtmlTemplate()
+
+  // Inject meta tags before </head>
+  const metaTags = renderMetaTags(meta, '') + `\n    <meta name="generator" content="FluxStack ${FLUXSTACK_VERSION}" />`
+  html = html.replace('</head>', `    ${metaTags}\n  </head>`)
+
+  // Replace <title> if meta has one
+  if (meta.title) {
+    html = html.replace(/<title>.*?<\/title>/, `<title>${escapeHtml(meta.title)}</title>`)
+  }
+
+  // Inject SSR body into <div id="root">
+  html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`)
+
+  return html
 }
 
 export const ssrPlugin: Plugin = {
@@ -184,9 +233,8 @@ export const ssrPlugin: Plugin = {
     // Headers may be Record<string, string> or Headers object
     const headers = ctx.headers || {}
     const userAgent = headers['user-agent'] || headers['User-Agent'] || ''
-    const forceSSR = (routeConfig as any).forceSSR === true
 
-    if (!forceSSR && !isBot(userAgent)) return
+    if (!routeConfig.forceSSR && !isBot(userAgent)) return
 
     // Check cache
     const cached = renderCache.get(path)
