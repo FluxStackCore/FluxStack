@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route } from 'react-router'
 import { api } from './lib/eden-api'
-import { LiveComponentsProvider } from '@/core/client'
+import { LiveComponentsProvider, useLiveComponents } from '@/core/client'
+import { executeHook } from './lib/plugin-hooks'
 import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
 import { UploadDemo } from './live/UploadDemo'
@@ -30,6 +31,28 @@ function NotFoundPage() {
       </a>
     </div>
   )
+}
+
+/**
+ * Executes the 'onLiveConnect' plugin hook once when
+ * the LiveComponents WebSocket connection is established.
+ */
+function PluginHookExecutor() {
+  const { connected, getWebSocket } = useLiveComponents()
+  const firedRef = useRef(false)
+
+  useEffect(() => {
+    if (connected && !firedRef.current) {
+      firedRef.current = true
+
+      executeHook('onLiveConnect', { connected, getWebSocket }).catch(() => {})
+    }
+    if (!connected) {
+      firedRef.current = false
+    }
+  }, [connected, getWebSocket])
+
+  return null
 }
 
 function AppContent() {
@@ -191,6 +214,7 @@ function App() {
       heartbeatInterval={30000}
       debug={false}
     >
+      <PluginHookExecutor />
       <AppContent />
     </LiveComponentsProvider>
   )

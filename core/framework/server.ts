@@ -12,6 +12,7 @@ import { FluxStackError } from "@core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/utils/helpers"
 import { createHash } from "crypto"
 import { createPluginUtils } from "@core/plugins/config"
+import { pluginClientHooks } from "@core/server/plugin-client-hooks"
 import type { Plugin } from "@core/plugins"
 
 export class FluxStackFramework {
@@ -142,7 +143,10 @@ export class FluxStackFramework {
       config: fullConfig,
       logger: pluginLogger,
       app: this.app,
-      utils: pluginUtils
+      utils: pluginUtils,
+      clientHooks: {
+        register: (hookName: string, jsCode: string) => pluginClientHooks.register(hookName, jsCode)
+      }
     }
 
     // Initialize plugin manager
