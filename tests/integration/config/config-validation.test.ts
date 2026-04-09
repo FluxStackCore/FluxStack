@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { defineConfig, config as configHelpers } from '@core/utils/config-schema'
+import { defineConfig, config as configHelpers } from '@fluxstack/config'
 
 describe('Config Schema Validation', () => {
   describe('Schema Helpers', () => {

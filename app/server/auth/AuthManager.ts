@@ -48,6 +48,8 @@ export interface ProviderConfig {
 }
 
 export class AuthManager {
+  private static readonly MAX_GUARDS_CACHE = 100
+
   private config: AuthManagerConfig
   private guards = new Map<string, Guard>()
   private customGuardFactories = new Map<string, GuardFactory>()
@@ -72,6 +74,15 @@ export class AuthManager {
     }
 
     const guard = this.resolve(guardName)
+
+    // Evict oldest entries if cache exceeds limit (LRU-like)
+    if (this.guards.size >= AuthManager.MAX_GUARDS_CACHE) {
+      const firstKey = this.guards.keys().next().value
+      if (firstKey !== undefined) {
+        this.guards.delete(firstKey)
+      }
+    }
+
     this.guards.set(guardName, guard)
     return guard
   }
@@ -141,6 +152,19 @@ export class AuthManager {
   /** Retorna a config */
   getConfig(): AuthManagerConfig {
     return this.config
+  }
+
+  /**
+   * Retorna um provider registrado por nome, ou undefined se não encontrado.
+   * Útil para acessar providers diretamente (ex: register route precisa de createUser).
+   */
+  getProvider(name: string): UserProvider | undefined {
+    return this.providerInstances.get(name)
+  }
+
+  /** Retorna o tamanho atual do cache de guards */
+  getGuardsCacheSize(): number {
+    return this.guards.size
   }
 
   /** Resolve um guard por nome */

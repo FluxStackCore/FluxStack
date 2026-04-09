@@ -36,6 +36,9 @@ export class TokenGuard implements Guard {
   /** Cache do usuário para a request atual */
   private resolvedUser: Authenticatable | null | undefined = undefined
 
+  /** Last generated token (stored temporarily for the login response) */
+  private _lastGeneratedToken: string | null = null
+
   constructor(
     name: string,
     provider: UserProvider,
@@ -136,7 +139,7 @@ export class TokenGuard implements Guard {
     this.resolvedUser = user
 
     // Salvar token plain-text temporariamente para a response poder retorná-lo
-    ;(this as any)._lastGeneratedToken = token
+    this._lastGeneratedToken = token
   }
 
   async logout(): Promise<void> {
@@ -171,7 +174,7 @@ export class TokenGuard implements Guard {
 
   /** Retorna o último token gerado (para a response após login) */
   getLastGeneratedToken(): string | null {
-    return (this as any)._lastGeneratedToken ?? null
+    return this._lastGeneratedToken ?? null
   }
 
   /** Extrai Bearer token do header Authorization */

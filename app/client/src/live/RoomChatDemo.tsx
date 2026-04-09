@@ -1,6 +1,6 @@
 // RoomChatDemo - Chat multi-salas with password-protected rooms
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useEffect, useRef, useMemo, useReducer } from 'react'
 import { Live } from '@/core/client'
 import { LiveRoomChat } from '@server/live/LiveRoomChat'
 
@@ -10,13 +10,57 @@ const DEFAULT_ROOMS = [
   { id: 'random', name: 'Random' },
 ]
 
+// Consolidated UI state to avoid fragmented useState calls and ensure
+// related modal states update atomically.
+interface ChatUIState {
+  text: string
+  error: string
+  createModal: { open: boolean; name: string; password: string }
+  passwordPrompt: { roomId: string; roomName: string; input: string } | null
+}
+
+type ChatUIAction =
+  | { type: 'SET_TEXT'; text: string }
+  | { type: 'SET_ERROR'; error: string }
+  | { type: 'OPEN_CREATE_MODAL' }
+  | { type: 'CLOSE_CREATE_MODAL' }
+  | { type: 'UPDATE_CREATE_FORM'; name?: string; password?: string }
+  | { type: 'OPEN_PASSWORD_PROMPT'; roomId: string; roomName: string }
+  | { type: 'CLOSE_PASSWORD_PROMPT' }
+  | { type: 'SET_PASSWORD_INPUT'; input: string }
+
+function chatUIReducer(state: ChatUIState, action: ChatUIAction): ChatUIState {
+  switch (action.type) {
+    case 'SET_TEXT':
+      return { ...state, text: action.text }
+    case 'SET_ERROR':
+      return { ...state, error: action.error }
+    case 'OPEN_CREATE_MODAL':
+      return { ...state, createModal: { open: true, name: '', password: '' } }
+    case 'CLOSE_CREATE_MODAL':
+      return { ...state, createModal: { open: false, name: '', password: '' } }
+    case 'UPDATE_CREATE_FORM':
+      return { ...state, createModal: { ...state.createModal, name: action.name ?? state.createModal.name, password: action.password ?? state.createModal.password } }
+    case 'OPEN_PASSWORD_PROMPT':
+      return { ...state, passwordPrompt: { roomId: action.roomId, roomName: action.roomName, input: '' } }
+    case 'CLOSE_PASSWORD_PROMPT':
+      return { ...state, passwordPrompt: null }
+    case 'SET_PASSWORD_INPUT':
+      return state.passwordPrompt ? { ...state, passwordPrompt: { ...state.passwordPrompt, input: action.input } } : state
+    default:
+      return state
+  }
+}
+
+const initialUIState: ChatUIState = {
+  text: '',
+  error: '',
+  createModal: { open: false, name: '', password: '' },
+  passwordPrompt: null,
+}
+
 export function RoomChatDemo() {
-  const [text, setText] = useState('')
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [passwordPrompt, setPasswordPrompt] = useState<{ roomId: string; roomName: string } | null>(null)
-  const [passwordInput, setPasswordInput] = useState('')
-  const [createForm, setCreateForm] = useState({ name: '', password: '' })
-  const [error, setError] = useState('')
+  const [ui, dispatch] = useReducer(chatUIReducer, initialUIState)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const defaultUsername = useMemo(() => {
@@ -37,11 +81,11 @@ export function RoomChatDemo() {
   }, [activeMessages.length])
 
   useEffect(() => {
-    if (error) {
-      const t = setTimeout(() => setError(''), 3000)
+    if (ui.error) {
+      const t = setTimeout(() => dispatch({ type: 'SET_ERROR', error: '' }), 3000)
       return () => clearTimeout(t)
     }
-  }, [error])
+  }, [ui.error])
 
   const joinedRoomIds = chat.$state.rooms.map(r => r.id)
   const joinedRoomsMap = new Map(chat.$state.rooms.map(r => [r.id, r]))
@@ -54,8 +98,7 @@ export function RoomChatDemo() {
 
     // If the room is known to be private, prompt for password
     if (isPrivate) {
-      setPasswordPrompt({ roomId, roomName })
-      setPasswordInput('')
+      dispatch({ type: 'OPEN_PASSWORD_PROMPT', roomId, roomName })
       return
     }
 
@@ -63,28 +106,26 @@ export function RoomChatDemo() {
     const result = await chat.joinRoom({ roomId, roomName })
     if (result && !result.success) {
       // If rejected, might be password-protected — prompt
-      setPasswordPrompt({ roomId, roomName })
-      setPasswordInput('')
+      dispatch({ type: 'OPEN_PASSWORD_PROMPT', roomId, roomName })
     }
   }
 
   const handlePasswordSubmit = async () => {
-    if (!passwordPrompt) return
+    if (!ui.passwordPrompt) return
     const result = await chat.joinRoom({
-      roomId: passwordPrompt.roomId,
-      roomName: passwordPrompt.roomName,
-      password: passwordInput
+      roomId: ui.passwordPrompt.roomId,
+      roomName: ui.passwordPrompt.roomName,
+      password: ui.passwordPrompt.input
     })
     if (result && !result.success) {
-      setError(result.error || 'Senha incorreta')
+      dispatch({ type: 'SET_ERROR', error: result.error || 'Senha incorreta' })
     } else {
-      setPasswordPrompt(null)
-      setPasswordInput('')
+      dispatch({ type: 'CLOSE_PASSWORD_PROMPT' })
     }
   }
 
   const handleCreateRoom = async () => {
-    const name = createForm.name.trim()
+    const name = ui.createModal.name.trim()
     if (!name) return
     const roomId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
     if (!roomId) return
@@ -92,20 +133,19 @@ export function RoomChatDemo() {
     const result = await chat.createRoom({
       roomId,
       roomName: name,
-      password: createForm.password || undefined
+      password: ui.createModal.password || undefined
     })
     if (result && !result.success) {
-      setError(result.error || 'Falha ao criar sala')
+      dispatch({ type: 'SET_ERROR', error: result.error || 'Falha ao criar sala' })
     } else {
-      setShowCreateModal(false)
-      setCreateForm({ name: '', password: '' })
+      dispatch({ type: 'CLOSE_CREATE_MODAL' })
     }
   }
 
   const handleSendMessage = async () => {
-    if (!text.trim() || !activeRoom) return
-    await chat.sendMessage({ text })
-    setText('')
+    if (!ui.text.trim() || !activeRoom) return
+    await chat.sendMessage({ text: ui.text })
+    dispatch({ type: 'SET_TEXT', text: '' })
   }
 
   // Combine default rooms + custom rooms from shared directory (visible to all users)
@@ -133,7 +173,7 @@ export function RoomChatDemo() {
           <div className="flex items-center justify-between px-2 py-1">
             <p className="text-xs text-gray-500">SALAS</p>
             <button
-              onClick={() => { setShowCreateModal(true); setCreateForm({ name: '', password: '' }) }}
+              onClick={() => dispatch({ type: 'OPEN_CREATE_MODAL' })}
               className="text-xs text-purple-400 hover:text-purple-300"
             >+ Criar</button>
           </div>
@@ -223,15 +263,15 @@ export function RoomChatDemo() {
             <div className="p-3 sm:p-4 border-t border-white/10">
               <div className="flex gap-2">
                 <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
+                  value={ui.text}
+                  onChange={(e) => dispatch({ type: 'SET_TEXT', text: e.target.value })}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                   placeholder="Digite uma mensagem..."
                   className="flex-1 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm sm:text-base"
                 />
                 <button
                   onClick={handleSendMessage}
-                  disabled={!text.trim()}
+                  disabled={!ui.text.trim()}
                   className="px-4 sm:px-6 py-2 rounded-xl bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm sm:text-base"
                 >Enviar</button>
               </div>
@@ -248,23 +288,23 @@ export function RoomChatDemo() {
       </div>
 
       {/* Error toast */}
-      {error && (
+      {ui.error && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-red-500/90 text-white text-sm rounded-lg shadow-lg z-50">
-          {error}
+          {ui.error}
         </div>
       )}
 
       {/* Create Room Modal */}
-      {showCreateModal && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => setShowCreateModal(false)}>
+      {ui.createModal.open && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => dispatch({ type: 'CLOSE_CREATE_MODAL' })}>
           <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-white/10" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-bold text-lg mb-4">Criar Sala</h3>
             <div className="space-y-3">
               <div>
                 <label className="text-xs text-gray-400 block mb-1">Nome da sala</label>
                 <input
-                  value={createForm.name}
-                  onChange={e => setCreateForm(f => ({ ...f, name: e.target.value }))}
+                  value={ui.createModal.name}
+                  onChange={e => dispatch({ type: 'UPDATE_CREATE_FORM', name: e.target.value })}
                   placeholder="Minha Sala"
                   className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
                   autoFocus
@@ -275,8 +315,8 @@ export function RoomChatDemo() {
                 <label className="text-xs text-gray-400 block mb-1">Senha (opcional)</label>
                 <input
                   type="password"
-                  value={createForm.password}
-                  onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                  value={ui.createModal.password}
+                  onChange={e => dispatch({ type: 'UPDATE_CREATE_FORM', password: e.target.value })}
                   placeholder="Deixe vazio para sala publica"
                   className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
                   onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom() }}
@@ -284,12 +324,12 @@ export function RoomChatDemo() {
               </div>
               <div className="flex gap-2 pt-2">
                 <button
-                  onClick={() => setShowCreateModal(false)}
+                  onClick={() => dispatch({ type: 'CLOSE_CREATE_MODAL' })}
                   className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
                 >Cancelar</button>
                 <button
                   onClick={handleCreateRoom}
-                  disabled={!createForm.name.trim()}
+                  disabled={!ui.createModal.name.trim()}
                   className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
                 >Criar</button>
               </div>
@@ -299,17 +339,17 @@ export function RoomChatDemo() {
       )}
 
       {/* Password Prompt Modal */}
-      {passwordPrompt && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => setPasswordPrompt(null)}>
+      {ui.passwordPrompt && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-40" onClick={() => dispatch({ type: 'CLOSE_PASSWORD_PROMPT' })}>
           <div className="bg-gray-800 rounded-2xl p-6 w-80 border border-white/10" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-bold text-lg mb-1">Sala Protegida</h3>
             <p className="text-sm text-gray-400 mb-4">
-              A sala "{passwordPrompt.roomName}" requer senha.
+              A sala "{ui.passwordPrompt.roomName}" requer senha.
             </p>
             <input
               type="password"
-              value={passwordInput}
-              onChange={e => setPasswordInput(e.target.value)}
+              value={ui.passwordPrompt.input}
+              onChange={e => dispatch({ type: 'SET_PASSWORD_INPUT', input: e.target.value })}
               placeholder="Digite a senha..."
               className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm mb-3"
               autoFocus
@@ -317,12 +357,12 @@ export function RoomChatDemo() {
             />
             <div className="flex gap-2">
               <button
-                onClick={() => setPasswordPrompt(null)}
+                onClick={() => dispatch({ type: 'CLOSE_PASSWORD_PROMPT' })}
                 className="flex-1 px-4 py-2 rounded-lg bg-white/10 text-gray-300 hover:bg-white/20 text-sm"
               >Cancelar</button>
               <button
                 onClick={handlePasswordSubmit}
-                disabled={!passwordInput}
+                disabled={!ui.passwordPrompt.input}
                 className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
               >Entrar</button>
             </div>

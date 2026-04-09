@@ -11,7 +11,8 @@ import { resolve } from 'path'
 import tsconfigPaths from 'vite-tsconfig-paths'
 import checker from 'vite-plugin-checker'
 import { liveStripPlugin } from '@fluxstack/live/build'
-import { helpers } from '../utils/env'
+import { env } from '@fluxstack/config'
+const isDevelopment = env.get('NODE_ENV', 'development') === 'development'
 
 export function fluxstackVitePlugins(): Plugin[] {
   return [
@@ -20,7 +21,7 @@ export function fluxstackVitePlugins(): Plugin[] {
       projects: [resolve(import.meta.dirname, '..', '..', 'tsconfig.json')]
     }),
     // Only run type checker in development (saves ~5+ minutes in Docker builds)
-    helpers.isDevelopment() && checker({
+    isDevelopment && checker({
       typescript: true,
       overlay: true
     }),

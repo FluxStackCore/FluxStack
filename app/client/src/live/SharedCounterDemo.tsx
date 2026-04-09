@@ -32,6 +32,11 @@ export function SharedCounterDemo() {
 
   useEffect(() => {
     const unsub = counter.$room<CounterRoom>('counter:global').on('counter:updated', (data) => {
+      // Validate incoming room event data
+      if (data == null || typeof data.count !== 'number' || typeof data.updatedBy !== 'string') {
+        return
+      }
+
       const id = ++floatIdRef.current
       const isReset = data.count === 0
       const text = isReset ? '0' : data.count > 0 ? `+${data.count}` : `${data.count}`

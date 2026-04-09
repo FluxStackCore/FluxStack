@@ -2,20 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLiveChunkedUpload } from '@/core/client'
 import type { LiveChunkedUploadOptions } from '@/core/client'
 import type { FileUploadCompleteResponse } from '@core/types/types'
-type LiveUploadActions = {
+import { LiveUpload } from '@server/live/LiveUpload'
+
+// Derive the state type from the actual LiveUpload component to avoid duplication
+type LiveUploadState = typeof LiveUpload.defaultState
+
+// Minimal interface for any Live.use() proxy compatible with LiveUpload
+interface LiveUploadProxy {
   $componentId: string | null
   $connected: boolean
-  $state: {
-    status: 'idle' | 'uploading' | 'complete' | 'error'
-    progress: number
-    fileName: string
-    fileSize: number
-    fileType: string
-    fileUrl: string
-    bytesUploaded: number
-    totalBytes: number
-    error: string | null
-  }
+  $state: LiveUploadState
   $error?: string | null
   startUpload: (payload: { fileName: string; fileSize: number; fileType: string }) => Promise<any>
   updateProgress: (payload: { progress: number; bytesUploaded: number; totalBytes: number }) => Promise<any>
@@ -25,7 +21,7 @@ type LiveUploadActions = {
 }
 
 export interface LiveUploadWidgetProps {
-  live: LiveUploadActions
+  live: LiveUploadProxy
   title?: string
   description?: string
   allowPreview?: boolean
@@ -133,7 +129,7 @@ export function LiveUploadWidget({
           type="file"
           onChange={handleSelectFile}
           className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/10 file:text-white hover:file:bg-white/20"
-          disabled={!live.$connected}
+          disabled={!live.$connected || uploading}
         />
 
         <div className="flex gap-3">

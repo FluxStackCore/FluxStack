@@ -3,7 +3,7 @@
  * Declarative plugin management configuration
  */
 
-import { defineConfig, config } from '@core/utils/config-schema'
+import { defineConfig, config } from '@fluxstack/config'
 import { FLUXSTACK_VERSION } from '@core/utils/version'
 
 const defaultPluginConfigs = {

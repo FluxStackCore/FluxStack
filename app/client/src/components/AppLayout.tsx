@@ -28,7 +28,9 @@ const routeFlameHue: Record<string, string> = {
   '/api-test': '90deg',     // lima
 }
 
-// Cache favicon blob URLs by hue to avoid recreating blobs on every navigation
+// Cache favicon blob URLs by hue to avoid recreating blobs on every navigation.
+// Limited to MAX_FAVICON_CACHE entries; old blob URLs are revoked to prevent leaks.
+const MAX_FAVICON_CACHE = 20
 const faviconUrlCache = new Map<string, string>()
 
 export function AppLayout() {
@@ -43,6 +45,13 @@ export function AppLayout() {
     const hue = routeFlameHue[location.pathname] || '0deg'
     let url = faviconUrlCache.get(hue)
     if (!url) {
+      // Evict oldest entry if cache is full, revoking blob URL to free memory
+      if (faviconUrlCache.size >= MAX_FAVICON_CACHE) {
+        const oldestKey = faviconUrlCache.keys().next().value!
+        const oldestUrl = faviconUrlCache.get(oldestKey)!
+        URL.revokeObjectURL(oldestUrl)
+        faviconUrlCache.delete(oldestKey)
+      }
       const colored = faviconSvg.replace(
         '<svg ',
         `<svg style="filter: hue-rotate(${hue})" `

@@ -14,6 +14,24 @@ import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
 import { ApiTestPage } from './pages/ApiTestPage'
 
+function NotFoundPage() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <h1 className="text-6xl font-black text-white mb-4">404</h1>
+      <p className="text-xl text-gray-400 mb-6">Pagina nao encontrada</p>
+      <p className="text-sm text-gray-500 mb-8">
+        O caminho <code className="text-purple-400">{window.location.pathname}</code> nao existe.
+      </p>
+      <a
+        href="/"
+        className="px-6 py-3 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-200 hover:bg-purple-500/30 transition-all"
+      >
+        Voltar ao inicio
+      </a>
+    </div>
+  )
+}
+
 function AppContent() {
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   const [apiResponse, setApiResponse] = useState<string>('')
@@ -150,7 +168,7 @@ function AppContent() {
             </DemoPage>
           }
         />
-        <Route path="*" element={<HomePage apiStatus={apiStatus} />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
     </Routes>
   )

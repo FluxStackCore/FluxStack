@@ -186,9 +186,7 @@ describe('Core Framework Integration', () => {
         
         expect(serverExports.FluxStackFramework).toBeDefined()
         expect(serverExports.PluginRegistry).toBeDefined()
-        expect(serverExports.loggerPlugin).toBeDefined()
         expect(serverExports.vitePlugin).toBeDefined()
-        expect(serverExports.staticPlugin).toBeDefined()
         expect(serverExports.swaggerPlugin).toBeDefined()
       } catch (error) {
         // Skip this test if there are environment issues (e.g., esbuild + Windows + Bun)

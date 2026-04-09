@@ -23,7 +23,7 @@ export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
       throw new Error('Nome e email são obrigatórios')
     }
 
-    console.log(`📝 Form submitted:`, { name, email, message })
+    if (process.env.NODE_ENV !== 'production') console.log(`📝 Form submitted:`, { name, email, message })
 
     this.setState({
       submitted: true,

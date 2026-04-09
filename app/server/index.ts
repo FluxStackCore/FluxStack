@@ -13,20 +13,19 @@
 import { FluxStackFramework } from "@core/server"
 import { vitePlugin } from "@core/plugins/built-in/vite"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
-import { liveComponentsPlugin } from "@core/server/live"
+import { liveComponentsPlugin, registerAuthProvider } from "@core/server/live"
 import { appInstance } from "@server/app"
 import { appConfig } from "@config"
 
 // 🔒 Auth provider para Live Components
-import { liveAuthManager } from "@core/server/live"
 import { DevAuthProvider } from "./auth/DevAuthProvider"
 
 // 🔐 Auth system (Guard + Provider, Laravel-inspired)
 import { initAuth } from "@server/auth"
 
 // Registrar provider de desenvolvimento (tokens simples para testes)
-liveAuthManager.register(new DevAuthProvider())
-console.log('🔓 DevAuthProvider registered')
+registerAuthProvider(new DevAuthProvider())
+if (process.env.NODE_ENV !== 'production') console.log('🔓 DevAuthProvider registered')
 
 // Inicializar sistema de autenticação
 initAuth()

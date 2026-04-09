@@ -3,8 +3,10 @@
  * Declarative client, proxy and Vite dev server configuration
  */
 
-import { defineConfig, defineNestedConfig, config } from '../../core/utils/config-schema'
-import { env, helpers } from '../../core/utils/env'
+import { defineConfig, defineNestedConfig, config } from '@fluxstack/config'
+
+const isProduction = process.env.NODE_ENV === 'production'
+const isDevelopment = process.env.NODE_ENV !== 'production'
 
 /**
  * Vite Dev Server Configuration
@@ -31,9 +33,9 @@ const viteSchema = {
 const buildSchema = {
   outDir: config.string('CLIENT_OUTDIR', 'dist/client'),
 
-  sourceMaps: config.boolean('CLIENT_SOURCEMAPS', helpers.isDevelopment()),
+  sourceMaps: config.boolean('CLIENT_SOURCEMAPS', isDevelopment),
 
-  minify: config.boolean('CLIENT_MINIFY', helpers.isProduction()),
+  minify: config.boolean('CLIENT_MINIFY', isProduction),
 
   target: config.string('CLIENT_TARGET', 'esnext'),
 

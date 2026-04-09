@@ -21,9 +21,23 @@ export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   }
 
   async startUpload(payload: { fileName: string; fileSize: number; fileType: string }) {
-    const normalized = payload.fileName.toLowerCase()
-    if (normalized.includes('..') || normalized.includes('/') || normalized.includes('\\')) {
-      throw new Error('Invalid file name')
+    const fileName = payload.fileName
+
+    // Validate filename length
+    if (!fileName || fileName.length > 255) {
+      throw new Error('Invalid file name: must be 1-255 characters')
+    }
+
+    // Block path traversal, null bytes, and control characters
+    if (/[\x00-\x1f]/.test(fileName) || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      throw new Error('Invalid file name: contains forbidden characters')
+    }
+
+    // Block Windows reserved names
+    const baseName = fileName.split('.')[0].toUpperCase()
+    const reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'LPT1', 'LPT2', 'LPT3']
+    if (reserved.includes(baseName)) {
+      throw new Error('Invalid file name: reserved name')
     }
 
     // All file types allowed - no extension blocking

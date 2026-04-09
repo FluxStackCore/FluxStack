@@ -34,7 +34,7 @@ export { PluginRegistry } from './registry'
 export type { PluginRegistryConfig } from './registry'
 
 // Plugin discovery
-export { PluginDiscovery, pluginDiscovery } from './discovery'
+export { PluginDiscovery } from './discovery'
 export type { PluginDiscoveryConfig } from './discovery'
 
 // Plugin configuration management

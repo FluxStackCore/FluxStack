@@ -8,7 +8,7 @@
  * Providers: ONDE buscar usuários (memory, database...)
  */
 
-import { defineConfig, defineNestedConfig, config } from '@core/utils/config-schema'
+import { defineConfig, defineNestedConfig, config } from '@fluxstack/config'
 
 // ===== Defaults =====
 

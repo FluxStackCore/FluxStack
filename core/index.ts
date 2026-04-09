@@ -24,7 +24,7 @@ export * from './cli/generators'
 
 // Plugin system (avoid wildcard to prevent conflicts)
 export { PluginRegistry } from './plugins/registry'
-export { PluginDiscovery, pluginDiscovery } from './plugins/discovery'
+export { PluginDiscovery } from './plugins/discovery'
 export { PluginManager } from './plugins/manager'
 export { PluginUtils } from './plugins'
 

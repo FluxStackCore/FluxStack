@@ -7,7 +7,7 @@ import { fluxStackConfig } from "@config"
 import { getEnvironmentInfo } from "@core/config"
 import { logger, type Logger } from "@core/utils/logger"
 import { displayStartupBanner, type StartupInfo } from "@core/utils/logger/startup-banner"
-import { componentRegistry } from "@core/server/live"
+import { liveServer } from "@core/server/live"
 import { FluxStackError } from "@core/utils/errors"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "@core/utils/helpers"
 import { createHash } from "crypto"
@@ -826,7 +826,7 @@ export class FluxStackFramework {
         vitePort: this.cfg.client?.port,
         viteEmbedded: vitePluginActive, // Vite is embedded when plugin is active
         swaggerPath: '/swagger', // TODO: Get from swagger plugin config
-        liveComponents: componentRegistry.getRegisteredComponentNames()
+        liveComponents: liveServer?.registry.getRegisteredComponentNames() ?? []
       }
 
       // Display banner if enabled

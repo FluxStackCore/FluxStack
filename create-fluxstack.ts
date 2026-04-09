@@ -418,7 +418,7 @@ FluxStack includes several built-in plugins that are ready to use:
 
 \`\`\`typescript
 // app/server/index.ts
-import { loggerPlugin, swaggerPlugin, staticPlugin } from "@core/server"
+import { swaggerPlugin } from "@core/server"
 
 // Add built-in plugins
 app.use(loggerPlugin)

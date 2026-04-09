@@ -2,6 +2,7 @@
 
 import { LiveRoom } from '@fluxstack/live'
 import type { RoomJoinContext, RoomLeaveContext } from '@fluxstack/live'
+import { createHash, timingSafeEqual } from 'crypto'
 
 export interface ChatMessage {
   id: string
@@ -32,16 +33,30 @@ export class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
   static defaultMeta: ChatMeta = { password: null, createdBy: null }
   static $options = { maxMembers: 100 }
 
+  /** Hash a password using SHA-256. */
+  private static hashPassword(password: string): string {
+    return createHash('sha256').update(password).digest('hex')
+  }
+
+  /** Constant-time comparison of two hex strings. */
+  private static safeCompare(a: string, b: string): boolean {
+    const bufA = Buffer.from(a, 'hex')
+    const bufB = Buffer.from(b, 'hex')
+    if (bufA.length !== bufB.length) return false
+    return timingSafeEqual(bufA, bufB)
+  }
+
   /** Set a password for this room. Pass null to remove. */
   setPassword(password: string | null) {
-    this.meta.password = password
+    this.meta.password = password ? ChatRoom.hashPassword(password) : null
     this.setState({ isPrivate: password !== null })
   }
 
   onJoin(ctx: RoomJoinContext) {
     // Validate password if room is protected
     if (this.meta.password) {
-      if (ctx.payload?.password !== this.meta.password) {
+      const provided = ctx.payload?.password
+      if (!provided || !ChatRoom.safeCompare(ChatRoom.hashPassword(provided), this.meta.password)) {
         return false // Rejected — wrong or missing password
       }
     }

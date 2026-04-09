@@ -4,7 +4,7 @@
 // enviem mensagens para salas de chat via API REST
 
 import { Elysia, t } from 'elysia'
-import { liveRoomManager, roomEvents } from '@core/server/live'
+import { liveServer } from '@core/server/live'
 
 export const roomRoutes = new Elysia({ prefix: '/rooms' })
 
@@ -22,9 +22,9 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' })
 
     // Emitir evento para a sala
     // Isso vai:
-    // 1. Notificar handlers server-side via roomEvents
+    // 1. Notificar handlers server-side via liveServer!.roomEvents
     // 2. Broadcast via WebSocket para frontends
-    const notified = liveRoomManager.emitToRoom(roomId, 'message:new', message)
+    const notified = liveServer!.roomManager.emitToRoom(roomId, 'message:new', message)
 
     return {
       success: true,
@@ -63,7 +63,7 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' })
     const { roomId } = params
     const { event, data } = body
 
-    const notified = liveRoomManager.emitToRoom(roomId, event, data)
+    const notified = liveServer!.roomManager.emitToRoom(roomId, event, data)
 
     return {
       success: true,
@@ -94,8 +94,8 @@ export const roomRoutes = new Elysia({ prefix: '/rooms' })
 
   // Obter estatísticas das salas
   .get('/stats', () => {
-    const roomStats = liveRoomManager.getStats()
-    const eventStats = roomEvents.getStats()
+    const roomStats = liveServer!.roomManager.getStats()
+    const eventStats = liveServer!.roomEvents.getStats()
 
     return {
       success: true,

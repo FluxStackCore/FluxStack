@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { defineConfig } from '@core/utils/config-schema'
+import { defineConfig } from '@fluxstack/config'
 import { FluxStackFramework } from '@core/framework/server'
 
 describe('Config System - Integration', () => {

@@ -3,8 +3,10 @@
  * Declarative monitoring, metrics and profiling configuration
  */
 
-import { defineConfig, defineNestedConfig, config } from '@core/utils/config-schema'
-import { helpers } from '@core/utils/env'
+import { defineConfig, defineNestedConfig, config } from '@fluxstack/config'
+
+const isProduction = process.env.NODE_ENV === 'production'
+const isDevelopment = process.env.NODE_ENV !== 'production'
 
 /**
  * Metrics Configuration Schema
@@ -31,7 +33,7 @@ const metricsSchema = {
   customMetrics: config.boolean('CUSTOM_METRICS', false),
 
   // Metric exporters
-  exportToConsole: config.boolean('METRICS_EXPORT_CONSOLE', helpers.isDevelopment()),
+  exportToConsole: config.boolean('METRICS_EXPORT_CONSOLE', isDevelopment),
 
   exportToFile: config.boolean('METRICS_EXPORT_FILE', false),
 
@@ -54,7 +56,7 @@ const profilingSchema = {
   sampleRate: {
     type: 'number' as const,
     env: 'PROFILING_SAMPLE_RATE',
-    default: helpers.isProduction() ? 0.01 : 0.1,
+    default: isProduction ? 0.01 : 0.1,
     validate: (value: number) => {
       if (value < 0 || value > 1) {
         return 'Sample rate must be between 0 and 1'

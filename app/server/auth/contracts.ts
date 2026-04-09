@@ -9,6 +9,17 @@
  * Adaptado para API-only (sem HTML, sem redirects, sem CSRF).
  */
 
+// ===== Authenticatable JSON =====
+
+/** Serialized user shape returned by toJSON() — matches Elysia response schemas */
+export interface AuthenticatableJSON {
+  id: string | number
+  name?: string
+  email?: string
+  createdAt?: string
+  [key: string]: unknown
+}
+
 // ===== Authenticatable =====
 
 /**
@@ -41,7 +52,7 @@ export interface Authenticatable {
   setRememberToken(token: string | null): void
 
   /** Retorna dados serializáveis do usuário (para response da API) */
-  toJSON(): Record<string, unknown>
+  toJSON(): AuthenticatableJSON
 }
 
 // ===== UserProvider =====

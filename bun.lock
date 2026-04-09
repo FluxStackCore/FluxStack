@@ -7,6 +7,7 @@
       "dependencies": {
         "@elysiajs/eden": "^1.3.2",
         "@elysiajs/swagger": "^1.3.1",
+        "@fluxstack/config": "^1.0.0",
         "@fluxstack/live": "^0.5.1",
         "@fluxstack/live-client": "^0.5.1",
         "@fluxstack/live-elysia": "^0.5.1",
@@ -199,6 +200,8 @@
     "@eslint/object-schema": ["@eslint/object-schema@2.1.6", "", {}, "sha512-RBMg5FRL0I0gs51M/guSAj5/e14VQ4tpZnQNWwuDT66P14I43ItmPfIZRhO9fUVIPOAQXU47atlywZ/czoqFPA=="],
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.3.5", "", { "dependencies": { "@eslint/core": "^0.15.2", "levn": "^0.4.1" } }, "sha512-Z5kJ+wU3oA7MMIqVR9tyZRtjYPr4OC004Q4Rw7pgOKUOKkJfZ3O24nz3WYfGRpMDNmcOi3TwQOmgm7B7Tpii0w=="],
+
+    "@fluxstack/config": ["@fluxstack/config@1.0.0", "", {}, "sha512-4w8Mt4cuKszKeFJWH5PD1nbLzKu+v2ZfbRpNElout8GirjfgdYls5GMHFrHPxbWWb6iFLnZj5hicVpJiVXIsJQ=="],
 
     "@fluxstack/live": ["@fluxstack/live@0.5.1", "", { "peerDependencies": { "zod": "^4.3.6" } }, "sha512-6v/W4PmJBWcN1JCZ8nyISOVL4rkl56p1rY8LHa8vc194XWHiIfhpbPXxcpGR0xbX1yGEzqkTGf3MSz1C8jBOYA=="],
 

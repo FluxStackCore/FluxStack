@@ -190,7 +190,7 @@ export namespace FluxStack {
    * @example
    * // ✅ New way (recommended):
    * // plugins/my-plugin/config/index.ts
-   * import { defineConfig, config } from '@core/utils/config-schema'
+   * import { defineConfig, config } from '@fluxstack/config'
    * export const myConfig = defineConfig({ ... })
    *
    * // ❌ Old way (deprecated):
