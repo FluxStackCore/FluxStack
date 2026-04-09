@@ -1,5 +1,198 @@
 @import "tailwindcss";
 
+/* ===== Theme Clock CSS Variables ===== */
+/* Default values (overridden at runtime by theme-clock.ts) */
+:root {
+  --theme-hue: 270;
+  --theme-primary: oklch(65% 0.25 270);
+  --theme-secondary: oklch(70% 0.20 310);
+  --theme-tertiary: oklch(60% 0.22 240);
+  --theme-complement: oklch(68% 0.18 90);
+  --theme-accent: oklch(72% 0.20 30);
+  --theme-primary-muted: oklch(65% 0.25 270 / 0.15);
+  --theme-secondary-muted: oklch(70% 0.20 310 / 0.10);
+  --theme-primary-glow: oklch(65% 0.25 270 / 0.3);
+  --theme-secondary-glow: oklch(70% 0.20 310 / 0.2);
+  --theme-bg-accent: oklch(65% 0.25 270 / 0.08);
+  --theme-bg-accent2: oklch(70% 0.20 310 / 0.05);
+  --theme-text-primary: oklch(80% 0.15 270);
+  --theme-text-secondary: oklch(75% 0.12 310);
+  --theme-text-muted: oklch(55% 0.05 270);
+  --theme-border: oklch(65% 0.25 270 / 0.12);
+  --theme-border-active: oklch(65% 0.25 270 / 0.3);
+}
+
+/* ===== Theme utility classes ===== */
+/* Use these instead of fixed purple-500 etc. for dynamic theming */
+.text-theme           { color: var(--theme-primary); }
+.text-theme-secondary { color: var(--theme-secondary); }
+.text-theme-muted     { color: var(--theme-text-muted); }
+.bg-theme             { background-color: var(--theme-primary); }
+.bg-theme-muted       { background-color: var(--theme-primary-muted); }
+.bg-theme-accent      { background-color: var(--theme-bg-accent); }
+.border-theme         { border-color: var(--theme-border); }
+.border-theme-active  { border-color: var(--theme-border-active); }
+.shadow-theme         { box-shadow: 0 4px 14px var(--theme-primary-glow); }
+.glow-theme           { filter: drop-shadow(0 0 12px var(--theme-primary-glow)); }
+
+.bg-theme-gradient {
+  background-image: var(--theme-gradient-primary,
+    linear-gradient(to right, var(--theme-primary), var(--theme-secondary)));
+}
+
+/* Hover variants */
+.hover\:bg-theme-muted:hover { background-color: var(--theme-primary-muted); }
+.hover\:border-theme:hover   { border-color: var(--theme-border-active); }
+.hover\:text-theme:hover     { color: var(--theme-primary); }
+.hover\:bg-theme:hover       { background-color: var(--theme-primary); }
+.hover\:shadow-theme:hover   { box-shadow: 0 8px 24px var(--theme-primary-glow); }
+
+/* ===== Themed component classes ===== */
+
+/* Primary button — filled with theme color */
+.btn-theme {
+  background-color: var(--theme-primary);
+  color: white;
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+  box-shadow: 0 4px 14px var(--theme-primary-glow);
+}
+.btn-theme:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 8px 24px var(--theme-primary-glow);
+}
+.btn-theme:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Outline button — border with theme color */
+.btn-theme-outline {
+  background-color: var(--theme-primary-muted);
+  color: var(--theme-text-primary);
+  border: 1px solid var(--theme-border-active);
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+.btn-theme-outline:hover {
+  background-color: var(--theme-primary);
+  color: white;
+}
+
+/* Ghost button — subtle theme tint */
+.btn-theme-ghost {
+  background-color: transparent;
+  color: var(--theme-text-primary);
+  border-radius: 0.75rem;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  font-size: 0.875rem;
+  transition: all 0.15s;
+}
+.btn-theme-ghost:hover {
+  background-color: var(--theme-primary-muted);
+}
+
+/* Themed input */
+.input-theme {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  color: white;
+  font-size: 0.875rem;
+  transition: border-color 0.15s;
+  outline: none;
+}
+.input-theme:focus {
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 2px var(--theme-primary-glow);
+}
+.input-theme::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Themed card */
+.card-theme {
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.75rem;
+  transition: all 0.2s;
+}
+.card-theme:hover {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: var(--theme-border-active);
+}
+
+/* Themed badge/tag */
+.badge-theme {
+  background-color: var(--theme-primary-muted);
+  color: var(--theme-text-primary);
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Complement/accent colored buttons */
+.btn-complement {
+  background-color: color-mix(in oklch, var(--theme-complement) 20%, transparent);
+  color: var(--theme-complement);
+  border: 1px solid color-mix(in oklch, var(--theme-complement) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-complement:hover {
+  background-color: color-mix(in oklch, var(--theme-complement) 30%, transparent);
+}
+
+.btn-accent {
+  background-color: color-mix(in oklch, var(--theme-accent) 20%, transparent);
+  color: var(--theme-accent);
+  border: 1px solid color-mix(in oklch, var(--theme-accent) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-accent:hover {
+  background-color: color-mix(in oklch, var(--theme-accent) 30%, transparent);
+}
+
+.btn-secondary {
+  background-color: color-mix(in oklch, var(--theme-secondary) 20%, transparent);
+  color: var(--theme-secondary);
+  border: 1px solid color-mix(in oklch, var(--theme-secondary) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-secondary:hover {
+  background-color: color-mix(in oklch, var(--theme-secondary) 30%, transparent);
+}
+
+.btn-tertiary {
+  background-color: color-mix(in oklch, var(--theme-tertiary) 20%, transparent);
+  color: var(--theme-tertiary);
+  border: 1px solid color-mix(in oklch, var(--theme-tertiary) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-tertiary:hover {
+  background-color: color-mix(in oklch, var(--theme-tertiary) 30%, transparent);
+}
+
+/* Themed scrollbar */
+::-webkit-scrollbar-thumb {
+  background: var(--theme-border) !important;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-border-active) !important;
+}
+
 /* Base styles */
 * {
   box-sizing: border-box;

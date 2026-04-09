@@ -83,7 +83,7 @@ function AdminSection() {
     return (
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <div className="flex items-center gap-2 text-gray-400">
-          <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-4 h-4 border-2 border-theme border-t-transparent rounded-full animate-spin" />
           Montando painel admin...
         </div>
       </div>
@@ -117,7 +117,7 @@ function AdminSection() {
         <div>
           <h3 className="text-lg font-semibold text-white">Painel Admin</h3>
           <p className="text-gray-400 text-xs">
-            Requer: <code className="text-purple-300">auth.required + roles: [&apos;admin&apos;]</code>
+            Requer: <code className="text-theme">auth.required + roles: [&apos;admin&apos;]</code>
           </p>
         </div>
         <div className="text-xs text-right">
@@ -162,11 +162,11 @@ function AdminSection() {
           onChange={e => setNewUserName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleAddUser()}
           placeholder="Nome do usuário..."
-          className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+          className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)]"
         />
         <button
           onClick={handleAddUser}
-          className="px-4 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-200 text-sm hover:bg-purple-500/30"
+          className="px-4 py-2 rounded-lg bg-theme-muted border border-theme-active text-theme text-sm hover:bg-theme-muted"
         >
           Adicionar
         </button>
@@ -242,7 +242,7 @@ function AuthControls() {
           onChange={e => setToken(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleLogin()}
           placeholder="Token (JWT, API key, etc.)"
-          className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+          className="flex-1 px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)]"
         />
         <div className="flex gap-2">
           <button
@@ -268,7 +268,7 @@ function AuthControls() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
           <button
             onClick={() => { setToken('admin-token'); }}
-            className="px-2 py-1 rounded bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+            className="px-2 py-1 rounded bg-theme-muted text-theme hover:bg-theme-muted"
           >
             admin-token
           </button>
@@ -321,9 +321,9 @@ export function AuthDemo() {
 
       <div className="bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6 text-xs text-gray-500 space-y-2 overflow-x-auto">
         <h4 className="text-sm font-semibold text-gray-300 mb-3">Como funciona</h4>
-        <p><strong className="text-purple-300">Server:</strong> <code>static auth = &#123; required: true, roles: [&apos;admin&apos;] &#125;</code></p>
-        <p><strong className="text-purple-300">Server:</strong> <code>static actionAuth = &#123; deleteUser: &#123; permissions: [&apos;users.delete&apos;] &#125; &#125;</code></p>
-        <p><strong className="text-purple-300">Server:</strong> <code>this.$auth.hasRole(&apos;admin&apos;)</code> dentro das actions</p>
+        <p><strong className="text-theme">Server:</strong> <code>static auth = &#123; required: true, roles: [&apos;admin&apos;] &#125;</code></p>
+        <p><strong className="text-theme">Server:</strong> <code>static actionAuth = &#123; deleteUser: &#123; permissions: [&apos;users.delete&apos;] &#125; &#125;</code></p>
+        <p><strong className="text-theme">Server:</strong> <code>this.$auth.hasRole(&apos;admin&apos;)</code> dentro das actions</p>
         <p><strong className="text-blue-300">Client:</strong> <code>component.$authenticated</code> no proxy</p>
         <p><strong className="text-blue-300">Client:</strong> <code>useLiveComponents().authenticate(&#123; token &#125;)</code> para login</p>
         <p><strong className="text-blue-300">Client:</strong> <code>&lt;LiveComponentsProvider auth=&#123;&#123; token &#125;&#125;&gt;</code> para auth na conexão</p>

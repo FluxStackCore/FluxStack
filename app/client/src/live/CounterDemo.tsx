@@ -75,7 +75,7 @@ export function CounterDemo() {
         </div>
 
         <div className="text-center mb-6 sm:mb-8 flex-1 flex flex-col justify-center">
-          <div className="text-6xl sm:text-8xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <div className="text-6xl sm:text-8xl font-bold bg-theme-gradient bg-clip-text text-transparent">
             {counter.$state.count}
           </div>
 
@@ -90,7 +90,7 @@ export function CounterDemo() {
           <button
             onClick={handleDecrement}
             disabled={counter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-complement disabled:opacity-50"
           >
             −
           </button>
@@ -98,7 +98,7 @@ export function CounterDemo() {
           <button
             onClick={handleReset}
             disabled={counter.$loading}
-            className="px-6 h-14 flex items-center justify-center text-sm bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-300 rounded-xl transition-all disabled:opacity-50"
+            className="px-6 h-14 flex items-center justify-center text-sm btn-theme-outline disabled:opacity-50"
           >
             Reset
           </button>
@@ -106,7 +106,7 @@ export function CounterDemo() {
           <button
             onClick={handleIncrement}
             disabled={counter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-accent disabled:opacity-50"
           >
             +
           </button>
@@ -114,13 +114,13 @@ export function CounterDemo() {
 
         {counter.$loading && (
           <div className="flex justify-center mt-4">
-            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-theme border-t-transparent rounded-full animate-spin" />
           </div>
         )}
 
         <div className="mt-8 pt-6 border-t border-white/10">
           <p className="text-gray-500 text-xs text-center">
-            ✨ Usando <code className="text-purple-400">Room Events</code>
+            ✨ Usando <code className="text-theme">Room Events</code>
           </p>
         </div>
       </div>
@@ -157,7 +157,7 @@ export function CounterDemo() {
           <button
             onClick={handleDecrement}
             disabled={localCounter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-complement disabled:opacity-50"
           >
             −
           </button>
@@ -165,7 +165,7 @@ export function CounterDemo() {
           <button
             onClick={handleReset}
             disabled={localCounter.$loading}
-            className="px-6 h-14 flex items-center justify-center text-sm bg-gray-500/20 hover:bg-gray-500/30 border border-gray-500/30 text-gray-300 rounded-xl transition-all disabled:opacity-50"
+            className="px-6 h-14 flex items-center justify-center text-sm btn-theme-outline disabled:opacity-50"
           >
             Reset
           </button>
@@ -173,7 +173,7 @@ export function CounterDemo() {
           <button
             onClick={handleIncrement}
             disabled={localCounter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-accent disabled:opacity-50"
           >
             +
           </button>
@@ -181,7 +181,7 @@ export function CounterDemo() {
 
         {localCounter.$loading && (
           <div className="flex justify-center mt-4">
-            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-theme border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

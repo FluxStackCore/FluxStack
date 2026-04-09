@@ -174,7 +174,7 @@ export function RoomChatDemo() {
             <p className="text-xs text-gray-500">SALAS</p>
             <button
               onClick={() => dispatch({ type: 'OPEN_CREATE_MODAL' })}
-              className="text-xs text-purple-400 hover:text-purple-300"
+              className="text-xs text-theme hover:text-theme"
             >+ Criar</button>
           </div>
           {allRooms.map(room => {
@@ -187,7 +187,7 @@ export function RoomChatDemo() {
                 onClick={() => handleJoinRoom(room.id, room.name, room.isPrivate && !isJoined ? true : undefined)}
                 className={`
                   flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer mb-1 transition-all group
-                  ${isActive ? 'bg-purple-500/20 text-purple-300' : isJoined ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'text-gray-500 hover:bg-white/5'}
+                  ${isActive ? 'bg-theme-muted text-theme' : isJoined ? 'bg-white/5 text-gray-300 hover:bg-white/10' : 'text-gray-500 hover:bg-white/5'}
                 `}
               >
                 <span className="flex items-center gap-2 min-w-0">
@@ -249,7 +249,7 @@ export function RoomChatDemo() {
               ) : (
                 activeMessages.map(msg => (
                   <div key={msg.id} className={`flex flex-col ${msg.user === chat.$state.username ? 'items-end' : 'items-start'}`}>
-                    <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 ${msg.user === chat.$state.username ? 'bg-purple-500/30 text-purple-100' : 'bg-white/10 text-gray-200'}`}>
+                    <div className={`max-w-[85%] sm:max-w-[80%] rounded-2xl px-3 sm:px-4 py-2 ${msg.user === chat.$state.username ? 'bg-theme-muted text-white' : 'bg-white/10 text-gray-200'}`}>
                       <p className="text-xs text-gray-400 mb-1">{msg.user}</p>
                       <p className="text-sm sm:text-base">{msg.text}</p>
                     </div>
@@ -267,12 +267,12 @@ export function RoomChatDemo() {
                   onChange={(e) => dispatch({ type: 'SET_TEXT', text: e.target.value })}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage() } }}
                   placeholder="Digite uma mensagem..."
-                  className="flex-1 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm sm:text-base"
+                  className="flex-1 px-3 sm:px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)] text-sm sm:text-base"
                 />
                 <button
                   onClick={handleSendMessage}
                   disabled={!ui.text.trim()}
-                  className="px-4 sm:px-6 py-2 rounded-xl bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm sm:text-base"
+                  className="px-4 sm:px-6 py-2 rounded-xl bg-theme-muted text-theme hover:bg-theme-muted disabled:opacity-50 text-sm sm:text-base"
                 >Enviar</button>
               </div>
             </div>
@@ -306,7 +306,7 @@ export function RoomChatDemo() {
                   value={ui.createModal.name}
                   onChange={e => dispatch({ type: 'UPDATE_CREATE_FORM', name: e.target.value })}
                   placeholder="Minha Sala"
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)] text-sm"
                   autoFocus
                   onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom() }}
                 />
@@ -318,7 +318,7 @@ export function RoomChatDemo() {
                   value={ui.createModal.password}
                   onChange={e => dispatch({ type: 'UPDATE_CREATE_FORM', password: e.target.value })}
                   placeholder="Deixe vazio para sala publica"
-                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm"
+                  className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)] text-sm"
                   onKeyDown={e => { if (e.key === 'Enter') handleCreateRoom() }}
                 />
               </div>
@@ -330,7 +330,7 @@ export function RoomChatDemo() {
                 <button
                   onClick={handleCreateRoom}
                   disabled={!ui.createModal.name.trim()}
-                  className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
+                  className="flex-1 px-4 py-2 rounded-lg bg-theme-muted text-theme hover:bg-theme-muted disabled:opacity-50 text-sm"
                 >Criar</button>
               </div>
             </div>
@@ -351,7 +351,7 @@ export function RoomChatDemo() {
               value={ui.passwordPrompt.input}
               onChange={e => dispatch({ type: 'SET_PASSWORD_INPUT', input: e.target.value })}
               placeholder="Digite a senha..."
-              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 text-sm mb-3"
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--theme-primary-glow)] text-sm mb-3"
               autoFocus
               onKeyDown={e => { if (e.key === 'Enter') handlePasswordSubmit() }}
             />
@@ -363,7 +363,7 @@ export function RoomChatDemo() {
               <button
                 onClick={handlePasswordSubmit}
                 disabled={!ui.passwordPrompt.input}
-                className="flex-1 px-4 py-2 rounded-lg bg-purple-500/30 text-purple-200 hover:bg-purple-500/40 disabled:opacity-50 text-sm"
+                className="flex-1 px-4 py-2 rounded-lg bg-theme-muted text-theme hover:bg-theme-muted disabled:opacity-50 text-sm"
               >Entrar</button>
             </div>
           </div>

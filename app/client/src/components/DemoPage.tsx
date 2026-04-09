@@ -11,9 +11,11 @@ export function DemoPage({ children, note }: { children: ReactNode; note?: React
         {children}
       </div>
       {note && (
-        <p className="mt-4 sm:mt-6 text-gray-400 text-xs sm:text-sm max-w-md text-center px-2">
-          {note}
-        </p>
+        <div className="mt-4 sm:mt-6 bg-theme-accent border border-theme rounded-xl px-4 py-3 max-w-md text-center">
+          <p className="text-gray-400 text-xs sm:text-sm">
+            {note}
+          </p>
+        </div>
       )}
     </div>
   )

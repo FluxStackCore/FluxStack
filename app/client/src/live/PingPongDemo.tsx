@@ -95,7 +95,7 @@ export function PingPongDemo() {
       <div className="text-center">
         <h2 className="text-2xl font-bold text-white mb-2">Ping Pong Binary</h2>
         <p className="text-sm text-gray-400">
-          Mensagens binárias via <code className="text-cyan-400">msgpack</code> — round-trip latency demo
+          Mensagens binárias via <code className="text-theme-secondary">msgpack</code> — round-trip latency demo
         </p>
       </div>
 
@@ -108,26 +108,26 @@ export function PingPongDemo() {
         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
           <span className="text-sm text-gray-400">{onlineCount} online</span>
         </div>
-        <div className="px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-          <span className="text-xs text-cyan-300">{username}</span>
+        <div className="px-3 py-1 rounded-full bg-theme-accent border border-theme">
+          <span className="text-xs text-theme">{username}</span>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 w-full">
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-white tabular-nums">
             {avgRtt != null ? `${avgRtt}ms` : '--'}
           </div>
           <div className="text-xs text-gray-500 mt-1">AVG RTT</div>
         </div>
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-emerald-400 tabular-nums">
             {minRtt != null ? `${minRtt}ms` : '--'}
           </div>
           <div className="text-xs text-gray-500 mt-1">MIN RTT</div>
         </div>
-        <div className="bg-gray-800/50 border border-white/10 rounded-xl p-4 text-center">
+        <div className="card-theme p-4 text-center">
           <div className="text-2xl font-bold text-red-400 tabular-nums">
             {maxRtt != null ? `${maxRtt}ms` : '--'}
           </div>
@@ -140,7 +140,7 @@ export function PingPongDemo() {
         <button
           onClick={sendPing}
           disabled={!live.$connected || live.$loading}
-          className="px-8 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-lg font-bold hover:bg-cyan-500/30 active:scale-95 disabled:opacity-50 transition-all"
+          className="px-8 h-14 rounded-2xl bg-theme-muted border border-theme-active text-theme text-lg font-bold hover:bg-theme-muted active:scale-95 disabled:opacity-50 transition-all"
         >
           Ping!
         </button>
@@ -168,7 +168,7 @@ export function PingPongDemo() {
         <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center justify-between">
           <span className="text-xs text-gray-400 font-medium">Ping Log</span>
           <span className="text-xs text-gray-600">
-            wire format: <code className="text-cyan-400">msgpack</code> (binary)
+            wire format: <code className="text-theme-secondary">msgpack</code> (binary)
           </span>
         </div>
         <div className="max-h-60 overflow-y-auto">
@@ -194,8 +194,8 @@ export function PingPongDemo() {
 
       {/* Info */}
       <div className="text-center text-xs text-gray-600 space-y-1">
-        <p>Powered by <code className="text-purple-400">LiveRoom</code> + <code className="text-cyan-400">msgpack codec</code></p>
-        <p>Wire format: binary frames <code className="text-cyan-400">0x02</code> (event) / <code className="text-cyan-400">0x03</code> (state)</p>
+        <p>Powered by <code className="text-theme">LiveRoom</code> + <code className="text-theme-secondary">msgpack codec</code></p>
+        <p>Wire format: binary frames <code className="text-theme-secondary">0x02</code> (event) / <code className="text-theme-secondary">0x03</code> (state)</p>
       </div>
     </div>
   )

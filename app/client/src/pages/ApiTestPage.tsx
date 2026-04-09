@@ -18,7 +18,7 @@ export function ApiTestPage({
     <div className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-4xl">
       <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
         <BackButton />
-        <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <h1 className="text-2xl sm:text-3xl font-bold bg-theme-gradient bg-clip-text text-transparent">
           Eden Treaty API Test
         </h1>
       </div>
@@ -46,7 +46,7 @@ export function ApiTestPage({
           subtitle="Create User"
           onClick={onCreateUser}
           disabled={isLoading}
-          className="bg-purple-500/20 border-purple-500/30 text-purple-300 hover:bg-purple-500/30"
+          className="bg-theme-muted border-theme text-theme hover:bg-theme-accent"
         />
       </div>
 
@@ -70,9 +70,9 @@ export function ApiTestPage({
       <div className="mt-6 sm:mt-8 bg-white/5 border border-white/10 rounded-xl p-4 sm:p-6">
         <h3 className="text-lg font-semibold text-white mb-3">How it works</h3>
         <div className="text-gray-400 text-sm space-y-2">
-          <p>OK <code className="text-purple-400">api.health.get()</code> - Full type inference from server</p>
-          <p>OK <code className="text-purple-400">api.users.post({'{ name, email }'})</code> - Request body is typed</p>
-          <p>OK <code className="text-purple-400">{'{ data, error }'}</code> - Response is typed automatically</p>
+          <p>OK <code className="text-theme">api.health.get()</code> - Full type inference from server</p>
+          <p>OK <code className="text-theme">api.users.post({'{ name, email }'})</code> - Request body is typed</p>
+          <p>OK <code className="text-theme">{'{ data, error }'}</code> - Response is typed automatically</p>
         </div>
       </div>
     </div>

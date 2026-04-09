@@ -5,13 +5,13 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-72px)] px-4 sm:px-6 py-12 text-center relative overflow-hidden">
 
       {/* Background glow */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-theme-accent rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-3xl">
 
         {/* Icon */}
         <div className="relative mb-5">
-          <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-2xl animate-pulse-slow" />
+          <div className="absolute inset-0 bg-theme-muted rounded-full blur-2xl animate-pulse-slow" />
           <img
             src={FluxStack}
             alt="FluxStack"
@@ -20,17 +20,17 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent tracking-tight leading-none">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-3 bg-theme-gradient bg-clip-text text-transparent tracking-tight leading-none">
           FluxStack
         </h1>
 
         {/* Subtitle */}
         <p className="text-sm sm:text-base md:text-lg text-gray-400 mb-6 leading-relaxed">
-          <span className="text-purple-400 font-semibold">Bun</span>
+          <span className="text-theme font-semibold">Bun</span>
           {' + '}
-          <span className="text-indigo-400 font-semibold">Elysia</span>
+          <span className="text-theme-secondary font-semibold">Elysia</span>
           {' + '}
-          <span className="text-cyan-400 font-semibold">React</span>
+          <span className="text-theme-secondary font-semibold">React</span>
           {' = '}
           <span className="text-white font-semibold">FluxStack</span>
         </p>
@@ -53,24 +53,24 @@ export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'of
 
         {/* Feature cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full mb-12">
-          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-purple-500/20 transition-all duration-300">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center mb-3 group-hover:bg-purple-500/20 transition-colors">
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
               <span className="text-sm">⚡</span>
             </div>
             <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Ultra Rápido</h3>
             <p className="text-gray-500 text-[11px] sm:text-xs text-left leading-relaxed">Bun runtime com performance 3x superior ao Node.js</p>
           </div>
 
-          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-indigo-500/20 transition-all duration-300">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-3 group-hover:bg-indigo-500/20 transition-colors">
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
               <span className="text-sm">🔒</span>
             </div>
             <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Type Safe</h3>
             <p className="text-gray-500 text-[11px] sm:text-xs text-left leading-relaxed">Eden Treaty com inferência end-to-end automática</p>
           </div>
 
-          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-cyan-500/20 transition-all duration-300">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center mb-3 group-hover:bg-cyan-500/20 transition-colors">
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
               <span className="text-sm">🔥</span>
             </div>
             <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Live Components</h3>

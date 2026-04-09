@@ -21,11 +21,11 @@ function NotFoundPage() {
       <h1 className="text-6xl font-black text-white mb-4">404</h1>
       <p className="text-xl text-gray-400 mb-6">Pagina nao encontrada</p>
       <p className="text-sm text-gray-500 mb-8">
-        O caminho <code className="text-purple-400">{window.location.pathname}</code> nao existe.
+        O caminho <code className="text-theme">{window.location.pathname}</code> nao existe.
       </p>
       <a
         href="/"
-        className="px-6 py-3 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-200 hover:bg-purple-500/30 transition-all"
+        className="px-6 py-3 rounded-xl bg-theme-muted border border-theme-active text-theme hover:bg-theme-muted transition-all"
       >
         Voltar ao inicio
       </a>
@@ -129,7 +129,7 @@ function AppContent() {
           path="/form"
           element={
             <DemoPage
-              note={<>? Este formul?rio usa <code className="text-purple-400">Live.use()</code> - cada campo sincroniza automaticamente com o servidor!</>}
+              note={<>? Este formul?rio usa <code className="text-theme">Live.use()</code> - cada campo sincroniza automaticamente com o servidor!</>}
             >
               <FormDemo />
             </DemoPage>
@@ -155,7 +155,7 @@ function AppContent() {
           path="/shared-counter"
           element={
             <DemoPage
-              note={<>Contador compartilhado usando <code className="text-purple-400">LiveRoom</code> - abra em varias abas!</>}
+              note={<>Contador compartilhado usando <code className="text-theme">LiveRoom</code> - abra em varias abas!</>}
             >
               <SharedCounterDemo />
             </DemoPage>
@@ -165,7 +165,7 @@ function AppContent() {
           path="/room-chat"
           element={
             <DemoPage
-              note={<>Chat com múltiplas salas usando o sistema <code className="text-purple-400">$room</code>.</>}
+              note={<>Chat com múltiplas salas usando o sistema <code className="text-theme">$room</code>.</>}
             >
               <RoomChatDemo />
             </DemoPage>
@@ -175,7 +175,7 @@ function AppContent() {
           path="/auth"
           element={
             <DemoPage
-              note={<>🔒 Sistema de autenticação declarativo para Live Components com <code className="text-purple-400">$auth</code>!</>}
+              note={<>🔒 Sistema de autenticação declarativo para Live Components com <code className="text-theme">$auth</code>!</>}
             >
               <AuthDemo />
             </DemoPage>
@@ -185,7 +185,7 @@ function AppContent() {
           path="/ping-pong"
           element={
             <DemoPage
-              note={<>Latency demo com <code className="text-cyan-400">msgpack</code> binary codec - mensagens binárias no WebSocket!</>}
+              note={<>Latency demo com <code className="text-theme-secondary">msgpack</code> binary codec - mensagens binárias no WebSocket!</>}
             >
               <PingPongDemo />
             </DemoPage>
