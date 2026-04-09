@@ -9,7 +9,11 @@
 
 import type { FluxStackConfig } from '@config'
 import { fluxStackConfig } from '@config'
-import { helpers } from '../utils/env'
+const helpers = {
+  isDevelopment: () => process.env.NODE_ENV !== 'production',
+  isProduction: () => process.env.NODE_ENV === 'production',
+  isTest: () => process.env.NODE_ENV === 'test',
+}
 import { logger } from '../utils/logger'
 
 // ============================================================================
