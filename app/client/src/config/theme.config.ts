@@ -97,11 +97,8 @@ export const DEFAULT_OFFSETS: Required<HarmonyOffsets> = {
 
 export const themeConfig: ThemeConfig = {
   // ── Choose your mode ──────────────────────────────────
-  mode: 'auto',
-
-  // ── Fixed mode — uncomment to lock a single hue ──────
-  // mode: 'fixed',
-  // hue: 270,
+  mode: 'fixed',
+  hue: 270, // purple
 
   // ── Custom mode — define your own harmony ─────────────
   // mode: 'custom',
