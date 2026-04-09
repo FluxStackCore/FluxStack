@@ -140,6 +140,51 @@
   font-weight: 500;
 }
 
+/* Complement/accent colored buttons */
+.btn-complement {
+  background-color: color-mix(in oklch, var(--theme-complement) 20%, transparent);
+  color: var(--theme-complement);
+  border: 1px solid color-mix(in oklch, var(--theme-complement) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-complement:hover {
+  background-color: color-mix(in oklch, var(--theme-complement) 30%, transparent);
+}
+
+.btn-accent {
+  background-color: color-mix(in oklch, var(--theme-accent) 20%, transparent);
+  color: var(--theme-accent);
+  border: 1px solid color-mix(in oklch, var(--theme-accent) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-accent:hover {
+  background-color: color-mix(in oklch, var(--theme-accent) 30%, transparent);
+}
+
+.btn-secondary {
+  background-color: color-mix(in oklch, var(--theme-secondary) 20%, transparent);
+  color: var(--theme-secondary);
+  border: 1px solid color-mix(in oklch, var(--theme-secondary) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-secondary:hover {
+  background-color: color-mix(in oklch, var(--theme-secondary) 30%, transparent);
+}
+
+.btn-tertiary {
+  background-color: color-mix(in oklch, var(--theme-tertiary) 20%, transparent);
+  color: var(--theme-tertiary);
+  border: 1px solid color-mix(in oklch, var(--theme-tertiary) 30%, transparent);
+  border-radius: 0.75rem;
+  transition: all 0.15s;
+}
+.btn-tertiary:hover {
+  background-color: color-mix(in oklch, var(--theme-tertiary) 30%, transparent);
+}
+
 /* Themed scrollbar */
 ::-webkit-scrollbar-thumb {
   background: var(--theme-border) !important;

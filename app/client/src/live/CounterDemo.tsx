@@ -90,7 +90,7 @@ export function CounterDemo() {
           <button
             onClick={handleDecrement}
             disabled={counter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-complement disabled:opacity-50"
           >
             −
           </button>
@@ -106,7 +106,7 @@ export function CounterDemo() {
           <button
             onClick={handleIncrement}
             disabled={counter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-accent disabled:opacity-50"
           >
             +
           </button>
@@ -157,7 +157,7 @@ export function CounterDemo() {
           <button
             onClick={handleDecrement}
             disabled={localCounter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-complement disabled:opacity-50"
           >
             −
           </button>
@@ -173,7 +173,7 @@ export function CounterDemo() {
           <button
             onClick={handleIncrement}
             disabled={localCounter.$loading}
-            className="w-14 h-14 flex items-center justify-center text-3xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-300 rounded-xl transition-all disabled:opacity-50"
+            className="w-14 h-14 flex items-center justify-center text-3xl btn-accent disabled:opacity-50"
           >
             +
           </button>
