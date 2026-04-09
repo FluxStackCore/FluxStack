@@ -98,5 +98,30 @@ export const DEFAULT_OFFSETS: Required<HarmonyOffsets> = {
 export const themeConfig: ThemeConfig = {
   mode: 'fixed',
   hue: 270,  // purple
+
+  // ── Auto mode — colors shift with the time of day ─────
+  // mode: 'auto',
+
+  // ── Custom mode with offsets from base hue ────────────
+  // mode: 'custom',
+  // hue: 270,
+  // offsets: {
+  //   secondary:  +40,
+  //   tertiary:   -30,
+  //   complement: +180,
+  //   accent:     +120,
+  // },
+
+  // ── Custom mode with absolute hue positions ───────────
+  // mode: 'custom',
+  // palette: {
+  //   primary:    270,  // purple
+  //   secondary:  310,  // pink
+  //   tertiary:   240,  // indigo
+  //   complement:  90,  // yellow
+  //   accent:      30,  // orange
+  // },
+
+  // Show color wheel picker (🎨) — visible in dev only
   showPicker: import.meta.env.DEV,
 }
