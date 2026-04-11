@@ -149,10 +149,19 @@ export class FluxStackFramework {
       }
     }
 
-    // Initialize plugin manager
-    this.pluginManager = new PluginManager({
+    // Initialize plugin manager.
+    // The plugin-kit's PluginManager requires `settings` (plugin-related
+    // config slice) and `clientHooks` (registry impl) to be passed
+    // explicitly — it no longer reaches into the full config or imports
+    // the client hooks singleton.
+    this.pluginManager = new PluginManager<FluxStackConfig>({
       config: fullConfig,
+      settings: fullConfig.plugins,
       logger: pluginLogger,
+      clientHooks: {
+        register: (hookName: string, jsCode: string) =>
+          pluginClientHooks.register(hookName, jsCode)
+      },
       app: this.app
     })
 
