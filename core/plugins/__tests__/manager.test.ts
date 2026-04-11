@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { PluginManager } from '../manager'
+import { PluginManager } from '@fluxstack/plugin-kit'
 import type { Plugin, PluginContext } from '../types'
 import type { Logger } from '@core/utils/logger/index'
 import type { FluxStackConfig } from '@config'
@@ -158,7 +158,9 @@ describe('PluginManager', () => {
     mockApp = { use: vi.fn(), get: vi.fn(), post: vi.fn() }
     manager = new PluginManager({
       config: mockConfig,
+      settings: mockConfig.plugins,
       logger: mockLogger,
+      clientHooks: { register: vi.fn() },
       app: mockApp
     })
     vi.clearAllMocks()

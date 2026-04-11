@@ -4,7 +4,7 @@ import { logger } from "@core/utils/logger"
 import { buildLogger } from "@core/utils/build-logger"
 import { createTimer, formatBytes, isProduction, isDevelopment } from "../utils/helpers"
 import { createHash } from "crypto"
-import { createPluginUtils } from "../plugins/config"
+import { createPluginUtils } from "@fluxstack/plugin-kit"
 
 export class CliCommandRegistry {
   private commands = new Map<string, CliCommand>()

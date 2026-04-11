@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { PluginRegistry } from '../registry'
+import { PluginRegistry } from '@fluxstack/plugin-kit'
 import type { Plugin, PluginManifest } from '../types'
 import type { Logger } from '@core/utils/logger/index'
 
@@ -341,9 +341,9 @@ describe('PluginRegistry', () => {
         }
       }
 
-      const registryWithConfig = new PluginRegistry({ 
+      const registryWithConfig = new PluginRegistry({
         logger: mockLogger,
-        config: config as unknown as import('@config').FluxStackConfig
+        settings: config.plugins as unknown as import('@fluxstack/plugin-kit').PluginRegistrySettings,
       })
 
       await registryWithConfig.register(plugin)

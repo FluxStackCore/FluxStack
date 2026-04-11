@@ -7,8 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { PluginRegistry } from '@core/plugins/registry'
-import type { FluxStack } from '@core/plugins/types'
+import { PluginRegistry, type FluxStack } from '@fluxstack/plugin-kit'
 
 function makePlugin(overrides: Partial<FluxStack.Plugin> & { name: string }): FluxStack.Plugin {
   return { ...overrides }

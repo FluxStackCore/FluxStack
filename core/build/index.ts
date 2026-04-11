@@ -6,7 +6,7 @@ import { Bundler } from "./bundler"
 import { Optimizer } from "./optimizer"
 import { FLUXSTACK_VERSION } from "../utils/version"
 import { buildLogger } from "../utils/build-logger"
-import type { PluginRegistry } from "../plugins/registry"
+import type { PluginRegistry } from "@fluxstack/plugin-kit"
 import type { BuildContext, BuildAssetContext, BuildErrorContext } from "../plugins/types"
 
 /**

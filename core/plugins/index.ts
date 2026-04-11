@@ -1,207 +1,79 @@
 /**
- * Enhanced Plugin System
- * Comprehensive plugin system with lifecycle hooks, dependency management, and configuration
+ * Thin shim barrel over @fluxstack/plugin-kit.
+ *
+ * All plugin system types and runtime live in @fluxstack/plugin-kit
+ * now (see .ai-notes/plans/2026-04-11-plugin-kit-extraction.md).
+ * This barrel just re-exports them. The FluxStack-specialized type
+ * aliases (Plugin = Plugin<FluxStackConfig>, PluginContext =
+ * PluginContext<FluxStackConfig>, etc.) come from the local
+ * `./types` shim so legacy `import { Plugin } from '@core/plugins'`
+ * call sites stay typed against FluxStack's concrete config shape.
  */
 
-// Core plugin types and interfaces
+// ─── Runtime + non-specialized types (from the lib) ──────────
+
+export {
+  PluginRegistry,
+  PluginDiscovery,
+  PluginManager,
+  PluginModuleResolver,
+  PluginExecutor,
+  calculateExecutionStats,
+  createPluginUtils,
+  createRequestContext,
+  createResponseContext,
+  createErrorContext,
+  createBuildContext,
+  PluginError,
+} from '@fluxstack/plugin-kit'
+
 export type {
-    FluxStack,
-    PluginContext,
-    PluginHook,
-    PluginPriority,
-    PluginManifest,
-    PluginLoadResult,
-    PluginRegistryState,
-    PluginHookResult,
-    PluginMetrics,
-    PluginDiscoveryOptions,
-    PluginInstallOptions,
-    PluginExecutionContext,
-    PluginValidationResult,
-    HookExecutionOptions,
-    PluginLifecycleEvent,
-    PluginConfigSchema,
-    RequestContext,
-    ResponseContext,
-    ErrorContext,
-    BuildContext
-} from './types'
+  FluxStack,
+  PluginHook,
+  PluginPriority,
+  PluginManifest,
+  PluginHookResult,
+  PluginMetrics,
+  PluginDiscoveryOptions,
+  PluginInstallOptions,
+  PluginValidationResult,
+  HookExecutionOptions,
+  PluginLifecycleEvent,
+  PluginConfigSchema,
+  PluginRegistryConfig,
+  PluginRegistrySettings,
+  PluginDiscoveryConfig,
+  PluginManagerConfig,
+  ModuleResolverConfig,
+  PluginExecutionPlan,
+  PluginExecutionStep,
+  PluginExecutionStats,
+} from '@fluxstack/plugin-kit'
 
-export type Plugin = FluxStack.Plugin
+// ─── FluxStack-specialized type aliases (from the local shim) ───
 
-// Plugin registry
-export { PluginRegistry } from './registry'
-export type { PluginRegistryConfig } from './registry'
-
-// Plugin discovery
-export { PluginDiscovery } from './discovery'
-export type { PluginDiscoveryConfig } from './discovery'
-
-// Plugin configuration management
-export {
-    DefaultPluginConfigManager,
-    createPluginUtils
-} from './config'
-export type { PluginConfigManager } from './config'
-
-// Plugin manager
-export {
-    PluginManager,
-    createRequestContext,
-    createResponseContext,
-    createErrorContext,
-    createBuildContext
-} from './manager'
-export type { PluginManagerConfig } from './manager'
-
-// Module resolver for plugins
-export { PluginModuleResolver } from './module-resolver'
-export type { ModuleResolverConfig } from './module-resolver'
-
-// Plugin executor
-export {
-    PluginExecutor,
-    calculateExecutionStats
-} from './executor'
 export type {
-    PluginExecutionPlan,
-    PluginExecutionStep,
-    PluginExecutionStats
-} from './executor'
-
-// Utility functions for plugin development
-export const PluginUtils = {
-    /**
-     * Create a simple plugin
-     */
-    createPlugin: (config: {
-        name: string
-        version?: string
-        description?: string
-        dependencies?: string[]
-        priority?: number | PluginPriority
-        setup?: (context: PluginContext) => void | Promise<void>
-        onServerStart?: (context: PluginContext) => void | Promise<void>
-        onServerStop?: (context: PluginContext) => void | Promise<void>
-        onRequest?: (context: RequestContext) => void | Promise<void>
-        onBeforeRoute?: (context: RequestContext) => void | Promise<void>
-        onResponse?: (context: ResponseContext) => void | Promise<void>
-        onError?: (context: ErrorContext) => void | Promise<void>
-        configSchema?: PluginConfigSchema
-        defaultConfig?: unknown
-    }): Plugin => {
-        const plugin = {
-            name: config.name,
-            ...(config.version && { version: config.version }),
-            ...(config.description && { description: config.description }),
-            ...(config.dependencies && { dependencies: config.dependencies }),
-            ...(config.priority !== undefined && { priority: config.priority }),
-            ...(config.setup && { setup: config.setup }),
-            ...(config.onServerStart && { onServerStart: config.onServerStart }),
-            ...(config.onServerStop && { onServerStop: config.onServerStop }),
-            ...(config.onRequest && { onRequest: config.onRequest }),
-            ...(config.onBeforeRoute && { onBeforeRoute: config.onBeforeRoute }),
-            ...(config.onResponse && { onResponse: config.onResponse }),
-            ...(config.onError && { onError: config.onError }),
-            ...(config.configSchema && { configSchema: config.configSchema }),
-            ...(config.defaultConfig !== undefined ? { defaultConfig: config.defaultConfig } : {})
-        } as Plugin
-        return plugin
-    },
-
-    /**
-     * Create a plugin manifest
-     */
-    createManifest: (config: {
-        name: string
-        version: string
-        description: string
-        author: string
-        license: string
-        homepage?: string
-        repository?: string
-        keywords?: string[]
-        dependencies?: Record<string, string>
-        peerDependencies?: Record<string, string>
-        fluxstack: {
-            version: string
-            hooks: PluginHook[]
-            config?: PluginConfigSchema
-            category?: string
-            tags?: string[]
-        }
-    }): PluginManifest => {
-        return {
-            name: config.name,
-            version: config.version || '1.0.0',
-            description: config.description,
-            author: config.author,
-            license: config.license,
-            homepage: config.homepage,
-            repository: config.repository,
-            keywords: config.keywords || [],
-            dependencies: config.dependencies || {},
-            peerDependencies: config.peerDependencies,
-            fluxstack: config.fluxstack
-        }
-    },
-
-    /**
-     * Validate plugin structure
-     */
-    validatePlugin: (plugin: unknown): plugin is Plugin => {
-        return (
-            !!plugin &&
-            typeof plugin === 'object' &&
-            'name' in plugin &&
-            typeof (plugin as Record<string, unknown>).name === 'string' &&
-            ((plugin as Record<string, unknown>).name as string).length > 0
-        )
-    },
-
-    /**
-     * Check if plugin implements hook
-     */
-    implementsHook: (plugin: Plugin, hook: PluginHook): boolean => {
-        const hookFunction = plugin[hook]
-        return !!hookFunction && typeof hookFunction === 'function'
-    },
-
-    /**
-     * Get plugin hooks
-     */
-    getPluginHooks: (plugin: Plugin): PluginHook[] => {
-        const hooks: PluginHook[] = []
-        const possibleHooks: PluginHook[] = [
-            'setup',
-            'onServerStart',
-            'onServerStop',
-            'onRequest',
-            'onResponse',
-            'onError',
-            'onBuild',
-            'onBuildComplete'
-        ]
-
-        for (const hook of possibleHooks) {
-            if (PluginUtils.implementsHook(plugin, hook)) {
-                hooks.push(hook)
-            }
-        }
-
-        return hooks
-    }
-}
-
-// Re-export types for convenience
-import type {
-    PluginContext,
-    PluginConfigSchema,
-    PluginHook,
-    PluginManifest,
-    PluginPriority,
-    RequestContext,
-    ResponseContext,
-    ErrorContext,
-    FluxStack
+  Plugin,
+  PluginContext,
+  RequestContext,
+  ResponseContext,
+  ErrorContext,
+  RouteContext,
+  ValidationContext,
+  TransformContext,
+  BuildContext,
+  BuildAssetContext,
+  BuildErrorContext,
+  ConfigLoadContext,
+  PluginEventContext,
+  CliArgument,
+  CliOption,
+  CliCommand,
+  CliContext,
+  PluginLoadResult,
+  PluginRegistryState,
+  PluginExecutionContext,
+  PluginClientHooksAPI,
+  PluginUtils,
+  Logger,
 } from './types'

@@ -4,8 +4,7 @@
 
 import { Command } from 'commander'
 import { buildLogger } from '@core/utils/build-logger'
-import { PluginDependencyManager } from '@core/plugins/dependency-manager'
-import { PluginRegistry } from '@core/plugins/registry'
+import { PluginDependencyManager, PluginRegistry } from '@fluxstack/plugin-kit'
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 

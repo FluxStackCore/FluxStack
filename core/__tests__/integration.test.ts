@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FluxStackFramework } from '../framework/server'
-import { PluginRegistry } from '../plugins/registry'
+import { PluginRegistry } from '@fluxstack/plugin-kit'
 import { logger } from '../utils/logger'
 import type { Plugin } from '../plugins/types'
 
