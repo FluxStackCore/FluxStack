@@ -2,8 +2,27 @@ import type { Generator } from "./index"
 import type { GeneratorContext, GeneratorOptions, Template } from "./types"
 import { templateEngine } from "./template-engine"
 import { buildLogger } from "@core/utils/build-logger"
-import { join } from "path"
 
+/**
+ * Plugin scaffolder for `bun run cli make:plugin <name>`.
+ *
+ * Emits project-local plugin skeletons into `plugins/<name>/`. The
+ * generated code follows the CURRENT plugin model:
+ *
+ *   - Plugin is a plain object literal implementing `Plugin` from
+ *     `@fluxstack/plugin-kit`. NOT a class.
+ *   - No `plugin.json`, no auto-discovery, no `fluxstack` manifest
+ *     block in `package.json`. Plugins live inside the project and
+ *     are imported via relative path, then registered via
+ *     `framework.use(myPlugin)` in `app/server/index.ts`.
+ *   - `package.json` for a project-local plugin is optional and
+ *     minimal. It is NOT an npm package — it's just a way to let
+ *     the plugin pin its own dev-time dependencies if needed. Most
+ *     plugins will not need one at all.
+ *   - The generator does NOT auto-edit `app/server/index.ts`. After
+ *     scaffolding, it prints explicit instructions for the user to
+ *     import and `.use()` the new plugin themselves.
+ */
 export class PluginGenerator implements Generator {
     name = 'plugin'
     description = 'Generate a new FluxStack plugin'
@@ -11,11 +30,34 @@ export class PluginGenerator implements Generator {
     async generate(context: GeneratorContext, options: GeneratorOptions): Promise<void> {
         const template = this.getTemplate(options.template)
 
-        if (template.hooks?.beforeGenerate) {
-            await template.hooks.beforeGenerate(context, options)
+        // Derive identifier names that already include "Plugin" as a suffix,
+        // WITHOUT duplicating it when the user's plugin name already ends
+        // with -plugin. Examples:
+        //   'my-plugin'        → pluginIdent = myPlugin
+        //   'csrf-protection'  → pluginIdent = csrfProtectionPlugin
+        //   'my-test-plugin'   → pluginIdent = myTestPlugin
+        //
+        // These are injected into the template variables via options (the
+        // template engine spreads options into the variable bag before
+        // processing {{placeholders}}), so the templates can use
+        // {{pluginIdent}} / {{pluginIdentPascal}} directly.
+        const camelName = this.toCamelCase(options.name)
+        const pascalName = this.toPascalCase(options.name)
+        const alreadyEndsWithPlugin = /plugin$/i.test(options.name)
+        const pluginIdent = alreadyEndsWithPlugin ? camelName : `${camelName}Plugin`
+        const pluginIdentPascal = alreadyEndsWithPlugin ? pascalName : `${pascalName}Plugin`
+
+        const enrichedOptions: GeneratorOptions = {
+            ...options,
+            pluginIdent,
+            pluginIdentPascal,
         }
 
-        const files = await templateEngine.processTemplate(template, context, options)
+        if (template.hooks?.beforeGenerate) {
+            await template.hooks.beforeGenerate(context, enrichedOptions)
+        }
+
+        const files = await templateEngine.processTemplate(template, context, enrichedOptions)
 
         if (options.dryRun) {
             buildLogger.info(`\n📋 Would generate plugin '${options.name}':\n`)
@@ -29,17 +71,42 @@ export class PluginGenerator implements Generator {
 
         if (template.hooks?.afterGenerate) {
             const filePaths = files.map(f => f.path)
-            await template.hooks.afterGenerate(context, options, filePaths)
+            await template.hooks.afterGenerate(context, enrichedOptions, filePaths)
         }
 
         buildLogger.success(`Generated plugin '${options.name}' with ${files.length} files`)
-        buildLogger.info(`\n📦 Next steps:`)
-        buildLogger.info(`   1. Configure plugin in plugins/${options.name}/config/index.ts`)
-        buildLogger.info(`   2. Set environment variables (optional): ${options.name.toUpperCase().replace(/-/g, '_')}_*`)
-        buildLogger.info(`   3. Implement your plugin logic in plugins/${options.name}/index.ts`)
-        buildLogger.info(`   4. Add server-side code in plugins/${options.name}/server/ (optional)`)
-        buildLogger.info(`   5. Add client-side code in plugins/${options.name}/client/ (optional)`)
-        buildLogger.info(`   6. Run: bun run dev`)
+
+        const importPath = `../../plugins/${options.name}`
+
+        buildLogger.info(`\n📝 Next steps:`)
+        buildLogger.info(`   1. Implement your plugin logic in plugins/${options.name}/index.ts`)
+        buildLogger.info(`   2. Configure it (optional) in plugins/${options.name}/config/index.ts`)
+        buildLogger.info(``)
+        buildLogger.info(`   3. Register the plugin in app/server/index.ts:`)
+        buildLogger.info(``)
+        buildLogger.info(`        import { ${pluginIdent} } from '${importPath}'`)
+        buildLogger.info(``)
+        buildLogger.info(`        framework.use(${pluginIdent})`)
+        buildLogger.info(``)
+        buildLogger.info(`   ⚠️  Plugins are NOT auto-discovered. They must be explicitly`)
+        buildLogger.info(`      registered via framework.use() to be loaded at runtime.`)
+        buildLogger.info(``)
+        buildLogger.info(`   4. Run: bun run dev`)
+    }
+
+    // Local copies of the same case helpers the template engine uses
+    // internally. We need them here to precompute pluginIdent /
+    // pluginIdentPascal before the template engine runs, so we can
+    // inject them into the variable bag via enrichedOptions.
+    private toCamelCase(str: string): string {
+        return str.replace(/[-_\s]+(.)?/g, (_, c: string | undefined) =>
+            c ? c.toUpperCase() : '',
+        )
+    }
+
+    private toPascalCase(str: string): string {
+        const camel = this.toCamelCase(str)
+        return camel.charAt(0).toUpperCase() + camel.slice(1)
     }
 
     private getTemplate(templateName?: string): Template {
@@ -58,57 +125,13 @@ export class PluginGenerator implements Generator {
     private getBasicTemplate(): Template {
         return {
             name: 'basic-plugin',
-            description: 'Basic plugin template with essential files',
+            description: 'Basic plugin template (plain object literal)',
             files: [
-                {
-                    path: 'plugins/{{name}}/package.json',
-                    content: `{
-  "name": "@fluxstack/{{name}}-plugin",
-  "version": "1.0.0",
-  "description": "{{description}}",
-  "main": "index.ts",
-  "types": "index.ts",
-  "exports": {
-    ".": {
-      "import": "./index.ts",
-      "types": "./index.ts"
-    },
-    "./config": {
-      "import": "./config/index.ts",
-      "types": "./config/index.ts"
-    }
-  },
-  "keywords": [
-    "fluxstack",
-    "plugin",
-    "{{name}}",
-    "typescript"
-  ],
-  "author": "FluxStack Developer",
-  "license": "MIT",
-  "peerDependencies": {},
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "fluxstack": {
-    "plugin": true,
-    "version": "^1.0.0",
-    "hooks": [
-      "setup",
-      "onServerStart"
-    ],
-    "category": "utility",
-    "tags": ["{{name}}"]
-  }
-}
-`
-                },
                 {
                     path: 'plugins/{{name}}/config/index.ts',
                     content: `/**
  * {{pascalName}} Plugin Configuration
- * Declarative config using FluxStack config system
+ * Declarative config using @fluxstack/config
  */
 
 import { defineConfig, config } from '@fluxstack/config'
@@ -117,8 +140,7 @@ const {{camelName}}ConfigSchema = {
   // Enable/disable plugin
   enabled: config.boolean('{{constantName}}_ENABLED', true),
 
-  // Add your configuration options here
-  // Example:
+  // Add your configuration options here. Example:
   // apiKey: config.string('{{constantName}}_API_KEY', ''),
   // timeout: config.number('{{constantName}}_TIMEOUT', 5000),
   // debug: config.boolean('{{constantName}}_DEBUG', false),
@@ -132,75 +154,84 @@ export default {{camelName}}Config
                 },
                 {
                     path: 'plugins/{{name}}/index.ts',
-                    content: `import type { ErrorContext, FluxStack, PluginContext, RequestContext, ResponseContext } from "@core/plugins/types"
-// ✅ Plugin imports its own configuration
+                    content: `import type {
+  Plugin,
+  PluginContext,
+  RequestContext,
+  ResponseContext,
+  ErrorContext,
+} from '@fluxstack/plugin-kit'
 import { {{camelName}}Config } from './config'
 
 /**
  * {{pascalName}} Plugin
  * {{description}}
+ *
+ * Plugins are plain object literals implementing the \`Plugin\`
+ * interface from @fluxstack/plugin-kit. To enable this plugin,
+ * import it in app/server/index.ts and pass it to framework.use():
+ *
+ *   import { {{pluginIdent}} } from '../../plugins/{{name}}'
+ *
+ *   framework.use({{pluginIdent}})
  */
-export class {{pascalName}}Plugin implements FluxStack.Plugin {
-  name = '{{name}}'
-  version = '1.0.0'
+export const {{pluginIdent}}: Plugin = {
+  name: '{{name}}',
+  version: '1.0.0',
+  description: '{{description}}',
 
   /**
-   * Setup hook - called when plugin is loaded
+   * Setup hook — runs once during framework.start().
+   * Use it to initialize resources, mount Elysia routes via
+   * context.app, register client-side hooks via context.clientHooks,
+   * etc.
    */
-  async setup(context: PluginContext): Promise<void> {
-    // Check if plugin is enabled
+  setup: async (context: PluginContext) => {
     if (!{{camelName}}Config.enabled) {
-      context.logger.info(\`[{{name}}] Plugin disabled by configuration\`)
+      context.logger.info('[{{name}}] disabled by configuration')
       return
     }
 
-    console.log(\`[{{name}}] Plugin initialized\`)
+    context.logger.info('[{{name}}] initialized')
 
     // Add your initialization logic here
-    // Example: Register middleware, setup database connections, etc.
-  }
+  },
 
   /**
-   * Server start hook - called when server starts
+   * Server start hook — runs once after the HTTP server starts listening.
    */
-  async onServerStart?(context: PluginContext): Promise<void> {
+  onServerStart: async (context: PluginContext) => {
     if (!{{camelName}}Config.enabled) return
-
-    console.log(\`[{{name}}] Server started\`)
-
-    // Add logic to run when server starts
-  }
+    context.logger.debug('[{{name}}] server started')
+  },
 
   /**
-   * Request hook - called on each request
+   * Request hook — runs on every incoming request.
+   * Remove this if you don't need per-request behavior.
    */
-  async onRequest?(context: RequestContext): Promise<void> {
+  onRequest: async (_context: RequestContext) => {
     if (!{{camelName}}Config.enabled) return
-
     // Add request processing logic
-  }
+  },
 
   /**
-   * Response hook - called on each response
+   * Response hook — runs on every outgoing response.
+   * Remove this if you don't need per-response behavior.
    */
-  async onResponse?(context: ResponseContext): Promise<void> {
+  onResponse: async (_context: ResponseContext) => {
     if (!{{camelName}}Config.enabled) return
-
     // Add response processing logic
-  }
+  },
 
   /**
-   * Error hook - called when errors occur
+   * Error hook — runs when an error is thrown from a handler.
    */
-  async onError?(context: ErrorContext): Promise<void> {
-    console.error(\`[{{name}}] Error:\`, context.error)
-
-    // Add error handling logic
-  }
+  onError: async (context: ErrorContext) => {
+    console.error('[{{name}}] error:', context.error.message)
+  },
 }
 
-// Export plugin instance
-export default new {{pascalName}}Plugin()
+export default {{pluginIdent}}
 `
                 },
                 {
@@ -209,59 +240,54 @@ export default new {{pascalName}}Plugin()
 
 {{description}}
 
-## Installation
+## Enabling this plugin
 
-This plugin is already in your FluxStack project. To use it:
+Plugins are **not** auto-discovered. To enable this plugin, import
+it and register it via \`framework.use()\` in \`app/server/index.ts\`:
 
-1. Make sure the plugin is enabled in your configuration
-2. Install any additional dependencies (if needed):
-   \`\`\`bash
-   bun run cli plugin:deps install
-   \`\`\`
+\`\`\`typescript
+import { {{pluginIdent}} } from '../../plugins/{{name}}'
+
+const framework = new FluxStackFramework()
+  .use({{pluginIdent}})
+\`\`\`
 
 ## Configuration
 
-This plugin uses FluxStack's declarative configuration system. Configure it by editing \`config/index.ts\` or by setting environment variables:
+This plugin uses FluxStack's declarative config system
+(\`@fluxstack/config\`). Tweak defaults in
+\`plugins/{{name}}/config/index.ts\`, or set environment variables:
 
 \`\`\`bash
-# Enable/disable plugin
+# Enable/disable the plugin
 {{constantName}}_ENABLED=true
 
-# Add your environment variables here
-# Example:
+# Add your own environment variables here. Example:
 # {{constantName}}_API_KEY=your-api-key
 # {{constantName}}_TIMEOUT=5000
 \`\`\`
 
-The plugin's configuration is located in \`plugins/{{name}}/config/index.ts\` and is self-contained, making the plugin fully portable.
+The config is self-contained in the plugin folder, so this plugin
+is fully portable — copy the folder into another FluxStack project,
+register it via \`.use()\`, and it works.
 
-## Usage
+## Hooks this plugin uses
 
-\`\`\`typescript
-// The plugin is automatically loaded by FluxStack
-// It imports its own configuration from ./config
-\`\`\`
+- \`setup\` — initialize resources at startup
+- \`onServerStart\` — runs after the HTTP server binds the port
+- \`onRequest\` — runs on every incoming request (remove if unused)
+- \`onResponse\` — runs on every outgoing response (remove if unused)
+- \`onError\` — runs when a handler throws
 
-## API
-
-Document your plugin's API here.
-
-## Hooks
-
-This plugin uses the following hooks:
-- \`setup\`: Initialize plugin resources
-- \`onServerStart\`: Run when server starts (optional)
-- \`onRequest\`: Process incoming requests (optional)
-- \`onResponse\`: Process outgoing responses (optional)
-- \`onError\`: Handle errors (optional)
+See \`LLMD/reference/plugin-hooks.md\` for the full list of hooks
+and their signatures.
 
 ## Development
 
-To modify this plugin:
-
 1. Edit \`config/index.ts\` to add configuration options
-2. Edit \`index.ts\` with your logic
-3. Test with: \`bun run dev\`
+2. Edit \`index.ts\` to implement your plugin logic
+3. Register the plugin via \`framework.use()\` (see above)
+4. Run: \`bun run dev\`
 
 ## License
 
@@ -277,71 +303,22 @@ MIT
         return {
             ...basic,
             name: 'server-plugin',
-            description: 'Plugin with server-side code',
+            description: 'Plugin with server-side service code',
             files: [
-                {
-                    path: 'plugins/{{name}}/package.json',
-                    content: `{
-  "name": "@fluxstack/{{name}}-plugin",
-  "version": "1.0.0",
-  "description": "{{description}}",
-  "main": "index.ts",
-  "types": "index.ts",
-  "exports": {
-    ".": {
-      "import": "./index.ts",
-      "types": "./index.ts"
-    },
-    "./config": {
-      "import": "./config/index.ts",
-      "types": "./config/index.ts"
-    },
-    "./server": {
-      "import": "./server/index.ts",
-      "types": "./server/index.ts"
-    }
-  },
-  "keywords": [
-    "fluxstack",
-    "plugin",
-    "{{name}}",
-    "server",
-    "typescript"
-  ],
-  "author": "FluxStack Developer",
-  "license": "MIT",
-  "peerDependencies": {
-    "elysia": "^1.0.0"
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "fluxstack": {
-    "plugin": true,
-    "version": "^1.0.0",
-    "hooks": [
-      "setup",
-      "onServerStart",
-      "onRequest",
-      "onResponse"
-    ],
-    "category": "utility",
-    "tags": ["{{name}}", "server"]
-  }
-}
-`
-                },
-                ...basic.files.slice(1), // Skip package.json from basic
+                ...basic.files,
                 {
                     path: 'plugins/{{name}}/server/index.ts',
                     content: `/**
- * Server-side logic for {{pascalName}} plugin
+ * Server-side service for {{pascalName}} plugin
+ *
+ * Import this from plugins/{{name}}/index.ts and wire it up inside
+ * the plugin's setup hook. Keeping services as named exports (not
+ * default-exported singletons) makes them easier to test.
  */
 
 export class {{pascalName}}Service {
-  async initialize() {
-    console.log(\`[{{name}}] Server service initialized\`)
+  async initialize(): Promise<void> {
+    console.log('[{{name}}] server service initialized')
   }
 
   // Add your server-side methods here
@@ -361,74 +338,21 @@ export const {{camelName}}Service = new {{pascalName}}Service()
             name: 'client-plugin',
             description: 'Plugin with client-side code',
             files: [
-                {
-                    path: 'plugins/{{name}}/package.json',
-                    content: `{
-  "name": "@fluxstack/{{name}}-plugin",
-  "version": "1.0.0",
-  "description": "{{description}}",
-  "main": "index.ts",
-  "types": "index.ts",
-  "exports": {
-    ".": {
-      "import": "./index.ts",
-      "types": "./index.ts"
-    },
-    "./config": {
-      "import": "./config/index.ts",
-      "types": "./config/index.ts"
-    },
-    "./client": {
-      "import": "./client/index.ts",
-      "types": "./client/index.ts"
-    }
-  },
-  "keywords": [
-    "fluxstack",
-    "plugin",
-    "{{name}}",
-    "react",
-    "client",
-    "typescript"
-  ],
-  "author": "FluxStack Developer",
-  "license": "MIT",
-  "peerDependencies": {
-    "react": ">=16.8.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "@types/react": "^18.0.0",
-    "typescript": "^5.0.0"
-  },
-  "fluxstack": {
-    "plugin": true,
-    "version": "^1.0.0",
-    "hooks": [
-      "setup",
-      "onServerStart"
-    ],
-    "category": "utility",
-    "tags": ["{{name}}", "client", "react"]
-  }
-}
-`
-                },
-                ...basic.files.slice(1), // Skip package.json from basic
+                ...basic.files,
                 {
                     path: 'plugins/{{name}}/client/index.ts',
                     content: `/**
- * Client-side logic for {{pascalName}} plugin
+ * Client-side code for {{pascalName}} plugin
+ *
+ * This runs in the browser. If you need the plugin's server-side
+ * setup hook to inject a <script> tag or a fetch interceptor into
+ * the client, use \`context.clientHooks.register()\` from within
+ * the plugin's setup() in plugins/{{name}}/index.ts.
  */
 
 export class {{pascalName}}Client {
-  initialize() {
-    console.log(\`[{{name}}] Client initialized\`)
+  initialize(): void {
+    console.log('[{{name}}] client initialized')
   }
 
   // Add your client-side methods here
@@ -443,95 +367,22 @@ export const {{camelName}}Client = new {{pascalName}}Client()
 
     private getFullTemplate(): Template {
         const basic = this.getBasicTemplate()
-        const server = this.getServerOnlyTemplate()
-        const client = this.getClientOnlyTemplate()
 
         return {
             ...basic,
             name: 'full-plugin',
-            description: 'Complete plugin with server and client code',
+            description: 'Complete plugin with server + client code',
             files: [
-                {
-                    path: 'plugins/{{name}}/package.json',
-                    content: `{
-  "name": "@fluxstack/{{name}}-plugin",
-  "version": "1.0.0",
-  "description": "{{description}}",
-  "main": "index.ts",
-  "types": "index.ts",
-  "exports": {
-    ".": {
-      "import": "./index.ts",
-      "types": "./index.ts"
-    },
-    "./config": {
-      "import": "./config/index.ts",
-      "types": "./config/index.ts"
-    },
-    "./server": {
-      "import": "./server/index.ts",
-      "types": "./server/index.ts"
-    },
-    "./client": {
-      "import": "./client/index.ts",
-      "types": "./client/index.ts"
-    },
-    "./types": {
-      "import": "./types.ts",
-      "types": "./types.ts"
-    }
-  },
-  "keywords": [
-    "fluxstack",
-    "plugin",
-    "{{name}}",
-    "react",
-    "server",
-    "client",
-    "typescript"
-  ],
-  "author": "FluxStack Developer",
-  "license": "MIT",
-  "peerDependencies": {
-    "react": ">=16.8.0",
-    "elysia": "^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    }
-  },
-  "dependencies": {},
-  "devDependencies": {
-    "@types/react": "^18.0.0",
-    "typescript": "^5.0.0"
-  },
-  "fluxstack": {
-    "plugin": true,
-    "version": "^1.0.0",
-    "hooks": [
-      "setup",
-      "onServerStart",
-      "onRequest",
-      "onResponse",
-      "onError"
-    ],
-    "category": "utility",
-    "tags": ["{{name}}", "server", "client", "react"]
-  }
-}
-`
-                },
-                ...basic.files.slice(1), // Skip package.json from basic
+                ...basic.files,
                 {
                     path: 'plugins/{{name}}/server/index.ts',
                     content: `/**
- * Server-side logic for {{pascalName}} plugin
+ * Server-side service for {{pascalName}} plugin
  */
 
 export class {{pascalName}}Service {
-  async initialize() {
-    console.log(\`[{{name}}] Server service initialized\`)
+  async initialize(): Promise<void> {
+    console.log('[{{name}}] server service initialized')
   }
 
   // Add your server-side methods here
@@ -543,12 +394,12 @@ export const {{camelName}}Service = new {{pascalName}}Service()
                 {
                     path: 'plugins/{{name}}/client/index.ts',
                     content: `/**
- * Client-side logic for {{pascalName}} plugin
+ * Client-side code for {{pascalName}} plugin
  */
 
 export class {{pascalName}}Client {
-  initialize() {
-    console.log(\`[{{name}}] Client initialized\`)
+  initialize(): void {
+    console.log('[{{name}}] client initialized')
   }
 
   // Add your client-side methods here
@@ -564,7 +415,8 @@ export const {{camelName}}Client = new {{pascalName}}Client()
  */
 
 // Config types are exported from ./config/index.ts
-// Import them like: import type { {{pascalName}}Config } from './config'
+// Import them like:
+//   import type { {{pascalName}}Config } from './config'
 
 export interface {{pascalName}}Options {
   // Add your runtime options types here

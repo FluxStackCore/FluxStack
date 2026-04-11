@@ -1,5 +1,35 @@
 #!/usr/bin/env bun
 
+/**
+ * create-fluxstack — project generator (current model: framework-in-template)
+ *
+ * This generator clones the FluxStack framework source into the new project
+ * (the entire `core/` tree and friends) rather than installing the framework
+ * as an npm dependency. That's a transitional design: the long-term direction
+ * is "framework-as-dep" once @fluxstack/framework is extracted as a published
+ * package — same pattern we already have for @fluxstack/live and
+ * @fluxstack/plugin-kit. When that happens, this script becomes a thin
+ * template generator that writes a package.json with the framework as a dep
+ * and never touches the framework source.
+ *
+ * Until that migration happens, this script exists to keep onboarding
+ * working in the current model. The content it generates (README,
+ * plugins/README, example code) MUST reflect the CURRENT framework
+ * architecture — not the retired auto-discovery + class-based plugin
+ * model that was removed in @fluxstack/plugin-kit@0.4.0.
+ *
+ * Reference points for "current architecture":
+ *   - Plugins are registered statically via `framework.use(pluginObject)`
+ *     in `app/server/index.ts`. No file-based discovery. No `plugin.json`.
+ *   - Plugin shape is a plain object literal `export const xxxPlugin: Plugin = { ... }`,
+ *     NOT `class XxxPlugin implements Plugin`. See the real plugins in
+ *     `core/plugins/built-in/` and `@fluxstack/plugin-csrf-protection` for
+ *     living examples.
+ *   - Plugin types come from `@fluxstack/plugin-kit`, the canonical source.
+ *     `@core/plugins/types` still works as a shim but is not the path to
+ *     teach new users.
+ */
+
 import { program } from 'commander'
 import { resolve, join, basename } from 'path'
 import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, readdirSync } from 'fs'
@@ -118,110 +148,140 @@ program
       // Create a README in plugins folder
       const pluginsReadme = `# Plugins
 
-This folder is for your custom FluxStack plugins.
+This folder is where your **custom project-local plugins** live.
+External npm plugins (e.g. \`@fluxstack/plugin-csrf-protection\`) are
+installed via \`bun add\` and imported from \`node_modules\` instead.
 
-## 📖 Documentation
+## ⚡ How plugins are loaded
 
-For complete plugin development guide, see:
-- \`LLMD/resources/plugins-external.md\` - Full plugin documentation
-- \`LLMD/reference/plugin-hooks.md\` - All available hooks
+FluxStack uses **explicit static registration**. Every plugin must be
+imported and passed to \`framework.use()\` in \`app/server/index.ts\`:
 
-## 📦 Available CLI Commands
+\`\`\`typescript
+// app/server/index.ts
+import { FluxStackFramework } from "@core/server"
+import { swaggerPlugin } from "@core/plugins/built-in/swagger"
+import { myPlugin } from "../../plugins/my-plugin"
 
-\`\`\`bash
-# Create a new plugin
-bun run cli make:plugin my-plugin                    # Basic plugin
-bun run cli make:plugin my-plugin --template full    # Full plugin (server + client)
-bun run cli make:plugin my-plugin --template server  # Server-only plugin
-
-# Manage plugin dependencies
-bun run cli plugin:deps install    # Install plugin dependencies
-bun run cli plugin:deps list       # List plugin dependencies
-bun run cli plugin:deps check      # Check for conflicts
-bun run cli plugin:deps clean      # Clean unused dependencies
+const framework = new FluxStackFramework()
+  .use(swaggerPlugin)
+  .use(myPlugin)
 \`\`\`
 
-## 🔌 Plugin Structure
+There is **no auto-discovery**. A plugin file sitting in this folder
+is not loaded unless something explicitly imports and registers it.
+This is intentional — it makes the dev and production builds behave
+identically (bundlers can tree-shake and include plugin code only
+when it's statically referenced) and makes the list of enabled
+plugins auditable in one file.
+
+## 📖 Full documentation
+
+- \`LLMD/resources/plugins-external.md\` — plugin authoring guide
+- \`LLMD/reference/plugin-hooks.md\` — every hook and its signature
+
+## 🛠️ CLI scaffolding
+
+Generate a new plugin skeleton:
+
+\`\`\`bash
+bun run cli make:plugin my-plugin                    # basic
+bun run cli make:plugin my-plugin --template full    # server + client
+bun run cli make:plugin my-plugin --template server  # server only
+\`\`\`
+
+After running \`make:plugin\`, the CLI will print instructions
+telling you to import and \`.use()\` the new plugin in
+\`app/server/index.ts\`. Do that step — the generator does not
+auto-edit your server file.
+
+## 📁 Plugin layout
 
 \`\`\`
 plugins/
-├── my-plugin/
-│   ├── plugin.json       # Plugin metadata (name, version, dependencies)
-│   ├── index.ts          # Plugin entry point (server-side hooks)
-│   ├── server/           # Server-side code (optional)
-│   └── client/           # Client-side code (optional)
+└── my-plugin/
+    ├── index.ts          # Plugin object (with setup + optional hooks)
+    ├── config/           # Optional: per-plugin declarative config
+    │   └── index.ts
+    ├── server/           # Optional: server-side services
+    └── client/           # Optional: client-side code
 \`\`\`
 
-## ⚡ Quick Start
+A plugin's identity lives in its exported object, not in a separate
+metadata file. No \`plugin.json\` is needed (or read).
 
-1. Create your plugin folder: \`plugins/my-plugin/\`
-2. Create \`plugin.json\` with metadata
-3. Create \`index.ts\` with your plugin logic
-4. Use \`bun run cli plugin:deps install\` if you need extra dependencies
+## 🔌 Writing a plugin
 
-## 🔌 Intercepting Requests
-
-Plugins can intercept and modify requests using hooks:
+A plugin is a **plain object** implementing the \`Plugin\` interface
+from \`@fluxstack/plugin-kit\`:
 
 \`\`\`typescript
 // plugins/my-plugin/index.ts
-import type { FluxStack, PluginContext, RequestContext, ResponseContext } from "@core/plugins/types"
+import type { Plugin, PluginContext, RequestContext, ErrorContext } from "@fluxstack/plugin-kit"
 
-export class MyPlugin implements FluxStack.Plugin {
-  name = 'my-plugin'
-  version = FLUXSTACK_VERSION
+export const myPlugin: Plugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+  description: 'Example plugin that logs requests',
 
-  // Intercept every request
-  async onRequest(context: PluginContext): Promise<void> {
-    // Example: Add custom headers
-    const url = (() => {
-      try {
-        return new URL(PluginContext.request.url)
-      } catch {
-        const host = PluginContext.request.headers.get('host') || 'localhost'
-        return new URL(request.url, \`http://\${host}\`)
+  // Called once during framework.start(). Use this to initialize
+  // resources, mount Elysia routes via ctx.app, register
+  // client-side JS hooks via ctx.clientHooks, etc.
+  setup: async (ctx: PluginContext) => {
+    ctx.logger.info('[my-plugin] initialized')
+  },
+
+  // Fires before every request is routed. Read ctx.path / ctx.method
+  // / ctx.headers. Set ctx.handled = true and ctx.response to
+  // short-circuit the pipeline.
+  onBeforeRoute: async (ctx: RequestContext) => {
+    if (ctx.path.startsWith('/api/protected')) {
+      const token = ctx.headers['authorization']
+      if (!token) {
+        ctx.handled = true
+        ctx.response = new Response('Unauthorized', { status: 401 })
       }
-    })()
-    console.log(\`[\${this.name}] Request to: \${url.pathname}\`)
-
-    // Example: Validate authentication
-    const token = request.headers.get('Authorization')
-    if (!token && url.pathname.startsWith('/api/protected')) {
-      throw new Error('Unauthorized')
     }
-  }
+  },
 
-  // Intercept every response
-  async onResponse(context: PluginContext): Promise<void> {
-    console.log(\`[\${this.name}] Response status: \${PluginContext.response.status}\`)
-  }
-
-  // Handle errors
-  async onError(context: PluginContext, error: Error): Promise<void> {
-    console.error(\`[\${this.name}] Error:\`, error.message)
-    // Example: Send to error tracking service
-  }
+  // Fires if a route handler throws.
+  onError: async (ctx: ErrorContext) => {
+    console.error('[my-plugin] handler failed:', ctx.error.message)
+  },
 }
+
+export default myPlugin
 \`\`\`
 
-## 📋 Available Hooks
+Then register it in \`app/server/index.ts\`:
 
-- **\`setup\`**: Initialize plugin resources (called once at startup)
-- **\`onServerStart\`**: Run when server starts
-- **\`onRequest\`**: Intercept incoming requests (before route handlers)
-- **\`onResponse\`**: Intercept outgoing responses (after route handlers)
-- **\`onError\`**: Handle errors globally
+\`\`\`typescript
+import { myPlugin } from '../../plugins/my-plugin'
 
-## 💡 Common Use Cases
+framework.use(myPlugin)
+\`\`\`
 
-- **Authentication**: Validate tokens in \`onRequest\`
-- **Logging**: Log requests/responses for analytics
-- **Rate Limiting**: Track request counts per IP
-- **CORS**: Add headers in \`onResponse\`
-- **Request Transformation**: Modify request body/headers
-- **Response Transformation**: Add custom headers, compress responses
+## ❌ Plugin as class — DON'T
 
-See the documentation for detailed examples and best practices.
+The old class-based pattern (\`export class MyPlugin implements Plugin\`)
+is deprecated. All new plugins should be plain object literals. The
+built-in plugins and \`@fluxstack/plugin-csrf-protection\` are all
+objects, and they're the canonical reference.
+
+## 💡 Common hook choices
+
+| You want to... | Use this hook |
+|---|---|
+| Initialize shared state / mount routes | \`setup\` |
+| Intercept incoming requests | \`onRequest\` or \`onBeforeRoute\` |
+| Inspect or transform responses | \`onBeforeResponse\` or \`onResponse\` |
+| Validate requests (auth, CSRF, etc.) | \`onRequestValidation\` |
+| Handle uncaught handler errors | \`onError\` |
+| Run code at server startup | \`onServerStart\` |
+
+See \`@fluxstack/plugin-csrf-protection\` for a real-world example
+that uses \`setup\` (to mount \`GET /api/__csrf\`) and
+\`onRequestValidation\` (to reject mutating requests without a token).
 `
       writeFileSync(join(pluginsDir, 'README.md'), pluginsReadme)
       
@@ -413,48 +473,97 @@ ${actualProjectName}/
 
 ## 🔌 Adding Plugins
 
+Plugins are registered **explicitly** via \`framework.use()\` in
+\`app/server/index.ts\`. There is no auto-discovery — every plugin you
+want enabled must be imported and passed to \`.use()\`. This is the
+only registration path: dev mode and production bundles behave identically.
+
 ### Built-in Plugins
-FluxStack includes several built-in plugins that are ready to use:
+
+FluxStack ships with several built-in plugins:
 
 \`\`\`typescript
 // app/server/index.ts
-import { swaggerPlugin } from "@core/server"
+import { FluxStackFramework } from "@core/server"
+import { vitePlugin } from "@core/plugins/built-in/vite"
+import { swaggerPlugin } from "@core/plugins/built-in/swagger"
+import { liveComponentsPlugin } from "@core/server/live"
 
-// Add built-in plugins
-app.use(loggerPlugin)
-app.use(swaggerPlugin)
+const framework = new FluxStackFramework()
+  .use(swaggerPlugin)
+  .use(liveComponentsPlugin)
+  .use(vitePlugin)
 \`\`\`
 
-### Custom Plugin Example
+### Using an npm Plugin
+
+Install the package, import it, and register via \`.use()\`:
 
 \`\`\`typescript
-// app/server/plugins/auth.ts
-import { Elysia } from 'elysia'
+// app/server/index.ts
+import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
 
-export const authPlugin = new Elysia({ name: 'auth' })
-  .derive(({ headers }) => ({
-    user: getUserFromToken(headers.authorization)
-  }))
-  .guard({
-    beforeHandle({ user, set }) {
-      if (!user) {
-        set.status = 401
-        return { error: 'Unauthorized' }
-      }
-    }
-  })
+framework.use(csrfProtectionPlugin)
+\`\`\`
 
-// Use in app/server/index.ts
-import { authPlugin } from './plugins/auth'
-app.use(authPlugin)
+### Writing Your Own Plugin
+
+A plugin is a **plain object** implementing the \`Plugin\` interface
+from \`@fluxstack/plugin-kit\`. NOT a class — just an object with hook
+functions as fields.
+
+\`\`\`typescript
+// plugins/my-plugin/index.ts
+import type { Plugin, PluginContext, RequestContext } from "@fluxstack/plugin-kit"
+
+export const myPlugin: Plugin = {
+  name: 'my-plugin',
+  version: '1.0.0',
+
+  // Runs once during framework.start() — use this to initialize
+  // resources, mount Elysia routes via context.app, register client
+  // hooks, etc.
+  setup: async (ctx: PluginContext) => {
+    ctx.logger.info('[my-plugin] initialized')
+  },
+
+  // Runs before every request is routed
+  onBeforeRoute: async (ctx: RequestContext) => {
+    // e.g. inspect ctx.path, reject with ctx.handled = true, etc.
+  },
+
+  // Runs if a handler throws
+  onError: async (ctx) => {
+    ctx.logger?.error('[my-plugin] handler failed', ctx.error)
+  },
+}
+
+export default myPlugin
+\`\`\`
+
+Then register it:
+
+\`\`\`typescript
+// app/server/index.ts
+import { myPlugin } from '../../plugins/my-plugin'
+
+framework.use(myPlugin)
 \`\`\`
 
 ### Available Plugin Hooks
-- \`setup\` - Initialize plugin resources
-- \`onServerStart\` - Run when server starts
-- \`onRequest\` - Process incoming requests
-- \`onResponse\` - Process outgoing responses
-- \`onError\` - Handle errors
+
+| Hook | When it fires |
+|---|---|
+| \`setup\` | Once during \`framework.start()\`, before routes handle requests |
+| \`onBeforeServerStart\` / \`onServerStart\` / \`onAfterServerStart\` | Server lifecycle |
+| \`onRequest\` | Every incoming request, before routing |
+| \`onBeforeRoute\` / \`onAfterRoute\` | Around route matching |
+| \`onBeforeResponse\` / \`onResponse\` | Around response delivery |
+| \`onRequestValidation\` | Request validation step (used by CSRF protection, auth guards, etc.) |
+| \`onError\` | Uncaught errors in handlers |
+| \`onBuild\` / \`onBuildComplete\` | Build pipeline |
+
+See \`LLMD/reference/plugin-hooks.md\` for full hook signatures.
 
 ## 📖 Learn More
 
