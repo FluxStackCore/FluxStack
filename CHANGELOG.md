@@ -2,6 +2,138 @@
 
 All notable changes to FluxStack will be documented in this file.
 
+## [1.19.0] - 2026-04-11
+
+### Major Refactor: Plugin System Extracted to `@fluxstack/plugin-kit`
+
+The plugin system (manager, registry, executor, discovery, dependency
+manager, module resolver, types) has been extracted from `core/plugins/`
+into the new standalone package `@fluxstack/plugin-kit`. This is the
+same playbook we used for `@fluxstack/live` in 1.16.0 — implementation
+lives in the lib, `core/plugins/` is now a thin re-export shim layer
+for backwards compatibility with existing `@core/plugins/*` imports.
+
+**Impact:** ~3,300 lines of plugin system implementation deleted from
+the app, `core/plugins/` went from 9 runtime files (4017 lines) to
+2 thin shims (types.ts + index.ts, ~200 lines combined). Single
+source of truth for plugin types and runtime is now
+`@fluxstack/plugin-kit`.
+
+### Breaking Changes
+
+- **Auto-discovery removed from `PluginManager.initialize()`** (plugin-kit 0.4.0).
+  The old code called `readdir('node_modules')` and `readdir('plugins')`
+  at startup to discover plugins. This silently broke in production
+  bundles where those directories don't exist, and prevented bundlers
+  from statically including plugin code. Host apps must now register
+  plugins explicitly via `framework.use(pluginObject)`. Dev and prod
+  are now identical; the bundler can tree-shake.
+
+- **`PluginManager` constructor requires `settings` and `clientHooks`**
+  explicitly. These used to be read from the full config / imported
+  as module-level singletons. Now they're injected:
+  ```ts
+  new PluginManager<FluxStackConfig>({
+    config: fullConfig,
+    settings: fullConfig.plugins,
+    logger: pluginLogger,
+    clientHooks: { register: (...) => pluginClientHooks.register(...) },
+    app: this.app,
+  })
+  ```
+
+- **`FluxStack.Plugin` generic over `TConfig`**. The legacy form
+  (no generic) still works and defaults to `unknown`. FluxStack's
+  shim specializes to `Plugin<FluxStackConfig>`.
+
+- **Plugin classes discouraged, object literals are canonical**.
+  All built-in plugins and `@fluxstack/plugin-csrf-protection` use
+  `export const xxxPlugin: Plugin = { name, setup, ... }`. The
+  `class X implements Plugin` form is retired from the generators
+  but still technically accepted at runtime (it implements the
+  same interface).
+
+### Added
+
+- **`@fluxstack/plugin-kit`** — new npm package. Types + runtime
+  for the plugin system. Published at 0.4.0 as of this release.
+  Used by FluxStack app and external plugin packages alike.
+- **`tests/integration/framework/registered-plugins.test.ts`** (10 tests)
+  — end-to-end verification that the four plugins registered via
+  `framework.use()` in `app/server/index.ts` actually inject their
+  hooks at runtime. Catches the class of bug where plugin objects
+  are registered but no hook actually fires (the exact failure
+  mode of the old auto-discovery in prod bundles).
+- **Static plugin registration everywhere**. `app/server/index.ts`
+  now imports `csrfProtectionPlugin` from `@fluxstack/plugin-csrf-protection`
+  directly and registers via `.use()`. Same pattern as the built-ins.
+- **Startup banner reads from the PluginRegistry**. The banner line
+  `Plugins (N): ...` now lists exactly what `framework.getPluginRegistry().getAll()`
+  returns, instead of relying on each plugin manually pushing itself
+  to `globalThis.__fluxstackPlugins`. Backwards compatible — the old
+  global is still read as a fallback.
+- **`@fluxstack/sdk` deprecated on npm** with a message pointing
+  users to `@fluxstack/plugin-kit`. The SDK was a static copy of
+  plugin types + a duplicate of `@fluxstack/config`; both have
+  canonical sources now.
+- **`make:plugin` CLI** generates plain object literal plugins
+  importing from `@fluxstack/plugin-kit`. Identifier generation
+  fixed: `my-plugin` → `myPlugin` (not `myPluginPlugin`).
+
+### Changed
+
+- **`@fluxstack/live` family bumped** from `^0.6.0` to `^0.7.1`.
+  Ships three follow-up bug fixes: opt-in `includeSelf` on `$room`
+  proxy emit (#15), `deepAssign` clones plain objects to break
+  external aliasing (#13), fail-loud protocol framing + telemetry (#7).
+- **`create-fluxstack` README template**: removed the `loggerPlugin`
+  example (that plugin was deleted), replaced class-based plugin
+  example with object literal, added a hook reference table.
+- **`plugins/README.md` template**: rewritten to reflect the static
+  `.use()` model. Explicitly calls out that plugins are NOT
+  auto-discovered. Points at `@fluxstack/plugin-csrf-protection`
+  as the living reference implementation.
+- **Bundle prod size** grew from ~2.46 MB to ~3.34 MB because
+  `@fluxstack/plugin-csrf-protection` is now statically included.
+  Before, it was dynamically loaded via `readdir('node_modules')`
+  and the bundler couldn't see it.
+- **Vite plugin startup banner label fixed** — `| Vite: embedded`
+  only shows in development now. In production the vite plugin
+  runs in static-fallback mode (serving `dist/client/`) and doesn't
+  actually run a Vite dev server, so the label was misleading.
+
+### Removed
+
+- **6934 lines of dead test code** across 24 test files. Orphaned
+  tests under `core/**/__tests__/*` never ran (vitest config was
+  `include: tests/**/*.test.ts`) and 14 of 18 were broken on
+  import when run directly. Also deleted 5 `describe.skip`'d test
+  suites under `tests/` with abandoned TODOs pointing at APIs
+  that were refactored away (Eden Treaty, ProjectCreator). Plus
+  `vitest.config.live.ts`, an orphan config pointing at a
+  directory that doesn't exist anymore.
+- **`core/plugins/{manager,registry,executor,discovery,dependency-manager,module-resolver,config}.ts`**
+  deleted from FluxStack app. Implementation lives in
+  `@fluxstack/plugin-kit` now. `core/plugins/types.ts` and
+  `core/plugins/index.ts` kept as thin shim barrels that re-export
+  from the lib and specialize `<TConfig>` against `FluxStackConfig`.
+- **Deprecated `configSchema` and `defaultConfig` fields** from the
+  Plugin interface. Were marked `@deprecated` and had no call sites.
+  Plugins use `@fluxstack/config` for declarative config instead.
+- **`loggerPlugin`** — old built-in plugin that was already absent
+  from the real codebase but still referenced in generated templates.
+  Template references removed.
+
+### Validation
+
+- Typecheck (`bunx tsc --noEmit -p tsconfig.api-strict.json`) holds
+  at the 60 pre-existing errors baseline throughout every step —
+  zero regression across all four phases of the extraction.
+- Full test suite: 42 test files, 652 passing, 5 skipped (all
+  intentional individual `it.skip` TODOs).
+- Dev and prod both show `Plugins (4): swagger, live-components,
+  csrf-protection, vite` in the startup banner — identical output.
+
 ## [1.16.0] - 2026-03-13
 
 ### Major Refactor: Extract Live Components to Monorepo
