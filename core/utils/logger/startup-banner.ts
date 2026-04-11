@@ -22,6 +22,17 @@ export interface StartupInfo {
   viteEmbedded?: boolean // true when Vite runs programmatically with backend
   swaggerPath?: string
   liveComponents?: string[]
+  /**
+   * List of registered plugins to display. If omitted, falls back to
+   * the legacy `globalThis.__fluxstackPlugins` convention for backwards
+   * compatibility with plugins that still push themselves there.
+   *
+   * Prefer passing this explicitly — read it from the PluginRegistry
+   * (`framework.getPluginRegistry().getAll()`) so the banner reflects
+   * exactly what's in the registry, not what each plugin manually
+   * decided to advertise.
+   */
+  plugins?: Array<{ name: string }>
 }
 
 /**
@@ -52,8 +63,13 @@ export function displayStartupBanner(info: StartupInfo): void {
     console.log(chalk.gray(`  Live Components (${liveComponents.length}): `) + chalk.yellow(liveComponents.join(', ')))
   }
 
-  // Display plugins in compact format
-  const plugins = ((globalThis as Record<string, unknown>).__fluxstackPlugins || []) as Array<{ name: string }>
+  // Display plugins in compact format. Prefer the explicit list from
+  // info.plugins (read from the PluginRegistry); fall back to the
+  // legacy global convention if the caller didn't pass anything.
+  const plugins =
+    info.plugins ??
+    (((globalThis as Record<string, unknown>).__fluxstackPlugins ||
+      []) as Array<{ name: string }>)
   if (plugins.length > 0) {
     const pluginList = plugins.map((p) => p.name).join(', ')
     console.log(chalk.gray(`  Plugins (${plugins.length}): `) + chalk.magenta(pluginList))

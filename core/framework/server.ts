@@ -840,17 +840,23 @@ export class FluxStackFramework {
       const showBanner = this.cfg.server.showBanner !== false // default: true
       const vitePluginActive = this.pluginRegistry.has('vite')
 
-      // Prepare startup info for banner or callback
+      // Prepare startup info for banner or callback.
+      // `plugins` is sourced from the PluginRegistry (the single source
+      // of truth after the plugin-kit migration) — this includes every
+      // plugin registered via `.use()`, regardless of whether it
+      // bothered to push itself to `globalThis.__fluxstackPlugins`.
+      const registeredPlugins = this.pluginRegistry.getAll()
       const startupInfo: StartupInfo = {
         port,
         host: this.cfg.server.host || 'localhost',
         apiPrefix,
         environment: this.context.environment,
-        pluginCount: this.pluginRegistry.getAll().length,
+        pluginCount: registeredPlugins.length,
         vitePort: this.cfg.client?.port,
         viteEmbedded: vitePluginActive, // Vite is embedded when plugin is active
         swaggerPath: '/swagger', // TODO: Get from swagger plugin config
-        liveComponents: liveServer?.registry.getRegisteredComponentNames() ?? []
+        liveComponents: liveServer?.registry.getRegisteredComponentNames() ?? [],
+        plugins: registeredPlugins.map(p => ({ name: p.name })),
       }
 
       // Display banner if enabled

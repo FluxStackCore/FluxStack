@@ -14,7 +14,7 @@
         "@fluxstack/live-react": "^0.7.1",
         "@fluxstack/plugin-crypto-auth": "^1.0.0",
         "@fluxstack/plugin-csrf-protection": "^1.1.0",
-        "@fluxstack/plugin-kit": "^0.3.4",
+        "@fluxstack/plugin-kit": "^0.4.0",
         "@vitejs/plugin-react": "^4.6.0",
         "chalk": "^5.3.0",
         "commander": "^12.1.0",
@@ -218,7 +218,7 @@
 
     "@fluxstack/plugin-csrf-protection": ["@fluxstack/plugin-csrf-protection@1.1.0", "", { "peerDependencies": { "@fluxstack/sdk": ">=1.0.0", "elysia": ">=1.0.0" } }, "sha512-f66eA7+VFFm4rpxTN98MWt6uTyBSwB7woHUZEwe5qkNkK5BjdW/SeO78I+APJLVUSonUL0c/MvWgEZNLO7C+IA=="],
 
-    "@fluxstack/plugin-kit": ["@fluxstack/plugin-kit@0.3.4", "", {}, "sha512-r4jqX0vqVf3C1AbnSb2cMWGQT1ADtgHObwXKAQhstyvMKXzgqmkkSM4r+sI5UUUJmFUGykDJx+OawNSuVp/T6Q=="],
+    "@fluxstack/plugin-kit": ["@fluxstack/plugin-kit@0.4.0", "", {}, "sha512-p0SX/Ni+SwDdvxU7uAhpHZ2Yh2tJZiT82erjRhBrDfAccX5EufdhB8Igc4Bn+pJqm3v6WzvMwLM5utlteBRVcw=="],
 
     "@fluxstack/sdk": ["@fluxstack/sdk@1.0.0", "", {}, "sha512-FDKu/U8+9L3OLOyYrSmsMrRTqNVVOJTJcpuKAVDOF2/wG/thsxjQZ6uG0DAGCwWfxM/+VwzXiBE54R083XYW6A=="],
 
