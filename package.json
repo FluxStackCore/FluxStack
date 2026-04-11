@@ -82,7 +82,7 @@
     "@fluxstack/live-client": "^0.6.0",
     "@fluxstack/live-elysia": "^0.6.0",
     "@fluxstack/live-react": "^0.6.0",
-    "@fluxstack/plugin-kit": "^0.3.1",
+    "@fluxstack/plugin-kit": "^0.3.2",
     "@fluxstack/plugin-crypto-auth": "^1.0.0",
     "@fluxstack/plugin-csrf-protection": "^1.1.0",
     "@vitejs/plugin-react": "^4.6.0",

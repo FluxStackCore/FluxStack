@@ -6,6 +6,13 @@
 import type { CLICommand } from '../command-registry'
 import { FluxStackBuilder } from '@core/build'
 import { fluxStackConfig } from '@config'
+import {
+  PluginRegistry,
+  PluginManager,
+  type FluxStack,
+} from '@fluxstack/plugin-kit'
+import type { FluxStackConfig } from '@config'
+import { pluginClientHooks } from '@core/server/plugin-client-hooks'
 
 export const buildCommand: CLICommand = {
   name: 'build',
@@ -38,18 +45,30 @@ export const buildCommand: CLICommand = {
   handler: async (args, options, context) => {
     const config = fluxStackConfig
 
-    // Load plugins for build hooks
-    const { PluginRegistry } = await import('@core/plugins/registry')
-    const { PluginManager } = await import('@core/plugins/manager')
-    const pluginRegistry = new PluginRegistry({ config, logger: context.logger })
-    const pluginManager = new PluginManager({ config, logger: context.logger })
+    // Load plugins for build hooks. PluginRegistry + PluginManager now
+    // come from @fluxstack/plugin-kit (the single source of truth).
+    // Both constructors expect the plugin-related config slice explicitly
+    // via `settings`, and the manager additionally requires `clientHooks`.
+    const pluginRegistry = new PluginRegistry({
+      logger: context.logger,
+      settings: config.plugins,
+    })
+    const pluginManager = new PluginManager<FluxStackConfig>({
+      config,
+      settings: config.plugins,
+      logger: context.logger,
+      clientHooks: {
+        register: (hookName: string, jsCode: string) =>
+          pluginClientHooks.register(hookName, jsCode),
+      },
+    })
 
     try {
       await pluginManager.initialize()
       // Sync plugins to registry (same as framework does)
       const discoveredPlugins = pluginManager.getRegistry().getAll()
       const registryInternals = pluginRegistry as unknown as {
-        plugins: Map<string, import('@core/plugins/types').FluxStack.Plugin>
+        plugins: Map<string, FluxStack.Plugin>
         dependencies: Map<string, string[]>
         loadOrder: string[]
         updateLoadOrder(): void
