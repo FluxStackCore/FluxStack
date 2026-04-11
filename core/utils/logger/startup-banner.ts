@@ -54,8 +54,14 @@ export function displayStartupBanner(info: StartupInfo): void {
   const displayHost = host === '0.0.0.0' ? 'localhost' : host
   const serverUrl = `http://${displayHost}:${port}`
 
-  // Simple ready message with URL
-  console.log(chalk.green('\nServer ready!') + chalk.gray(` Environment: ${environment}${viteEmbedded ? ' | Vite: embedded' : ''}`))
+  // Simple ready message with URL.
+  // "Vite: embedded" only makes sense in development, where the vite
+  // plugin actually runs the Vite dev server. In production, the same
+  // plugin acts as a static-file fallback (serving the compiled
+  // dist/client bundle), so the "Vite: embedded" label is misleading.
+  const isDev = environment === 'development'
+  const viteLabel = viteEmbedded && isDev ? ' | Vite: embedded' : ''
+  console.log(chalk.green('\nServer ready!') + chalk.gray(` Environment: ${environment}${viteLabel}`))
   console.log(chalk.cyan(`  → ${serverUrl}`))
 
   // Display Live Components
