@@ -15,11 +15,12 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, useLocation } from 'react-router'
 import { api } from './lib/eden-api'
+import { LiveProvider } from './providers/LiveProvider'
 import { AppLayout } from './components/AppLayout'
 import { DemoPage } from './components/DemoPage'
 import { HomePage } from './pages/HomePage'
 import { ApiTestPage } from './pages/ApiTestPage'
-import { ClientBoundary } from '../../../plugins/bun-next/client-boundary'
+import { ClientBoundary } from '@core/plugins/built-in/renderers/ssr/client-boundary'
 
 // ---------------------------------------------------------------------------
 // Server-safe components (no live-react dependency)
@@ -172,9 +173,24 @@ function AppContent() {
 }
 
 // ---------------------------------------------------------------------------
-// App Root — NO LiveComponentsProvider (that's client-only, in bootstrap)
+// App Root — providers go here, just like normal React
+// LiveProvider is SSR-safe: renders stub on server, real provider on client
 // ---------------------------------------------------------------------------
 
 export default function App() {
-  return <AppContent />
+  const wsUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/live/ws`
+    : undefined
+
+  return (
+    <LiveProvider
+      url={wsUrl}
+      autoConnect={true}
+      reconnectInterval={1000}
+      maxReconnectAttempts={5}
+      heartbeatInterval={30000}
+    >
+      <AppContent />
+    </LiveProvider>
+  )
 }

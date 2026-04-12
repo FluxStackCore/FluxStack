@@ -7,7 +7,8 @@
 import { resolve } from "path"
 import type { BunPlugin } from "bun"
 
-const projectRoot = resolve(import.meta.dirname, "../..")
+// Resolve to project root (5 levels up from core/plugins/built-in/renderers/ssr/)
+const projectRoot = resolve(import.meta.dirname, "../../../../..")
 const reactPath = resolve(projectRoot, "node_modules/react")
 const reactDomPath = resolve(projectRoot, "node_modules/react-dom")
 

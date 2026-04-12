@@ -102,9 +102,11 @@ export async function buildClientChunks(
             path: args.path,
             namespace: "server-stub",
           }))
-          // Stub @core/* EXCEPT @/core/client (which re-exports @fluxstack/live-react)
+          // Stub @core/* EXCEPT client-side code
           build.onResolve({ filter: /^@(\/)?core\// }, (args) => {
-            if (args.path.includes("core/client")) return undefined // let it resolve normally
+            // Allow through: core/client (live-react re-exports) and renderers/ssr (ClientBoundary)
+            if (args.path.includes("core/client")) return undefined
+            if (args.path.includes("renderers/ssr")) return undefined
             return { path: args.path, namespace: "server-stub" }
           })
           build.onLoad({ filter: /.*/, namespace: "server-stub" }, (args) => {

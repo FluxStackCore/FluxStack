@@ -1,5 +1,4 @@
-// SSR-compatible: public URL instead of module import
-const FluxStack = '/_assets/fluxstack.svg'
+import FluxStack from '@client/src/assets/fluxstack.svg'
 
 export function HomePage({ apiStatus }: { apiStatus: 'checking' | 'online' | 'offline' }) {
   return (

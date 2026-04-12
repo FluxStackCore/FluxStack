@@ -13,6 +13,9 @@ import { monitoringPlugin } from './monitoring'
 // Export individual plugins
 export { swaggerPlugin } from './swagger'
 export { vitePlugin } from './vite'
+
+// Renderers
+export { viteRenderer, ssrRenderer, bunRenderer } from './renderers'
 export { monitoringPlugin } from './monitoring'
 
 // Deprecated: staticPlugin is now merged into vitePlugin (auto-detects dev/prod)

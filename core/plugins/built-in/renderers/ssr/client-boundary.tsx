@@ -37,14 +37,14 @@ export function ClientBoundary({
     const manifest = (window as any).__CLIENT_MANIFEST__ || {}
     const entry = manifest[component]
 
-    if (!entry?.chunkUrl) {
-      setError(`No chunk for "${component}"`)
-      return
-    }
+    // Determine the import URL:
+    // - SSR mode: use chunk URL from manifest (pre-built, code-split)
+    // - Vite mode: import source file directly (Vite bundles on the fly)
+    const importUrl = entry?.chunkUrl || `/${component.replace(/^app\/client\//, "")}.tsx`
 
     let cancelled = false
 
-    import(/* @vite-ignore */ entry.chunkUrl)
+    import(/* @vite-ignore */ importUrl)
       .then(async (mod) => {
         if (cancelled) return
         const name = component.split("/").pop()!
@@ -72,11 +72,9 @@ export function ClientBoundary({
     }, fallback || React.createElement(DefaultSkeleton, null))
   }
 
-  // Client-side: component loaded → render with providers
+  // Client-side: component loaded — providers come from App tree above
   if (ClientComponent) {
-    return React.createElement(ClientWrapper, { url: getWsUrl() },
-      React.createElement(ClientComponent, props as any)
-    )
+    return React.createElement(ClientComponent, props as any)
   }
 
   // Client-side: loading or error

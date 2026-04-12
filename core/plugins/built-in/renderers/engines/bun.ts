@@ -12,7 +12,7 @@ import { join } from "path"
 import { existsSync } from "fs"
 
 // @ts-ignore — Bun HTML import
-import homepage from "../../../app/client/index.html"
+import homepage from "@client/index.html"
 
 import type { Renderer, BunNextConfig } from "../types"
 

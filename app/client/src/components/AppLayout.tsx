@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
-// SSR-compatible: use public URL instead of module import
-// (module imports resolve to filesystem paths on the server)
-const FluxStackLogo = '/_assets/fluxstack.svg'
+import FluxStackLogo from '@client/src/assets/fluxstack.svg'
 // Favicon SVG loaded at runtime for dynamic hue-rotate
 let faviconSvg = ''
 if (typeof window !== 'undefined') {

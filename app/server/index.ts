@@ -23,8 +23,11 @@ import { appConfig } from "@config"
 // wants to enable must be imported + `.use()`-d here.
 import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
 
-// 🚀 BunNext — unified frontend plugin (renderer: 'bun' | 'vite')
-import { bunNextPlugin } from "../../plugins/bun-next"
+// 🚀 Frontend renderers — choose one:
+//   viteRenderer()  — Vite classic (HMR, dev server)
+//   ssrRenderer()   — SSR with Bun (server-first, hydrateRoot)
+//   bunRenderer()   — Bun client-only (no SSR)
+import { ssrRenderer, viteRenderer, bunRenderer } from "@core/plugins/built-in/renderers"
 
 // 🔒 Auth provider para Live Components
 import { DevAuthProvider } from "./auth/DevAuthProvider"
@@ -47,7 +50,7 @@ const framework = new FluxStackFramework()
 // Frontend serving: BunNext com escolha de renderer
 // renderer: 'bun' (nativo) ou 'vite' (clássico)
 if (appConfig.mode !== 'backend-only') {
-  framework.use(bunNextPlugin({ renderer: 'ssr-bun' }))
+  framework.use(ssrRenderer())
 }
 
 framework.routes(appInstance)

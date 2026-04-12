@@ -9,7 +9,7 @@ lockfile = true
 
 # Path mapping for runtime execution
 [run]
-preload = ["./plugins/bun-next/ssr-preload.ts"]
+preload = ["./core/plugins/built-in/renderers/ssr/ssr-preload.ts"]
 
 # Path mapping (alias support) - matches tsconfig.json
 [run.alias]
@@ -43,4 +43,4 @@ preload = ["./plugins/bun-next/ssr-preload.ts"]
 "react/jsx-dev-runtime" = "./node_modules/react/jsx-dev-runtime"
 
 [serve.static]
-plugins = ["bun-plugin-tailwind", "./plugins/bun-next/react-dedupe-plugin.ts"]
+plugins = ["bun-plugin-tailwind", "./core/plugins/built-in/renderers/ssr/react-dedupe-plugin.ts"]

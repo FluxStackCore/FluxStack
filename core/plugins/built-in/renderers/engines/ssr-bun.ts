@@ -14,11 +14,11 @@ import type { PluginContext, RequestContext } from "@fluxstack/plugin-kit"
 import { join } from "path"
 import { readFileSync, existsSync } from "fs"
 
-// @ts-ignore — Minimal HTML import for CSS-only bundling (avoids server code in import chain)
-import cssPage from "../../../app/client/ssr-css.html"
+// @ts-ignore — Minimal HTML import for CSS-only bundling
+import cssPage from "@client/ssr-css.html"
 
 import type { Renderer, BunNextConfig } from "../types"
-import { buildAndGetManifest, type ClientManifest } from "../use-client-plugin"
+import { buildAndGetManifest, type ClientManifest } from "../ssr/use-client-plugin"
 
 const CHUNKS_DIR = "dist/ssr-chunks"
 
@@ -241,7 +241,7 @@ async function handleSSR(
 ): Promise<void> {
   try {
     const { renderToReadableStream } = await import("react-dom/server")
-    const { createServerElement } = await import("../../../app/client/src/ssr-entry")
+    const { createServerElement } = await import("@client/src/ssr-entry")
 
     const element = createServerElement(ctx.path)
     const reactStream = await renderToReadableStream(element)
