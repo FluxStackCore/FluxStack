@@ -1,54 +1,32 @@
 /**
- * SSR Bun Renderer
+ * SSR Bun Renderer — Selective Hydration
  *
- * Server-side renders the React app with ClientBoundary markers,
- * injects client manifest, and loads bootstrap for selective hydration.
+ * 1. Builds client component chunks via Bun.build() with code splitting
+ * 2. Server-renders React app with ClientBoundary markers
+ * 3. Injects manifest + bootstrap chunk for selective hydration
+ * 4. Serves chunk files statically from dist/ssr-chunks/
  *
- * Flow:
- * 1. Document requests (text/html) → SSR via renderToReadableStream
- * 2. Asset requests (JS/CSS/images) → proxy to internal Bun.serve()
- * 3. Client receives server-rendered HTML + manifest + bootstrap
- * 4. Bootstrap finds [data-client] markers and hydrates each component
+ * Server components → pure HTML, zero JS
+ * Client components → SSR skeleton + lazy-loaded chunk JS
  */
 
 import type { PluginContext, RequestContext } from "@fluxstack/plugin-kit"
 import { join } from "path"
-import { readFileSync } from "fs"
+import { readFileSync, existsSync } from "fs"
 
-// @ts-ignore — Bun HTML import for client bundling (CSS + JS assets)
-import homepage from "../../../app/client/index.html"
+// @ts-ignore — Minimal HTML import for CSS-only bundling (avoids server code in import chain)
+import cssPage from "../../../app/client/ssr-css.html"
 
 import type { Renderer, BunNextConfig } from "../types"
-import { getClientManifest, type ClientManifest } from "../use-client-plugin"
+import { buildAndGetManifest, type ClientManifest } from "../use-client-plugin"
 
-/** Fetch the bundled CSS/JS URLs from the internal Bun.serve() */
-async function discoverBundlerAssets(port: number): Promise<{ cssUrl: string; jsUrl: string }> {
-  for (let attempt = 0; attempt < 10; attempt++) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/`, {
-        headers: { "Accept": "text/html" },
-      })
-      const html = await res.text()
-      const cssMatch = html.match(/href="([^"]+\.css)"/)
-      const jsMatch = html.match(/src="([^"]+\.js)"[^>]*data-bun-dev-server-script/)
-
-      if (cssMatch || jsMatch) {
-        return {
-          cssUrl: cssMatch?.[1] || "",
-          jsUrl: jsMatch?.[1] || "",
-        }
-      }
-    } catch {}
-    await new Promise(r => setTimeout(r, 200))
-  }
-  return { cssUrl: "", jsUrl: "" }
-}
+const CHUNKS_DIR = "dist/ssr-chunks"
 
 function isDocumentRequest(ctx: RequestContext): boolean {
   const accept = ctx.headers["accept"] || ""
   if (accept.includes("text/html")) {
     const path = ctx.path
-    if (path.startsWith("/_bun/") || path.startsWith("/node_modules/")) return false
+    if (path.startsWith("/_bun/") || path.startsWith("/_chunks/") || path.startsWith("/node_modules/")) return false
     const lastSegment = path.split("/").pop() || ""
     if (lastSegment.includes(".") && !lastSegment.endsWith(".html")) return false
     return true
@@ -56,11 +34,50 @@ function isDocumentRequest(ctx: RequestContext): boolean {
   return false
 }
 
+function isChunkRequest(path: string): boolean {
+  return path.startsWith("/_chunks/")
+}
+
+function isAssetRequest(path: string): boolean {
+  return path.startsWith("/_assets/")
+}
+
+/** Serve static assets from app/client/src/assets/ */
+function serveAsset(ctx: RequestContext) {
+  const fileName = ctx.path.replace("/_assets/", "")
+  const filePath = join(process.cwd(), "app/client/src/assets", fileName)
+
+  if (!existsSync(filePath)) return
+
+  ctx.handled = true
+  ctx.response = new Response(Bun.file(filePath), {
+    headers: {
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  })
+}
+
+/** Fetch bundled CSS URL from the internal Bun.serve() */
+async function discoverCssUrl(port: number): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/`, {
+        headers: { "Accept": "text/html" },
+      })
+      const html = await res.text()
+      const cssMatch = html.match(/href="([^"]+\.css)"/)
+      if (cssMatch) return cssMatch[1]
+    } catch {}
+    await new Promise(r => setTimeout(r, 200))
+  }
+  return ""
+}
+
 export function createSsrBunRenderer(config: BunNextConfig): Renderer {
   let internalServer: ReturnType<typeof Bun.serve> | null = null
   let manifest: ClientManifest = {}
-  let bundlerCssUrl = ""
-  let bundlerAppJs = ""
+  let bootstrapChunkUrl = ""
+  let cssUrl = ""
 
   // HTML shell template
   const htmlPath = join(process.cwd(), "app/client/index.html")
@@ -71,56 +88,78 @@ export function createSsrBunRenderer(config: BunNextConfig): Renderer {
   const beforeRoot = rawHtml.slice(0, rootIdx + rootMarker.length)
   const afterRootRaw = rawHtml.slice(rootIdx + rootMarker.length)
 
-  // Remove the main.tsx script — we inject bootstrap instead
+  // Remove the main.tsx script — we inject bootstrap chunk instead
   const afterRootClean = afterRootRaw.replace(
     /<script[^>]*src="[^"]*main\.tsx"[^>]*><\/script>/,
     ""
   )
 
+  // Pre-scan chunks directory for file serving
+  const chunkFileCache = new Map<string, ReturnType<typeof Bun.file>>()
+
   return {
     name: "ssr-bun",
 
     async setup(context: PluginContext, isDev: boolean) {
-      // Scan for "use client" components and build manifest
+      // 1. Build client component chunks
       const srcDir = join(process.cwd(), "app/client/src")
-      manifest = getClientManifest(srcDir, config.internalPort, isDev)
+      const result = await buildAndGetManifest(srcDir, "/_chunks")
+
+      manifest = result.manifest
+      bootstrapChunkUrl = result.bootstrapChunk ? `/_chunks/${result.bootstrapChunk}` : ""
 
       const clientCount = Object.keys(manifest).length
-      context.logger.info(`SSR renderer — found ${clientCount} client component(s)`)
+      context.logger.info(`SSR renderer — ${clientCount} client components, ${Object.values(manifest).filter(e => e.chunkUrl).length} chunks built`)
+
+      if (bootstrapChunkUrl) {
+        context.logger.info(`SSR renderer — bootstrap: ${bootstrapChunkUrl}`)
+      }
 
       if (isDev) {
-        // Internal Bun.serve() for client bundle assets
+        // Internal Bun.serve() for CSS (Tailwind) bundling
         internalServer = Bun.serve({
           port: config.internalPort,
           hostname: "127.0.0.1",
-          routes: { "/*": homepage },
-          development: { hmr: true, console: config.console },
+          routes: { "/*": cssPage },
+          development: false, // Cache CSS in memory — no re-bundle per request
           fetch() {
             return new Response("Not Found", { status: 404 })
           },
         })
 
-        context.logger.info(`SSR renderer — internal bundler on 127.0.0.1:${config.internalPort}`)
-
-        // Discover bundled asset URLs (CSS, HMR JS) from the internal server
-        const assets = await discoverBundlerAssets(config.internalPort)
-        bundlerCssUrl = assets.cssUrl
-        bundlerAppJs = assets.jsUrl
-        context.logger.info(`SSR renderer — CSS: ${bundlerCssUrl}, App JS: ${bundlerAppJs}`)
+        cssUrl = await discoverCssUrl(config.internalPort)
+        context.logger.info(`SSR renderer — CSS: ${cssUrl}`)
       }
     },
 
     async handleRequest(ctx: RequestContext, isDev: boolean) {
+      // Serve static assets (SVGs, images, etc.)
+      if (isAssetRequest(ctx.path)) {
+        serveAsset(ctx)
+        return
+      }
+
+      // Serve chunk files
+      if (isChunkRequest(ctx.path)) {
+        serveChunk(ctx)
+        return
+      }
+
+      // SSR for document requests
       if (isDocumentRequest(ctx)) {
-        await handleSSR(ctx, isDev, config, manifest, beforeRoot, afterRootClean, bundlerCssUrl, bundlerAppJs)
-      } else if (isDev) {
+        await handleSSR(ctx, isDev, config, manifest, beforeRoot, afterRootClean, cssUrl, bootstrapChunkUrl)
+        return
+      }
+
+      // Proxy other requests (CSS from /_bun/, etc.)
+      if (isDev) {
         await proxyToInternal(ctx, config)
       }
     },
 
     async stop(context: PluginContext) {
       if (internalServer) {
-        context.logger.info("Stopping SSR internal bundler...")
+        context.logger.info("Stopping SSR internal server...")
         internalServer.stop()
         internalServer = null
       }
@@ -128,11 +167,29 @@ export function createSsrBunRenderer(config: BunNextConfig): Renderer {
 
     getInfo(isDev: boolean) {
       const clientCount = Object.keys(manifest).length
-      return isDev
-        ? `SSR + selective hydration (${clientCount} client components, port :${config.internalPort})`
-        : `SSR + selective hydration (${clientCount} client components)`
+      return `SSR + selective hydration (${clientCount} client chunks)`
     },
   }
+}
+
+/** Serve a pre-built chunk file from dist/ssr-chunks/ */
+function serveChunk(ctx: RequestContext) {
+  // /_chunks/CounterDemo-abc123.js → dist/ssr-chunks/CounterDemo-abc123.js
+  const fileName = ctx.path.replace("/_chunks/", "")
+  const filePath = join(process.cwd(), CHUNKS_DIR, fileName)
+
+  if (!existsSync(filePath)) return
+
+  let file = Bun.file(filePath)
+
+  ctx.handled = true
+  ctx.response = new Response(file, {
+    headers: {
+      "Content-Type": "application/javascript; charset=utf-8",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "Access-Control-Allow-Origin": "*",
+    },
+  })
 }
 
 async function handleSSR(
@@ -143,7 +200,7 @@ async function handleSSR(
   beforeRoot: string,
   afterRootClean: string,
   cssUrl: string,
-  appJsUrl: string,
+  bootstrapChunkUrl: string,
 ): Promise<void> {
   try {
     const { renderToReadableStream } = await import("react-dom/server")
@@ -156,29 +213,21 @@ async function handleSSR(
     const writer = writable.getWriter()
     const encoder = new TextEncoder()
 
-    // All assets go through the main port (3000) via proxy — no cross-origin
-    let head = beforeRoot
-    let tail = afterRootClean
-
-    // Build the manifest + bootstrap script injection
-    // Bootstrap JS bundle (discovered from internal Bun.serve())
-    // Served via proxy: 3000 → 51800 (transparent to browser)
-
-    // CSS from the Bun bundler (discovered at setup)
+    // CSS link
     const cssLink = cssUrl ? `<link rel="stylesheet" href="${cssUrl}">` : ""
-    // Main JS bundle — loads the full React app and takes over from SSR HTML
-    const appScript = appJsUrl
-      ? `<script type="module" crossorigin src="${appJsUrl}"></script>`
-      : ""
 
+    // Manifest injection
     const manifestScript = `<script>window.__CLIENT_MANIFEST__=${JSON.stringify(manifest)}</script>`
+
+    // Bootstrap chunk — loads and hydrates client components selectively
+    const bootstrapScript = bootstrapChunkUrl
+      ? `<script type="module" src="${bootstrapChunkUrl}"></script>`
+      : ""
 
     ;(async () => {
       try {
-        // HTML head + CSS
-        await writer.write(encoder.encode(head.replace("</head>", `${cssLink}</head>`)))
+        await writer.write(encoder.encode(beforeRoot.replace("</head>", `${cssLink}</head>`)))
 
-        // React SSR stream
         const reader = reactStream.getReader()
         while (true) {
           const { done, value } = await reader.read()
@@ -186,8 +235,9 @@ async function handleSSR(
           await writer.write(value)
         }
 
-        // Closing HTML + manifest + app JS (takes over from SSR)
-        await writer.write(encoder.encode(tail.replace("</body>", `${manifestScript}\n${appScript}\n</body>`)))
+        await writer.write(encoder.encode(
+          afterRootClean.replace("</body>", `${manifestScript}\n${bootstrapScript}\n</body>`)
+        ))
       } catch (err) {
         console.error("SSR stream error:", err)
       } finally {

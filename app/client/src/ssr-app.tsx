@@ -14,7 +14,70 @@
 
 import { Routes, Route } from 'react-router'
 import { ClientBoundary } from '../../../plugins/bun-next/client-boundary'
-import { HomePage } from './pages/HomePage'
+
+// SSR-safe HomePage — mirrors pages/HomePage.tsx with public asset URLs
+// instead of module imports (which resolve to filesystem paths during SSR)
+function SSRHomePage() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-72px)] px-4 sm:px-6 py-12 text-center relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-theme-accent rounded-full blur-[120px] pointer-events-none" />
+      <div className="relative z-10 flex flex-col items-center w-full max-w-3xl">
+        <div className="relative mb-5">
+          <div className="absolute inset-0 bg-theme-muted rounded-full blur-2xl animate-pulse-slow" />
+          <img
+            src="/_assets/fluxstack.svg"
+            alt="FluxStack"
+            className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 drop-shadow-[0_0_24px_rgba(168,85,247,0.35)] animate-float"
+          />
+        </div>
+        <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold mb-3 bg-theme-gradient bg-clip-text text-transparent tracking-tight leading-none">
+          FluxStack
+        </h1>
+        <p className="text-sm sm:text-base md:text-lg text-gray-400 mb-6 leading-relaxed">
+          <span className="text-theme font-semibold">Bun</span>
+          {' + '}
+          <span className="text-theme-secondary font-semibold">Elysia</span>
+          {' + '}
+          <span className="text-theme-secondary font-semibold">React</span>
+          {' = '}
+          <span className="text-white font-semibold">FluxStack</span>
+        </p>
+        <div className="mb-10 md:mb-12">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium tracking-wide uppercase transition-all bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
+            <div className="w-1.5 h-1.5 rounded-full animate-pulse bg-yellow-400" />
+            <span>Checking API...</span>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full mb-12">
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
+              <span className="text-sm">⚡</span>
+            </div>
+            <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Ultra Rápido</h3>
+            <p className="text-gray-500 text-[11px] sm:text-xs text-left leading-relaxed">Bun runtime com performance 3x superior ao Node.js</p>
+          </div>
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
+              <span className="text-sm">🔒</span>
+            </div>
+            <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Type Safe</h3>
+            <p className="text-gray-500 text-[11px] sm:text-xs text-left leading-relaxed">Eden Treaty com inferência end-to-end automática</p>
+          </div>
+          <div className="group bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 sm:p-5 hover:bg-white/[0.06] hover:border-theme transition-all duration-300">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent flex items-center justify-center mb-3 group-hover:bg-theme-muted transition-colors">
+              <span className="text-sm">🔥</span>
+            </div>
+            <h3 className="text-xs sm:text-sm font-semibold text-white mb-1 text-left">Live Components</h3>
+            <p className="text-gray-500 text-[11px] sm:text-xs text-left leading-relaxed">Estado reativo no servidor inspirado no Livewire</p>
+          </div>
+        </div>
+        <p className="text-gray-600 text-[11px] tracking-wide">
+          Desenvolvido com ❤️ usando TypeScript
+        </p>
+      </div>
+    </div>
+  )
+}
 
 /**
  * Server-safe layout shell — matches AppLayout structure without hooks
@@ -102,7 +165,7 @@ export function SSRApp() {
     <SSRLayout>
       <Routes>
         {/* HomePage is a server component — rendered to full HTML, zero client JS */}
-        <Route path="/" element={<HomePage apiStatus="checking" />} />
+        <Route path="/" element={<SSRHomePage />} />
 
         {/* Client-only routes — render skeleton, client bootstrap renders real component */}
         <Route path="/counter" element={

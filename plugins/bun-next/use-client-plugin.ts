@@ -1,19 +1,19 @@
 /**
- * "use client" Scanner & Manifest Generator
+ * "use client" Scanner, Builder & Manifest Generator
  *
- * Scans .tsx/.ts files for the "use client" directive at the top.
- * Generates a manifest mapping component IDs to their chunk URLs.
+ * 1. Scans .tsx/.ts files for the "use client" directive
+ * 2. Builds client components as separate chunks via Bun.build()
+ * 3. Generates a manifest mapping componentId → chunk URL
  *
- * In dev: URLs point to the internal Bun.serve() bundler
- * In prod: URLs point to pre-built hashed chunks
+ * The chunks are served statically by the SSR renderer.
  */
 
 import { resolve, relative } from "path"
+import { existsSync, mkdirSync } from "fs"
+import reactDedupe from "./react-dedupe-plugin"
 
 export interface ClientManifestEntry {
-  /** Source file path relative to project root */
   source: string
-  /** URL to load the client chunk from */
   chunkUrl: string
 }
 
@@ -21,9 +21,10 @@ export type ClientManifest = Record<string, ClientManifestEntry>
 
 const USE_CLIENT_RE = /^['"]use client['"]/
 
+const CHUNKS_DIR = "dist/ssr-chunks"
+
 /**
  * Scan a directory for .tsx/.ts files with "use client" directive.
- * Returns a Map of componentId → source path.
  */
 export function scanClientComponents(srcDir: string): Map<string, string> {
   const clients = new Map<string, string>()
@@ -34,92 +35,189 @@ export function scanClientComponents(srcDir: string): Map<string, string> {
     const absolutePath = resolve(srcDir, filePath)
     try {
       const content = require("fs").readFileSync(absolutePath, "utf-8")
-      const firstLine = content.split("\n").find((l: string) => l.trim() && !l.trim().startsWith("//") && !l.trim().startsWith("/*"))
+      const firstLine = content.split("\n").find((l: string) =>
+        l.trim() && !l.trim().startsWith("//") && !l.trim().startsWith("/*")
+      )
       if (firstLine && USE_CLIENT_RE.test(firstLine.trim())) {
         const relativePath = relative(projectRoot, absolutePath).replaceAll("\\", "/")
-        // Component ID is the relative path without extension
         const componentId = relativePath.replace(/\.(tsx?|jsx?)$/, "")
         clients.set(componentId, relativePath)
       }
-    } catch {
-      // Skip unreadable files
-    }
+    } catch {}
   }
 
   return clients
 }
 
 /**
- * Generate the client manifest for dev mode.
- * Maps componentId → chunk URL on the internal Bun.serve() bundler.
+ * Build client component chunks using Bun.build() with code splitting.
+ * Returns a map of source path → output chunk filename.
  */
-export function generateDevManifest(
+export async function buildClientChunks(
   clientComponents: Map<string, string>,
-  internalPort: number,
-): ClientManifest {
-  const manifest: ClientManifest = {}
+): Promise<Map<string, string>> {
+  const outputMap = new Map<string, string>()
 
-  for (const [componentId, sourcePath] of clientComponents) {
-    // Strip "app/client/" prefix — Bun.serve() root is app/client/
-    const chunkPath = sourcePath.replace(/^app\/client\//, "")
-    manifest[componentId] = {
-      source: sourcePath,
-      chunkUrl: `/${chunkPath}`,
+  if (clientComponents.size === 0) return outputMap
+
+  // Also include the bootstrap as an entry point
+  const bootstrapPath = resolve("app/client/src/client-bootstrap.ts")
+  const entrypoints = [...clientComponents.values()].map(p => `./${p}`)
+  if (existsSync(bootstrapPath)) {
+    entrypoints.push("./app/client/src/client-bootstrap.ts")
+  }
+
+  const outdir = resolve(CHUNKS_DIR)
+  if (!existsSync(outdir)) mkdirSync(outdir, { recursive: true })
+
+  const result = await Bun.build({
+    entrypoints,
+    outdir,
+    splitting: true,
+    target: "browser",
+    format: "esm",
+    minify: false,
+    naming: "[name]-[hash].[ext]",
+    plugins: [
+      reactDedupe,
+      {
+        name: "strip-server-imports",
+        setup(build) {
+          // Stub server-only imports (used for types in client code)
+          build.onResolve({ filter: /^@server\// }, (args) => ({
+            path: args.path,
+            namespace: "server-stub",
+          }))
+          build.onResolve({ filter: /^@(core|config)\// }, (args) => ({
+            path: args.path,
+            namespace: "server-stub",
+          }))
+          build.onResolve({ filter: /^@config$/ }, (args) => ({
+            path: args.path,
+            namespace: "server-stub",
+          }))
+          build.onLoad({ filter: /.*/, namespace: "server-stub" }, (args) => {
+            // Extract component name from path: @server/live/LiveCounter → LiveCounter
+            const segments = args.path.split("/")
+            const lastName = segments[segments.length - 1] || "Unknown"
+
+            // Generate a stub class with componentName + defaultState
+            // This allows Live.use(LiveCounter, ...) to work correctly
+            const stubClass = `class ${lastName} {
+  static componentName = '${lastName}';
+  static defaultState = {};
+}`
+
+            return {
+              contents: [
+                `export default {};`,
+                stubClass,
+                `export { ${lastName} };`,
+                // Common utility exports
+                `export const executeHook = () => {};`,
+                `export const useLiveUpload = () => ({});`,
+                `export const LiveComponentsProvider = ({children}) => children;`,
+                `export const useLiveComponents = () => ({});`,
+                `export const Live = { use: () => ({}) };`,
+                `export const api = new Proxy({}, { get: () => () => ({}) });`,
+              ].join("\n"),
+              loader: "js",
+            }
+          })
+        },
+      },
+    ],
+  })
+
+  if (!result.success) {
+    console.error("Client chunk build failed:")
+    for (const log of result.logs) {
+      console.error(log)
+    }
+    return outputMap
+  }
+
+  // Map source paths to output filenames
+  for (const output of result.outputs) {
+    if (output.kind === "entry-point") {
+      const outName = output.path.replace(/\\/g, "/").split("/").pop()!
+      // Find which source this entry corresponds to
+      const loader = output.loader
+      // Use the output's sourcefile or match by name
+      const baseName = outName.replace(/-[a-z0-9]+\.js$/, "")
+      for (const [componentId, sourcePath] of clientComponents) {
+        const sourceBase = sourcePath.split("/").pop()!.replace(/\.(tsx?|jsx?)$/, "")
+        if (sourceBase === baseName) {
+          outputMap.set(componentId, outName)
+          break
+        }
+      }
+      // Check if it's the bootstrap
+      if (baseName === "client-bootstrap") {
+        outputMap.set("__bootstrap__", outName)
+      }
     }
   }
 
-  return manifest
+  return outputMap
 }
 
 /**
- * Generate the client manifest for production.
+ * Generate manifest from built chunks.
  */
-export function generateProdManifest(
+export function generateManifestFromChunks(
   clientComponents: Map<string, string>,
-  buildOutputDir: string,
+  chunkMap: Map<string, string>,
+  chunksUrlPrefix: string,
 ): ClientManifest {
   const manifest: ClientManifest = {}
+
   for (const [componentId, sourcePath] of clientComponents) {
-    const chunkPath = sourcePath.replace(/^app\/client\//, "")
+    const chunkFile = chunkMap.get(componentId)
     manifest[componentId] = {
       source: sourcePath,
-      chunkUrl: `/${chunkPath}`,
+      chunkUrl: chunkFile ? `${chunksUrlPrefix}/${chunkFile}` : "",
     }
   }
 
   return manifest
 }
 
-/** Singleton manifest cache */
+/** Singleton cache */
 let cachedManifest: ClientManifest | null = null
 let cachedComponents: Map<string, string> | null = null
+let cachedChunkMap: Map<string, string> | null = null
 
 /**
- * Get or create the client manifest.
+ * Scan, build chunks, and generate manifest.
  */
-export function getClientManifest(srcDir: string, internalPort: number, isDev: boolean): ClientManifest {
-  if (cachedManifest) return cachedManifest
-
+export async function buildAndGetManifest(
+  srcDir: string,
+  chunksUrlPrefix: string,
+): Promise<{ manifest: ClientManifest; bootstrapChunk: string }> {
   cachedComponents = scanClientComponents(srcDir)
-  cachedManifest = isDev
-    ? generateDevManifest(cachedComponents, internalPort)
-    : generateProdManifest(cachedComponents, "dist/client")
+  console.log(`[use-client] Found ${cachedComponents.size} client component(s)`)
 
-  return cachedManifest
+  cachedChunkMap = await buildClientChunks(cachedComponents)
+  console.log(`[use-client] Built ${cachedChunkMap.size} chunk(s)`)
+
+  cachedManifest = generateManifestFromChunks(
+    cachedComponents,
+    cachedChunkMap,
+    chunksUrlPrefix,
+  )
+
+  const bootstrapChunk = cachedChunkMap.get("__bootstrap__") || ""
+
+  return { manifest: cachedManifest, bootstrapChunk }
 }
 
-/**
- * Check if a component ID is a client component.
- */
-export function isClientComponent(componentId: string): boolean {
-  if (!cachedComponents) return false
-  return cachedComponents.has(componentId)
+export function getManifest(): ClientManifest {
+  return cachedManifest || {}
 }
 
-/**
- * Reset the manifest cache (for HMR/rebuilds).
- */
 export function invalidateManifest(): void {
   cachedManifest = null
   cachedComponents = null
+  cachedChunkMap = null
 }
