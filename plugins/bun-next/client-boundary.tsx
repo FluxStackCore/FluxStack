@@ -1,26 +1,24 @@
 /**
- * ClientBoundary — marks where client components should be hydrated.
+ * ClientBoundary — SSR-aware component boundary
  *
- * On the server: renders a <div> with data attributes that the
- * client bootstrap uses to find and hydrate/render client components.
+ * On the SERVER (SSR): renders fallback HTML with data-client marker
+ * On the CLIENT (after hydration): lazy-loads the component chunk,
+ * wraps it with LiveComponentsProvider, and renders it
  *
- * Modes:
- * - "hydrate": server renders the real component, client calls hydrateRoot()
- * - "client-only": server renders a fallback/skeleton, client calls createRoot()
+ * This handles both initial page load AND SPA navigation:
+ * - Page load: SSR sends skeleton, ClientBoundary mounts chunk after hydration
+ * - SPA nav: React renders ClientBoundary, which mounts chunk on mount
  */
 
-import React from "react"
+import React, { useState, useEffect } from "react"
+
+const isServer = typeof window === "undefined"
 
 export interface ClientBoundaryProps {
-  /** Component identifier (path relative to project root, without extension) */
   component: string
-  /** Serializable props to pass to the client component */
   props?: Record<string, unknown>
-  /** Hydration mode */
   mode?: "hydrate" | "client-only"
-  /** Fallback content shown during SSR for client-only components */
   fallback?: React.ReactNode
-  /** Children — used in "hydrate" mode (server-rendered component) */
   children?: React.ReactNode
 }
 
@@ -31,19 +29,67 @@ export function ClientBoundary({
   fallback,
   children,
 }: ClientBoundaryProps) {
-  const serializedProps = JSON.stringify(props)
+  const [ClientComponent, setClientComponent] = useState<React.ComponentType | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  return React.createElement("div", {
-    "data-client": component,
-    "data-client-props": serializedProps,
-    "data-client-mode": mode,
-    style: { display: "contents" }, // No visual impact on layout
-  },
-    mode === "hydrate" ? children : (fallback || React.createElement(DefaultSkeleton, null))
-  )
+  useEffect(() => {
+    // Only runs on the client — load the component chunk
+    const manifest = (window as any).__CLIENT_MANIFEST__ || {}
+    const entry = manifest[component]
+
+    if (!entry?.chunkUrl) {
+      setError(`No chunk for "${component}"`)
+      return
+    }
+
+    let cancelled = false
+
+    import(/* @vite-ignore */ entry.chunkUrl)
+      .then(async (mod) => {
+        if (cancelled) return
+        const name = component.split("/").pop()!
+        const Comp = mod.default || mod[name]
+        if (Comp) {
+          setClientComponent(() => Comp)
+        } else {
+          setError(`No export in "${component}"`)
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setError(`Failed: ${err.message}`)
+      })
+
+    return () => { cancelled = true }
+  }, [component])
+
+  // Server-side: render marker div with fallback
+  if (isServer) {
+    return React.createElement("div", {
+      "data-client": component,
+      "data-client-props": JSON.stringify(props),
+      "data-client-mode": mode,
+      style: { display: "contents" },
+    }, fallback || React.createElement(DefaultSkeleton, null))
+  }
+
+  // Client-side: component loaded → render with providers
+  if (ClientComponent) {
+    return React.createElement(ClientWrapper, { url: getWsUrl() },
+      React.createElement(ClientComponent, props as any)
+    )
+  }
+
+  // Client-side: loading or error
+  if (error) {
+    return React.createElement("div", {
+      style: { color: "#ef4444", padding: "1rem", textAlign: "center" as const }
+    }, error)
+  }
+
+  // Client-side: still loading
+  return React.createElement(React.Fragment, null, fallback || React.createElement(DefaultSkeleton, null))
 }
 
-/** Default loading skeleton for client-only components */
 function DefaultSkeleton() {
   return React.createElement("div", {
     style: {
@@ -57,12 +103,43 @@ function DefaultSkeleton() {
   }, "Loading...")
 }
 
+/** Cache the WebSocket URL */
+let cachedWsUrl: string | null = null
+function getWsUrl() {
+  if (cachedWsUrl) return cachedWsUrl
+  if (typeof window === "undefined") return ""
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:"
+  cachedWsUrl = `${proto}//${window.location.host}/api/live/ws`
+  return cachedWsUrl
+}
+
+/**
+ * Wraps the client component with LiveComponentsProvider.
+ * Lazy-loaded to avoid importing @fluxstack/live-react on the server.
+ */
+function ClientWrapper({ url, children }: { url: string; children: React.ReactNode }) {
+  const [Provider, setProvider] = useState<React.ComponentType<any> | null>(null)
+
+  useEffect(() => {
+    import("@fluxstack/live-react").then((mod) => {
+      setProvider(() => mod.LiveComponentsProvider)
+    })
+  }, [])
+
+  // Don't render children until Provider is loaded — they need LiveComponentsProvider
+  if (!Provider) {
+    return React.createElement("div", {
+      style: { display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100px", color: "#64748b" }
+    }, "Connecting...")
+  }
+
+  return React.createElement(Provider, { url }, children)
+}
+
 /**
  * ServerOnly — renders children only on the server.
- * On the client, renders nothing (children are not included in the bundle).
  */
 export function ServerOnly({ children }: { children: React.ReactNode }) {
-  // This always renders on the server during SSR.
-  // The client bootstrap does NOT hydrate this — it stays as static HTML.
-  return React.createElement("div", { "data-server-only": "true" }, children)
+  if (isServer) return React.createElement(React.Fragment, null, children)
+  return null
 }

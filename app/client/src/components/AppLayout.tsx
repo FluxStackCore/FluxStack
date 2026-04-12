@@ -1,10 +1,14 @@
-"use client"
-
 import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
-import FluxStackLogo from '@client/src/assets/fluxstack.svg'
-import faviconSvg from '../assets/fluxstack-static.svg' with { type: 'text' }
+// SSR-compatible: use public URL instead of module import
+// (module imports resolve to filesystem paths on the server)
+const FluxStackLogo = '/_assets/fluxstack.svg'
+// Favicon SVG loaded at runtime for dynamic hue-rotate
+let faviconSvg = ''
+if (typeof window !== 'undefined') {
+  fetch('/_assets/fluxstack-static.svg').then(r => r.text()).then(t => { faviconSvg = t })
+}
 import { useThemeClock } from '../hooks/useThemeClock'
 import { ThemePicker } from './ThemePicker'
 import type { ColorPalette } from '../lib/theme-clock'
@@ -42,9 +46,12 @@ const faviconUrlCache = new Map<string, string>()
 export function AppLayout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const autoTheme = useThemeClock()
   const [overrideTheme, setOverrideTheme] = useState<ColorPalette | null>(null)
   const theme = overrideTheme || autoTheme
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
     const current = navItems.find(item => item.to === location.pathname)
@@ -248,7 +255,9 @@ export function AppLayout() {
         </div>
       </footer>
 
-      {themeConfig.showPicker && <ThemePicker palette={theme} onOverride={setOverrideTheme} />}
+      {/* ThemePicker mounts after hydration to avoid SSR mismatch
+          (showPicker depends on import.meta.env.DEV which differs server/client) */}
+      {mounted && themeConfig.showPicker && <ThemePicker palette={theme} onOverride={setOverrideTheme} />}
     </div>
   )
 }
