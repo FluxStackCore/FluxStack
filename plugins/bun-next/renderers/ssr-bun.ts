@@ -42,19 +42,56 @@ function isAssetRequest(path: string): boolean {
   return path.startsWith("/_assets/")
 }
 
-/** Serve static assets from app/client/src/assets/ */
-function serveAsset(ctx: RequestContext) {
-  const fileName = ctx.path.replace("/_assets/", "")
-  const filePath = join(process.cwd(), "app/client/src/assets", fileName)
+/** Known static file extensions */
+const STATIC_EXT = /\.(svg|png|jpg|jpeg|gif|ico|webp|woff|woff2|ttf|eot|mp4|webm|mp3|wav|pdf)$/i
 
-  if (!existsSync(filePath)) return
+function isStaticFileRequest(path: string): boolean {
+  return STATIC_EXT.test(path)
+}
 
-  ctx.handled = true
-  ctx.response = new Response(Bun.file(filePath), {
-    headers: {
-      "Cache-Control": "public, max-age=31536000, immutable",
-    },
-  })
+/** Asset search directories */
+const ASSET_DIRS = [
+  "app/client/src/assets",
+  "app/client/public",
+]
+
+/**
+ * Serve static assets — tries exact match, then strips hash from filename.
+ * e.g. "fluxstack-zasjyjzh.svg" → tries exact, then matches "fluxstack.svg"
+ */
+function serveStaticFile(ctx: RequestContext) {
+  const fileName = ctx.path.startsWith("/_assets/")
+    ? ctx.path.replace("/_assets/", "")
+    : ctx.path.replace(/^\//, "")
+
+  const root = process.cwd()
+
+  // Try exact match in asset directories
+  for (const dir of ASSET_DIRS) {
+    const filePath = join(root, dir, fileName)
+    if (existsSync(filePath)) {
+      ctx.handled = true
+      ctx.response = new Response(Bun.file(filePath), {
+        headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+      })
+      return
+    }
+  }
+
+  // Try stripping hash: "fluxstack-zasjyjzh.svg" → "fluxstack.svg"
+  const dehashed = fileName.replace(/-[a-z0-9]{8}\.(svg|png|jpg|jpeg|gif|ico|webp)$/i, ".$1")
+  if (dehashed !== fileName) {
+    for (const dir of ASSET_DIRS) {
+      const filePath = join(root, dir, dehashed)
+      if (existsSync(filePath)) {
+        ctx.handled = true
+        ctx.response = new Response(Bun.file(filePath), {
+          headers: { "Cache-Control": "public, max-age=31536000, immutable" },
+        })
+        return
+      }
+    }
+  }
 }
 
 /** Fetch bundled CSS URL from the internal Bun.serve() */
@@ -133,10 +170,10 @@ export function createSsrBunRenderer(config: BunNextConfig): Renderer {
     },
 
     async handleRequest(ctx: RequestContext, isDev: boolean) {
-      // Serve static assets (SVGs, images, etc.)
-      if (isAssetRequest(ctx.path)) {
-        serveAsset(ctx)
-        return
+      // Serve static assets (SVGs, images, fonts, etc.)
+      if (isAssetRequest(ctx.path) || isStaticFileRequest(ctx.path)) {
+        serveStaticFile(ctx)
+        if (ctx.handled) return
       }
 
       // Serve chunk files
@@ -228,11 +265,24 @@ async function handleSSR(
       try {
         await writer.write(encoder.encode(beforeRoot.replace("</head>", `${cssLink}</head>`)))
 
+        // Rewrite filesystem paths to public /_assets/ URLs in SSR output
+        // e.g. "C:\Users\...\assets\fluxstack.svg" → "/_assets/fluxstack.svg"
+        const assetsDir = join(process.cwd(), "app/client/src/assets").replace(/\\/g, "/")
+        const assetsDirWin = join(process.cwd(), "app/client/src/assets")
+        const decoder = new TextDecoder()
+
         const reader = reactStream.getReader()
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          await writer.write(value)
+          let chunk = decoder.decode(value, { stream: true })
+          // Replace both forward-slash and backslash variants
+          chunk = chunk.replaceAll(assetsDir + "/", "/_assets/")
+          chunk = chunk.replaceAll(assetsDirWin + "\\", "/_assets/")
+          chunk = chunk.replaceAll(assetsDirWin.replaceAll("\\", "/") + "/", "/_assets/")
+          // Also handle Windows escaped paths in HTML attributes
+          chunk = chunk.replace(/[A-Z]:\\[^"'<>]+\\assets\\/gi, "/_assets/")
+          await writer.write(encoder.encode(chunk))
         }
 
         await writer.write(encoder.encode(

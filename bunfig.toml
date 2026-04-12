@@ -9,7 +9,7 @@ lockfile = true
 
 # Path mapping for runtime execution
 [run]
-preload = []
+preload = ["./plugins/bun-next/ssr-preload.ts"]
 
 # Path mapping (alias support) - matches tsconfig.json
 [run.alias]

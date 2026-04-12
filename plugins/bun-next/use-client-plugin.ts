@@ -78,17 +78,19 @@ export async function buildClientChunks(
     format: "esm",
     minify: false,
     naming: "[name]-[hash].[ext]",
+    define: {
+      "import.meta.env.DEV": "true",
+      "import.meta.env.PROD": "false",
+      "import.meta.env.MODE": '"development"',
+    },
     plugins: [
       reactDedupe,
       {
         name: "strip-server-imports",
         setup(build) {
           // Stub server-only imports (used for types in client code)
+          // BUT allow @/core/client through — it's the client-side live-react re-export
           build.onResolve({ filter: /^@server\// }, (args) => ({
-            path: args.path,
-            namespace: "server-stub",
-          }))
-          build.onResolve({ filter: /^@(core|config)\// }, (args) => ({
             path: args.path,
             namespace: "server-stub",
           }))
@@ -96,6 +98,15 @@ export async function buildClientChunks(
             path: args.path,
             namespace: "server-stub",
           }))
+          build.onResolve({ filter: /^@config\// }, (args) => ({
+            path: args.path,
+            namespace: "server-stub",
+          }))
+          // Stub @core/* EXCEPT @/core/client (which re-exports @fluxstack/live-react)
+          build.onResolve({ filter: /^@(\/)?core\// }, (args) => {
+            if (args.path.includes("core/client")) return undefined // let it resolve normally
+            return { path: args.path, namespace: "server-stub" }
+          })
           build.onLoad({ filter: /.*/, namespace: "server-stub" }, (args) => {
             // Extract component name from path: @server/live/LiveCounter → LiveCounter
             const segments = args.path.split("/")

@@ -89,8 +89,8 @@ export function RoomChatDemo() {
     }
   }, [ui.error])
 
-  const joinedRoomIds = chat.$state.rooms.map(r => r.id)
-  const joinedRoomsMap = new Map(chat.$state.rooms.map(r => [r.id, r]))
+  const joinedRoomIds = (chat.$state.rooms ?? []).map(r => r.id)
+  const joinedRoomsMap = new Map((chat.$state.rooms ?? []).map(r => [r.id, r]))
 
   const handleJoinRoom = async (roomId: string, roomName: string, isPrivate?: boolean) => {
     if (joinedRoomIds.includes(roomId)) {
