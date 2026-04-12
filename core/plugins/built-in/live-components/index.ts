@@ -1,7 +1,5 @@
-import type { FluxStack, PluginContext } from '@core/plugins/types'
+import type { Plugin, PluginContext } from '@fluxstack/plugin-kit'
 import { createLiveComponentCommand } from './commands/create-live-component'
-
-type Plugin = FluxStack.Plugin
 
 // This is the entry point for the live-components built-in plugin.
 export const liveComponentsPlugin: Plugin = {

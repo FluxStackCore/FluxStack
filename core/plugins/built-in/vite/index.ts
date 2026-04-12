@@ -1,12 +1,10 @@
-import type { FluxStack, PluginContext, RequestContext } from "@core/plugins/types"
+import type { Plugin, PluginContext, RequestContext } from "@fluxstack/plugin-kit"
 import { FLUXSTACK_VERSION } from "@core/utils/version"
 import { clientConfig } from '@config'
 import { pluginsConfig } from '@config'
 import { isDevelopment } from "@core/utils/helpers"
 import { join } from "path"
 import { existsSync } from "fs"
-
-type Plugin = FluxStack.Plugin
 
 const PLUGIN_PRIORITY = 800
 const INDEX_FILE = "index.html"

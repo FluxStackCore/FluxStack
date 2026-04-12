@@ -11,7 +11,6 @@
  */
 
 import { FluxStackFramework } from "@core/server"
-import { vitePlugin } from "@core/plugins/built-in/vite"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
 import { liveComponentsPlugin, registerAuthProvider } from "@core/server/live"
 import { appInstance } from "@server/app"
@@ -23,6 +22,9 @@ import { appConfig } from "@config"
 // bundles (dist/node_modules/ does not exist). Every plugin the app
 // wants to enable must be imported + `.use()`-d here.
 import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
+
+// 🚀 BunNext — unified frontend plugin (renderer: 'bun' | 'vite')
+import { bunNextPlugin } from "../../plugins/bun-next"
 
 // 🔒 Auth provider para Live Components
 import { DevAuthProvider } from "./auth/DevAuthProvider"
@@ -42,9 +44,10 @@ const framework = new FluxStackFramework()
   .use(liveComponentsPlugin)
   .use(csrfProtectionPlugin)
 
-// Vite apenas em full-stack
+// Frontend serving: BunNext com escolha de renderer
+// renderer: 'bun' (nativo) ou 'vite' (clássico)
 if (appConfig.mode !== 'backend-only') {
-  framework.use(vitePlugin)
+  framework.use(bunNextPlugin({ renderer: 'bun' }))
 }
 
 framework.routes(appInstance)

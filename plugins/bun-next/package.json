@@ -1,0 +1,17 @@
+{
+  "name": "fluxstack-plugin-bun-next",
+  "version": "0.1.0",
+  "description": "Bun native fullstack plugin — replaces Vite with Bun's built-in HTML imports, bundling, and HMR",
+  "main": "index.ts",
+  "type": "module",
+  "author": "FluxStack Team",
+  "license": "MIT",
+  "keywords": [
+    "fluxstack",
+    "plugin",
+    "bun-next",
+    "bun",
+    "hmr",
+    "fullstack"
+  ]
+}

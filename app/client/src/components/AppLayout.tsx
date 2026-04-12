@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
 import FluxStackLogo from '@client/src/assets/fluxstack.svg'
-import faviconSvg from '@client/src/assets/fluxstack-static.svg?raw'
+import faviconSvg from '../assets/fluxstack-static.svg' with { type: 'text' }
 import { useThemeClock } from '../hooks/useThemeClock'
 import { ThemePicker } from './ThemePicker'
 import type { ColorPalette } from '../lib/theme-clock'

@@ -1,8 +1,7 @@
 import { swagger } from '@elysiajs/swagger'
-import type { FluxStack, PluginContext } from '@core/plugins/types'
+import type { Plugin, PluginContext } from '@fluxstack/plugin-kit'
 import { appConfig, serverConfig, pluginsConfig } from '@config'
 
-type Plugin = FluxStack.Plugin
 
 /** Parse servers from config string format: "url1|desc1,url2|desc2" */
 function parseServers(str: string): Array<{ url: string; description: string }> {

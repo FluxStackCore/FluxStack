@@ -31,3 +31,11 @@ preload = []
 "@config/*" = "./config/*"
 "@app/*" = "./app/*"
 "@shared/*" = "./app/shared/*"
+# Force single React instance (avoid duplicate from fluxstack-live monorepo)
+"react" = "./node_modules/react"
+"react-dom" = "./node_modules/react-dom"
+"react/jsx-runtime" = "./node_modules/react/jsx-runtime"
+"react/jsx-dev-runtime" = "./node_modules/react/jsx-dev-runtime"
+
+[serve.static]
+plugins = ["bun-plugin-tailwind", "./plugins/embed/react-dedupe-plugin.ts"]

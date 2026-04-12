@@ -3,7 +3,7 @@
  * Provides performance monitoring, metrics collection, and system monitoring
  */
 
-import type { FluxStack, PluginContext, RequestContext, ResponseContext, ErrorContext } from "@core/plugins/types"
+import type { Plugin, PluginContext, RequestContext, ResponseContext, ErrorContext } from "@fluxstack/plugin-kit"
 import { MetricsCollector } from "@core/utils/monitoring"
 import { appConfig, monitoringConfig } from '@config'
 import * as os from 'os'
@@ -62,18 +62,17 @@ export interface AlertThreshold {
   message?: string
 }
 
-type Plugin = FluxStack.Plugin
-
 /** Extended plugin context with monitoring-specific properties */
-interface MonitoringPluginContext extends PluginContext {
+interface MonitoringConfig {
+  monitoring?: Record<string, unknown>
+  plugins?: { config?: { monitoring?: Partial<MonitoringOptions> } }
+}
+
+interface MonitoringPluginContext extends PluginContext<MonitoringConfig> {
   metricsRegistry?: MetricsRegistry
   metricsCollector?: MetricsCollector
   monitoringConfig?: MonitoringOptions
   monitoringIntervals?: NodeJS.Timeout[]
-  config: PluginContext['config'] & {
-    monitoring?: Record<string, unknown>
-    plugins?: { config?: { monitoring?: Partial<MonitoringOptions> } }
-  }
 }
 
 /** Extended request context with monitoring start time */
@@ -152,7 +151,7 @@ function mergeMonitoringOptions(base: MonitoringOptions, overrides: Partial<Moni
   return result as unknown as MonitoringOptions
 }
 
-function resolveMonitoringOptions(source: MonitoringResponseContext | MonitoringPluginContext): MonitoringOptions {
+function resolveMonitoringOptions(source: MonitoringResponseContext | MonitoringPluginContext | PluginContext): MonitoringOptions {
   if ('monitoringConfig' in source && source.monitoringConfig) return source.monitoringConfig
   if ('context' in source && (source as MonitoringResponseContext).context?.monitoringConfig) return (source as MonitoringResponseContext).context!.monitoringConfig!
   return DEFAULTS

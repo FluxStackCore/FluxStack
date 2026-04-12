@@ -1,4 +1,4 @@
-import type { CliCommand } from "@core/plugins/types";
+import type { CliCommand } from "@fluxstack/plugin-kit";
 import { promises as fs } from "fs";
 import path from "path";
 

@@ -1,4 +1,4 @@
-import type { PluginContext } from "@core/plugins/types"
+import type { PluginContext } from "@fluxstack/plugin-kit"
 import { clientConfig } from '@config'
 import type { LogLevel } from "vite"
 import conf from "@/vite.config"
