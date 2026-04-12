@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'

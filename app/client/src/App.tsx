@@ -1,5 +1,7 @@
+"use client"
+
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
 import { api } from './lib/eden-api'
 import { LiveComponentsProvider, useLiveComponents } from '@/core/client'
 import { executeHook } from './lib/plugin-hooks'
@@ -16,12 +18,13 @@ import { HomePage } from './pages/HomePage'
 import { ApiTestPage } from './pages/ApiTestPage'
 
 function NotFoundPage() {
+  const location = useLocation()
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
       <h1 className="text-6xl font-black text-white mb-4">404</h1>
       <p className="text-xl text-gray-400 mb-6">Pagina nao encontrada</p>
       <p className="text-sm text-gray-500 mb-8">
-        O caminho <code className="text-theme">{window.location.pathname}</code> nao existe.
+        O caminho <code className="text-theme">{location.pathname}</code> nao existe.
       </p>
       <a
         href="/"

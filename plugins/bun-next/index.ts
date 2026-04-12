@@ -21,6 +21,7 @@ import type { RendererType, Renderer, BunNextConfig } from "./types"
 import { defaultConfig } from "./types"
 import { createBunRenderer } from "./renderers/bun"
 import { createViteRenderer } from "./renderers/vite"
+import { createSsrBunRenderer } from "./renderers/ssr-bun"
 
 const PLUGIN_PRIORITY = 800
 const IS_DEV = isDevelopment()
@@ -29,6 +30,8 @@ function resolveRenderer(config: BunNextConfig): Renderer {
   switch (config.renderer) {
     case "vite":
       return createViteRenderer(config)
+    case "ssr-bun":
+      return createSsrBunRenderer(config)
     case "bun":
     default:
       return createBunRenderer(config)

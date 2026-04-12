@@ -1,3 +1,5 @@
+"use client"
+
 // 🔥 FormDemo - Exemplo de Live Component
 import { Live } from '@/core/client'
 import { LiveForm } from '@server/live/LiveForm'

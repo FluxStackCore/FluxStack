@@ -1,3 +1,5 @@
+"use client"
+
 // 🔒 AuthDemo - Exemplo completo de autenticação em Live Components
 //
 // Demonstra:

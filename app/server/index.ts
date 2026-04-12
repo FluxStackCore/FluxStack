@@ -47,7 +47,7 @@ const framework = new FluxStackFramework()
 // Frontend serving: BunNext com escolha de renderer
 // renderer: 'bun' (nativo) ou 'vite' (clássico)
 if (appConfig.mode !== 'backend-only') {
-  framework.use(bunNextPlugin({ renderer: 'bun' }))
+  framework.use(bunNextPlugin({ renderer: 'ssr-bun' }))
 }
 
 framework.routes(appInstance)

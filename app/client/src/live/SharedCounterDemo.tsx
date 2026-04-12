@@ -1,3 +1,5 @@
+"use client"
+
 // SharedCounterDemo - Contador compartilhado entre todas as abas
 //
 // Abra em varias abas - todos veem o mesmo valor!

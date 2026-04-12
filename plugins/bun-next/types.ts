@@ -1,6 +1,6 @@
 import type { PluginContext, RequestContext } from "@fluxstack/plugin-kit"
 
-export type RendererType = "bun" | "vite"
+export type RendererType = "bun" | "vite" | "ssr-bun"
 
 export interface BunNextConfig {
   /** Which renderer to use: 'bun' (native) or 'vite' (classic) */

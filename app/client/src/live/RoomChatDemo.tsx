@@ -1,3 +1,5 @@
+"use client"
+
 // RoomChatDemo - Chat multi-salas with password-protected rooms
 
 import { useEffect, useRef, useMemo, useReducer } from 'react'

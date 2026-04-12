@@ -1,3 +1,5 @@
+"use client"
+
 // 🔥 CounterDemo - Contador isolado e compartilhado
 
 import { useMemo } from 'react'

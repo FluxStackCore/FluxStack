@@ -1,3 +1,5 @@
+"use client"
+
 import { useState } from 'react'
 import { LiveUploadWidget } from '../components/LiveUploadWidget'
 import { useLiveUpload } from '@/core/client'

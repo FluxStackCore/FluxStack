@@ -21,6 +21,11 @@ preload = []
 "@config/*" = "./config/*"
 "@app/*" = "./app/*"
 "@shared/*" = "./app/shared/*"
+# Force single React instance at runtime (SSR needs this)
+"react" = "./node_modules/react"
+"react-dom" = "./node_modules/react-dom"
+"react/jsx-runtime" = "./node_modules/react/jsx-runtime"
+"react/jsx-dev-runtime" = "./node_modules/react/jsx-dev-runtime"
 
 [build.alias]
 "@/*" = "./*"
@@ -38,4 +43,4 @@ preload = []
 "react/jsx-dev-runtime" = "./node_modules/react/jsx-dev-runtime"
 
 [serve.static]
-plugins = ["bun-plugin-tailwind", "./plugins/embed/react-dedupe-plugin.ts"]
+plugins = ["bun-plugin-tailwind", "./plugins/bun-next/react-dedupe-plugin.ts"]

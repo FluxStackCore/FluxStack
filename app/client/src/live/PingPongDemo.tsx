@@ -1,3 +1,5 @@
+"use client"
+
 // PingPongDemo - Demo de Binary Codec (msgpack)
 //
 // Mostra latencia round-trip de mensagens binárias.
