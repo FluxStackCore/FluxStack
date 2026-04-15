@@ -20,6 +20,7 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
   }
 
   private counterUnsub: (() => void) | null = null
+  private presenceUnsub: (() => void) | null = null
 
   constructor(
     initialState: Partial<typeof LiveSharedCounter.defaultState> = {},
@@ -46,6 +47,10 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
         lastUpdatedBy: data.updatedBy
       })
     })
+
+    this.presenceUnsub = room.on('presence:changed', (data) => {
+      this.setState({ onlineCount: data.onlineCount })
+    })
   }
 
   async increment() {
@@ -68,6 +73,7 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
 
   destroy() {
     this.counterUnsub?.()
+    this.presenceUnsub?.()
     super.destroy()
   }
 }

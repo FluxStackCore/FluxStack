@@ -46,6 +46,7 @@
     "examples/**/*",
     "**/*.test.ts",
     "**/__tests__/**/*",
+    "dist/**/*",
     "run-env-tests.ts",
     "plugins/**/scripts/**/*"
   ]

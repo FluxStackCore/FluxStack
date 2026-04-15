@@ -129,7 +129,9 @@ function AppContent() {
           path="/form"
           element={
             <DemoPage
-              note={<>? Este formul?rio usa <code className="text-theme">Live.use()</code> - cada campo sincroniza automaticamente com o servidor!</>}
+              title="Live Form"
+              description="Formulario com campos sincronizados pelo servidor, debounce e estado compartilhado pelo proxy Live."
+              note={<>Este formulario usa <code className="text-theme">Live.use()</code> - cada campo sincroniza automaticamente com o servidor.</>}
             >
               <FormDemo />
             </DemoPage>
@@ -138,7 +140,10 @@ function AppContent() {
         <Route
           path="/counter"
           element={
-            <DemoPage>
+            <DemoPage
+              title="Counters"
+              description="Compare estado local, estado isolado por sala e estado compartilhado em tempo real."
+            >
               <CounterDemo />
             </DemoPage>
           }
@@ -146,7 +151,10 @@ function AppContent() {
         <Route
           path="/upload"
           element={
-            <DemoPage>
+            <DemoPage
+              title="Live Upload"
+              description="Upload conectado ao runtime Live, com progresso, resposta do servidor e preview do arquivo enviado."
+            >
               <UploadDemo />
             </DemoPage>
           }
@@ -155,7 +163,9 @@ function AppContent() {
           path="/shared-counter"
           element={
             <DemoPage
-              note={<>Contador compartilhado usando <code className="text-theme">LiveRoom</code> - abra em varias abas!</>}
+              title="Shared Counter"
+              description="Uma sala global sincroniza usuarios, eventos e estado entre abas abertas ao mesmo tempo."
+              note={<>Contador compartilhado usando <code className="text-theme">LiveRoom</code> - abra em varias abas.</>}
             >
               <SharedCounterDemo />
             </DemoPage>

@@ -3,6 +3,7 @@ import { useLiveChunkedUpload } from '@/core/client'
 import type { LiveChunkedUploadOptions } from '@/core/client'
 import type { FileUploadCompleteResponse } from '@core/types/types'
 import { LiveUpload } from '@server/live/LiveUpload'
+import { FaArrowUpFromBracket, FaFile, FaRotateRight, FaXmark } from 'react-icons/fa6'
 
 // Derive the state type from the actual LiveUpload component to avoid duplication
 type LiveUploadState = typeof LiveUpload.defaultState
@@ -31,8 +32,8 @@ export interface LiveUploadWidgetProps {
 
 export function LiveUploadWidget({
   live,
-  title = 'Upload em Chunks',
-  description = 'Envio via WebSocket com Live Components e reatividade server-side.',
+  title = 'Chunked upload',
+  description = 'Upload over WebSocket with server-side progress and Live state updates.',
   allowPreview = true,
   options,
   onComplete
@@ -115,42 +116,61 @@ export function LiveUploadWidget({
   const resolvedUrl = live.$state.fileUrl
 
   return (
-    <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 max-w-xl w-full mx-auto">
-      <h2 className="text-2xl font-bold text-white mb-2 text-center">
-        {title}
-      </h2>
-
-      <p className="text-gray-400 text-sm text-center mb-6">
-        {description}
-      </p>
+    <div className="w-full max-w-2xl rounded-lg border border-white/10 bg-[#07070b]/85 p-5 shadow-2xl shadow-black/20 sm:p-6">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-white">{title}</h2>
+          <p className="mt-2 text-sm leading-6 text-gray-500">{description}</p>
+        </div>
+        <span className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+          live.$connected
+            ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+            : 'border-red-400/25 bg-red-400/10 text-red-200'
+        }`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${live.$connected ? 'bg-emerald-300' : 'bg-red-300'}`} />
+          {live.$connected ? 'Connected' : 'Offline'}
+        </span>
+      </div>
 
       <div className="space-y-4">
-        <input
-          type="file"
-          onChange={handleSelectFile}
-          className="w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-white/10 file:text-white hover:file:bg-white/20"
-          disabled={!live.$connected || uploading}
-        />
+        <label className="flex min-h-36 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-white/15 bg-white/[0.025] px-4 py-8 text-center transition hover:border-white/25 hover:bg-white/[0.045]">
+          <FaFile className="mb-3 text-2xl text-theme" />
+          <span className="text-sm font-medium text-white">
+            {selectedFile ? selectedFile.name : 'Choose a file'}
+          </span>
+          <span className="mt-1 text-xs text-gray-500">
+            {selectedFile ? `${Math.round(selectedFile.size / 1024)} KB` : 'Up to 500 MB, adaptive chunks'}
+          </span>
+          <input
+            type="file"
+            onChange={handleSelectFile}
+            className="sr-only"
+            disabled={!live.$connected || uploading}
+          />
+        </label>
 
-        <div className="flex gap-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
           <button
             onClick={handleStartUpload}
             disabled={!canUpload || !selectedFile}
-            className="flex-1 px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all disabled:opacity-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-white px-5 text-sm font-semibold text-black transition hover:bg-gray-200 disabled:opacity-50"
           >
-            Iniciar Upload
+            <FaArrowUpFromBracket className="h-3.5 w-3.5" />
+            Start upload
           </button>
           <button
             onClick={cancelUpload}
             disabled={!uploading}
-            className="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all disabled:opacity-50"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-red-400/20 bg-red-400/10 px-4 text-sm font-semibold text-red-200 transition hover:bg-red-400/15 disabled:opacity-50"
           >
-            Cancelar
+            <FaXmark className="h-3.5 w-3.5" />
+            Cancel
           </button>
           <button
             onClick={handleReset}
-            className="px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white hover:bg-white/20 transition-all"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-4 text-sm font-semibold text-white transition hover:bg-white/[0.06]"
           >
+            <FaRotateRight className="h-3.5 w-3.5" />
             Reset
           </button>
         </div>
@@ -161,7 +181,7 @@ export function LiveUploadWidget({
           </div>
         )}
 
-        <div className="bg-black/40 border border-white/10 rounded-xl p-4">
+        <div className="rounded-lg border border-white/10 bg-black/40 p-4">
           <div className="flex justify-between text-xs text-gray-400 mb-2">
             <span>Status: {live.$state.status}</span>
             <span>{Math.round(live.$state.progress)}%</span>
@@ -179,7 +199,7 @@ export function LiveUploadWidget({
         </div>
 
         {previewUrl && (
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <div className="rounded-lg border border-white/10 bg-white/[0.025] p-4">
             <div className="text-xs text-gray-400 mb-2">Preview</div>
             <img
               src={previewUrl}
@@ -190,8 +210,8 @@ export function LiveUploadWidget({
         )}
 
         {resolvedUrl && live.$state.status === 'complete' && (
-          <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-sm text-emerald-200">
-            Upload concluido: <a className="underline" href={resolvedUrl} target="_blank" rel="noopener noreferrer">abrir arquivo</a>
+          <div className="rounded-lg border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-200">
+            Upload complete: <a className="underline" href={resolvedUrl} target="_blank" rel="noopener noreferrer">open file</a>
           </div>
         )}
       </div>

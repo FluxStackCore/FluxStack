@@ -72,11 +72,12 @@ export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defa
 6. **Mandatory `publicActions`** - Components without it deny ALL remote actions (secure by default)
 7. **Client link** - `import type { Demo as _Client }` enables Ctrl+Click in IDE
 
-### With Room Events (Advanced)
+### With Typed Rooms (Advanced)
 
 ```typescript
 // app/server/live/LiveCounter.ts
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { CounterRoom } from './rooms/CounterRoom'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
@@ -86,9 +87,11 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
     lastUpdatedBy: null as string | null,
     connectedUsers: 0
   }
-  protected roomType = 'counter'
 
-  // Constructor needed for room event subscriptions
+  private roomId: string
+  private unsubscribeCounter: (() => void) | null = null
+  private unsubscribePresence: (() => void) | null = null
+
   constructor(
     initialState: Partial<typeof LiveCounter.defaultState> = {},
     ws: FluxStackWebSocket,
@@ -96,55 +99,86 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
   ) {
     super(initialState, ws, options)
 
-    this.onRoomEvent<{ count: number; userId: string }>('COUNT_CHANGED', (data) => {
-      this.setState({ count: data.count, lastUpdatedBy: data.userId })
+    this.roomId = options?.room ?? 'default'
+    const room = this.$room(CounterRoom, this.roomId)
+    room.join()
+
+    // Load authoritative room state for new joiners.
+    this.setState({
+      count: room.state.count,
+      lastUpdatedBy: room.state.lastUpdatedBy,
+      connectedUsers: room.state.onlineCount
     })
 
-    this.onRoomEvent<{ connectedUsers: number }>('USER_COUNT_CHANGED', (data) => {
-      this.setState({ connectedUsers: data.connectedUsers })
+    this.unsubscribeCounter = room.on('counter:updated', (data) => {
+      this.setState({
+        count: data.count,
+        lastUpdatedBy: data.updatedBy
+      })
     })
 
-    this.notifyUserJoined()
-  }
-
-  private notifyUserJoined() {
-    const newCount = this.state.connectedUsers + 1
-    this.emitRoomEventWithState('USER_COUNT_CHANGED',
-      { connectedUsers: newCount },
-      { connectedUsers: newCount }
-    )
+    this.unsubscribePresence = room.on('presence:changed', (data) => {
+      this.setState({ connectedUsers: data.onlineCount })
+    })
   }
 
   async increment() {
-    const newCount = this.state.count + 1
-    this.emitRoomEventWithState('COUNT_CHANGED',
-      { count: newCount, userId: this.userId || 'anonymous' },
-      { count: newCount, lastUpdatedBy: this.userId || 'anonymous' }
-    )
-    return { success: true, count: newCount }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.increment(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   async decrement() {
-    const newCount = this.state.count - 1
-    this.emitRoomEventWithState('COUNT_CHANGED',
-      { count: newCount, userId: this.userId || 'anonymous' },
-      { count: newCount, lastUpdatedBy: this.userId || 'anonymous' }
-    )
-    return { success: true, count: newCount }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.decrement(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   async reset() {
-    this.emitRoomEventWithState('COUNT_CHANGED',
-      { count: 0, userId: this.userId || 'anonymous' },
-      { count: 0, lastUpdatedBy: this.userId || 'anonymous' }
-    )
-    return { success: true, count: 0 }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.reset(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   destroy() {
-    const newCount = Math.max(0, this.state.connectedUsers - 1)
-    this.emitRoomEvent('USER_COUNT_CHANGED', { connectedUsers: newCount })
+    this.unsubscribeCounter?.()
+    this.unsubscribePresence?.()
     super.destroy()
+  }
+}
+```
+
+Presence must be tracked by authoritative room state, not by incrementing each component instance's local `connectedUsers`. A new tab creates a new component instance with local state starting at `0`, so local arithmetic can publish the wrong count. Put membership accounting in the `LiveRoom` lifecycle:
+
+```typescript
+// app/server/live/rooms/CounterRoom.ts
+interface CounterEvents {
+  'counter:updated': { count: number; updatedBy: string }
+  'presence:changed': { onlineCount: number }
+}
+
+export class CounterRoom extends LiveRoom<CounterState, {}, CounterEvents> {
+  static roomName = 'counter'
+  static defaultState = { count: 0, lastUpdatedBy: null, onlineCount: 0 }
+  static defaultMeta = {}
+
+  onJoin() {
+    const onlineCount = this.state.onlineCount + 1
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
+  }
+
+  onLeave() {
+    const onlineCount = Math.max(0, this.state.onlineCount - 1)
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
+  }
+
+  increment(username: string) {
+    const count = this.state.count + 1
+    this.setState({ count, lastUpdatedBy: username })
+    this.emit('counter:updated', { count, updatedBy: username })
+    return count
   }
 }
 ```
@@ -274,7 +308,7 @@ Rehydration (reconnect with saved state):
 
 - All hooks are optional -- override only what you need
 - All hook errors are caught and logged -- they never break the system
-- Constructor is still needed ONLY for `this.onRoomEvent()` subscriptions
+- Constructor is still needed ONLY for room setup/subscriptions (`this.$room(...).join()`, `room.on(...)`, or legacy `this.onRoomEvent()`)
 - All hooks are in BLOCKED_ACTIONS -- clients cannot call them remotely
 
 ## Custom ID Generator
@@ -597,6 +631,7 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
   }
 
   private counterUnsub: (() => void) | null = null
+  private presenceUnsub: (() => void) | null = null
 
   constructor(initialState: Partial<typeof LiveSharedCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     super(initialState, ws, options)
@@ -615,6 +650,10 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
     this.counterUnsub = room.on('counter:updated', (data) => {
       this.setState({ count: data.count, lastUpdatedBy: data.updatedBy })
     })
+
+    this.presenceUnsub = room.on('presence:changed', (data) => {
+      this.setState({ onlineCount: data.onlineCount })
+    })
   }
 
   async increment() {
@@ -625,6 +664,7 @@ export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.de
 
   destroy() {
     this.counterUnsub?.()
+    this.presenceUnsub?.()
     super.destroy()
   }
 }
@@ -893,11 +933,11 @@ All components in same room receive events:
 ```typescript
 // User A increments
 await counter.increment()
-// Emits COUNT_CHANGED to room
+// Calls CounterRoom.increment(), which updates room state and emits counter:updated
 
 // User B's component receives event
-this.onRoomEvent('COUNT_CHANGED', (data) => {
-  this.setState({ count: data.count })
+const unsub = room.on('counter:updated', (data) => {
+  this.setState({ count: data.count, lastUpdatedBy: data.updatedBy })
 })
 // User B sees updated count
 ```
@@ -907,24 +947,30 @@ this.onRoomEvent('COUNT_CHANGED', (data) => {
 Track connected users in room:
 
 ```typescript
-constructor(initialState, ws, options) {
-  super(initialState, ws, options)
-  
-  // Notify room of new user
-  const newCount = this.state.connectedUsers + 1
-  this.emitRoomEventWithState('USER_COUNT_CHANGED',
-    { connectedUsers: newCount },
-    { connectedUsers: newCount }
-  )
+// In the typed room class, not in each component instance.
+onJoin() {
+  const onlineCount = this.state.onlineCount + 1
+  this.setState({ onlineCount })
+  this.emit('presence:changed', { onlineCount })
 }
 
-destroy() {
-  // Notify room of user leaving
-  const newCount = Math.max(0, this.state.connectedUsers - 1)
-  this.emitRoomEvent('USER_COUNT_CHANGED', { connectedUsers: newCount })
-  super.destroy()
+onLeave() {
+  const onlineCount = Math.max(0, this.state.onlineCount - 1)
+  this.setState({ onlineCount })
+  this.emit('presence:changed', { onlineCount })
+}
+
+// In the component constructor.
+const room = this.$room(CounterRoom, options?.room ?? 'default')
+room.join()
+this.setState({ connectedUsers: room.state.onlineCount })
+
+const unsub = room.on('presence:changed', (data) => {
+  this.setState({ connectedUsers: data.onlineCount })
 }
 ```
+
+Do not calculate presence with `this.state.connectedUsers + 1` inside each component. Each browser tab mounts a separate component instance, so local state starts from its own value and can publish stale counts. Use room state (`room.state.onlineCount`) as the source of truth.
 
 ## Error Handling
 
@@ -968,8 +1014,8 @@ The app includes these live components in `app/server/live/`:
 | Component | Description | Features |
 |-----------|-------------|----------|
 | `LiveLocalCounter` | Simple counter, no room events | Direct state access, `declare` |
-| `LiveCounter` | Shared counter with room events | `onRoomEvent`, `emitRoomEventWithState` |
-| `LiveSharedCounter` | Shared counter using typed `CounterRoom` | `$room(CounterRoom, 'global')` |
+| `LiveCounter` | Shared counter using typed `CounterRoom` | `$room(CounterRoom, roomId)`, `presence:changed` |
+| `LiveSharedCounter` | Shared counter using typed `CounterRoom` | `$room(CounterRoom, 'global')`, `presence:changed` |
 | `LiveForm` | Reactive form with server validation | `setValue`, `validate`, `submit` |
 | `LivePingPong` | Binary codec demo (msgpack) | Typed `PingRoom`, round-trip timing |
 | `LiveRoomChat` | Multi-room chat with directory | `ChatRoom`, `DirectoryRoom`, password rooms |
@@ -981,7 +1027,7 @@ The app includes these live components in `app/server/live/`:
 
 ```
 app/server/live/
-├── LiveCounter.ts              # Shared counter with room events
+├── LiveCounter.ts              # Shared counter using typed CounterRoom
 ├── LiveLocalCounter.ts         # Local counter (no room)
 ├── LiveForm.ts                 # Reactive form
 ├── LivePingPong.ts             # Binary codec demo
@@ -1038,7 +1084,7 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 - Use `declare` for each state property (TypeScript type hint)
 - Use `onMount()` for async initialization (rooms, auth, data fetching)
 - Use `onDestroy()` for cleanup (timers, connections) -- sync only
-- Use `emitRoomEventWithState` for state changes in rooms
+- Prefer typed `LiveRoom` state/methods for shared state and presence; use `emitRoomEventWithState` only for simple legacy untyped-room events
 - Handle errors in actions (throw Error)
 - Add client link: `import type { Demo as _Client } from '@client/...'`
 - Use `$persistent` for data that should survive HMR reloads

@@ -250,26 +250,28 @@ Real-time WebSocket components with **automatic state synchronization** between 
 
 ```typescript
 // app/server/live/LiveCounter.ts
-import { LiveComponent } from '@/core/server'
+import { LiveComponent } from '@core/types/types'
 
-export class LiveCounter extends LiveComponent<{
-  count: number
-}> {
+export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
+  static componentName = 'LiveCounter'
+  static publicActions = ['increment', 'decrement', 'reset'] as const
   static defaultState = { count: 0 }
 
+  declare count: number
+
   async increment() {
-    this.state.count++ // auto-syncs via Proxy
-    return { success: true }
+    this.count++ // auto-syncs via Proxy
+    return { success: true, count: this.count }
   }
 
   async decrement() {
-    this.state.count--
-    return { success: true }
+    this.count--
+    return { success: true, count: this.count }
   }
 
   async reset() {
-    this.state.count = 0
-    return { success: true }
+    this.count = 0
+    return { success: true, count: 0 }
   }
 }
 ```

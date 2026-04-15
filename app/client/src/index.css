@@ -40,6 +40,15 @@
     linear-gradient(to right, var(--theme-primary), var(--theme-secondary)));
 }
 
+.app-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+    radial-gradient(circle at 50% 0%, var(--theme-bg-accent), transparent 42%);
+  background-size: 48px 48px, 48px 48px, 100% 100%;
+  mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+}
+
 /* Hover variants */
 .hover\:bg-theme-muted:hover { background-color: var(--theme-primary-muted); }
 .hover\:border-theme:hover   { border-color: var(--theme-border-active); }
@@ -201,7 +210,8 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  background: #050508;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

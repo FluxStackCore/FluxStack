@@ -1,6 +1,6 @@
 # Live Room System
 
-**Version:** 0.7.2 | **Updated:** 2026-04-14
+**Version:** 0.8.x | **Updated:** 2026-04-15
 
 ## Quick Facts
 
@@ -9,7 +9,8 @@
 - **Untyped rooms** still work for simple pub/sub (backward compatible)
 - Server-side room management — client cannot join typed rooms directly
 - Events propagate to all room members automatically
-- HTTP API integration for external systems (webhooks, bots)
+- HTTP API integration for generic room events (webhooks, bots)
+- Current app examples: `ChatRoom`, `DirectoryRoom`, `CounterRoom`, and `PingRoom`
 - Powered by `@fluxstack/live` package
 
 ## Overview
@@ -34,6 +35,7 @@ Room classes live in `app/server/live/rooms/` and are auto-discovered on startup
 // app/server/live/rooms/ChatRoom.ts
 import { LiveRoom } from '@fluxstack/live'
 import type { RoomJoinContext, RoomLeaveContext } from '@fluxstack/live'
+import { createHash, randomBytes, timingSafeEqual } from 'crypto'
 
 export interface ChatMessage {
   id: string
@@ -51,6 +53,7 @@ interface ChatState {
 
 // Private metadata — NEVER leaves the server
 interface ChatMeta {
+  /** Server-only password hash in "salt:hash" format. Never sent to clients. */
   password: string | null
   createdBy: string | null
 }
@@ -71,12 +74,28 @@ export class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
   // Room options
   static $options = { maxMembers: 100 }
 
+  private static hashPassword(password: string): string {
+    const salt = randomBytes(16).toString('hex')
+    const hash = createHash('sha256').update(salt + password).digest('hex')
+    return salt + ':' + hash
+  }
+
+  private static verifyPassword(password: string, stored: string): boolean {
+    const [salt, hash] = stored.split(':')
+    if (!salt || !hash) return false
+    const computed = createHash('sha256').update(salt + password).digest('hex')
+    const bufA = Buffer.from(computed, 'hex')
+    const bufB = Buffer.from(hash, 'hex')
+    return bufA.length === bufB.length && timingSafeEqual(bufA, bufB)
+  }
+
   // === Lifecycle Hooks ===
 
   onJoin(ctx: RoomJoinContext) {
     // Validate password if room is protected
     if (this.meta.password) {
-      if (ctx.payload?.password !== this.meta.password) {
+      const provided = ctx.payload?.password
+      if (!provided || !ChatRoom.verifyPassword(provided, this.meta.password)) {
         return false // Reject join
       }
     }
@@ -90,7 +109,7 @@ export class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
   // === Custom Methods ===
 
   setPassword(password: string | null) {
-    this.meta.password = password
+    this.meta.password = password ? ChatRoom.hashPassword(password) : null
     this.setState({ isPrivate: password !== null })
   }
 
@@ -126,14 +145,15 @@ abstract class LiveRoom<TState, TMeta, TEvents> {
   // === Framework Methods ===
   setState(updates: Partial<TState>): void     // Update & broadcast state
   emit<K extends keyof TEvents>(event: K, data: TEvents[K]): number  // Emit typed event
+  emitWithState<K extends keyof TEvents>(event: K, data: TEvents[K], updates: Partial<TState>): number
   get memberCount(): number                     // Current member count
 
   // === Lifecycle Hooks (override in subclass) ===
-  onJoin(ctx: RoomJoinContext): void | false    // Return false to reject
-  onLeave(ctx: RoomLeaveContext): void
-  onEvent(event: string, data: any, ctx: RoomEventContext): void
-  onCreate(): void                              // First member joined
-  onDestroy(): void | false                     // Last member left (return false to keep alive)
+  onJoin(ctx: RoomJoinContext): void | false | Promise<void | false>
+  onLeave(ctx: RoomLeaveContext): void | Promise<void>
+  onEvent(event: string, data: any, ctx: RoomEventContext): void | Promise<void>
+  onCreate(): void | Promise<void>              // First member joined
+  onDestroy(): void | false | Promise<void | false>
 }
 ```
 
@@ -166,6 +186,73 @@ interface RoomEventContext {
 | **Access** | `this.state.x` / `this.setState({})` | `this.meta.x` (direct mutation) |
 | **Use for** | Messages, counts, flags | Passwords, secrets, internal data |
 | **Broadcast** | Yes, via deep diff | Never |
+
+### Other Typed Room Examples
+
+The app currently ships additional typed rooms beyond chat:
+
+```typescript
+// app/server/live/rooms/CounterRoom.ts
+interface CounterState {
+  count: number
+  lastUpdatedBy: string | null
+  onlineCount: number
+}
+
+interface CounterEvents {
+  'counter:updated': { count: number; updatedBy: string }
+  'presence:changed': { onlineCount: number }
+}
+
+export class CounterRoom extends LiveRoom<CounterState, {}, CounterEvents> {
+  static roomName = 'counter'
+  static defaultState: CounterState = { count: 0, lastUpdatedBy: null, onlineCount: 0 }
+  static defaultMeta = {}
+
+  onJoin() {
+    const onlineCount = this.state.onlineCount + 1
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
+  }
+
+  onLeave() {
+    const onlineCount = Math.max(0, this.state.onlineCount - 1)
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
+  }
+
+  increment(username: string) {
+    const count = this.state.count + 1
+    this.setState({ count, lastUpdatedBy: username })
+    this.emit('counter:updated', { count, updatedBy: username })
+    return count
+  }
+}
+```
+
+```typescript
+// app/server/live/rooms/PingRoom.ts
+interface PingEvents {
+  'ping': { from: string; timestamp: number; seq: number }
+  'pong': { from: string; timestamp: number; seq: number; serverTime: number }
+}
+
+export class PingRoom extends LiveRoom<PingState, {}, PingEvents> {
+  static roomName = 'ping'
+  static defaultState = { onlineCount: 0, totalPings: 0, lastPingBy: null }
+  static defaultMeta = {}
+
+  // Typed rooms default to msgpack unless $options.codec overrides it.
+  ping(username: string, seq: number) {
+    const total = this.state.totalPings + 1
+    this.setState({ totalPings: total, lastPingBy: username })
+    this.emit('pong', { from: username, timestamp: Date.now(), seq, serverTime: Date.now() })
+    return total
+  }
+}
+```
+
+Presence counts should live in room state (`onlineCount`) and be updated from `onJoin` / `onLeave`. Do not calculate presence from each component instance's local state.
 
 ### Using Typed Rooms in Components
 
@@ -204,8 +291,8 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
       this.setState({ messages: [...this.state.messages, msg] })
     })
 
-    // Emit typed events
-    room.emit('chat:message', { id: '1', user: 'Bot', text: 'Hi', timestamp: Date.now() })
+    // Usually custom methods emit events. Direct emit is available for custom events.
+    // room.emit('chat:message', { id: '1', user: 'Bot', text: 'Hi', timestamp: Date.now() })
 
     // Framework properties
     console.log(room.id)          // 'chat:lobby'
@@ -222,9 +309,9 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
 Typed rooms use compound IDs: `${roomName}:${instanceId}`
 
 ```
-ChatRoom + 'lobby'  → 'chat:lobby'
-ChatRoom + 'vip'    → 'chat:vip'
-GameRoom + 'match1' → 'game:match1'
+ChatRoom + 'lobby'     -> 'chat:lobby'
+ChatRoom + 'vip'       -> 'chat:vip'
+CounterRoom + 'global' -> 'counter:global'
 ```
 
 This allows multiple instances of the same room type. The `RoomRegistry` resolves the class from the compound ID automatically.
@@ -235,9 +322,10 @@ Room classes in `app/server/live/rooms/` are auto-discovered on startup. Any exp
 
 ```
 app/server/live/rooms/
-  ChatRoom.ts        → registered as 'chat'
-  DirectoryRoom.ts   → registered as 'directory'
-  GameRoom.ts        → registered as 'game'
+  ChatRoom.ts        -> registered as 'chat'
+  DirectoryRoom.ts   -> registered as 'directory'
+  CounterRoom.ts     -> registered as 'counter'
+  PingRoom.ts        -> registered as 'ping'
 ```
 
 No manual registration needed. The `websocket-plugin.ts` scans the directory and passes discovered rooms to `LiveServer`.
@@ -251,8 +339,8 @@ class VIPRoom extends LiveRoom<State, Meta, Events> {
   static roomName = 'vip'
 
   onJoin(ctx: RoomJoinContext) {
-    // Reject if no password
-    if (this.meta.password && ctx.payload?.password !== this.meta.password) {
+    // Reject if caller does not satisfy room-specific rules
+    if (this.meta.requiredToken && ctx.payload?.token !== this.meta.requiredToken) {
       return false
     }
 
@@ -390,7 +478,8 @@ Complete implementation using `meta` (server-only) and `onJoin` validation:
 ### 1. Room Class
 
 ```typescript
-// ChatMeta.password is NEVER sent to clients
+// ChatMeta.password is NEVER sent to clients.
+// Store a hash such as "salt:hash", not the plaintext password.
 interface ChatMeta {
   password: string | null
   createdBy: string | null
@@ -399,14 +488,19 @@ interface ChatMeta {
 class ChatRoom extends LiveRoom<ChatState, ChatMeta, ChatEvents> {
   static defaultMeta: ChatMeta = { password: null, createdBy: null }
 
+  // Implement these with a salted hash and constant-time comparison
+  // (see full ChatRoom example above).
+  private static hashPassword(password: string): string { throw new Error('see full example') }
+  private static verifyPassword(password: string, stored: string): boolean { throw new Error('see full example') }
+
   setPassword(password: string | null) {
-    this.meta.password = password                    // Server-only
+    this.meta.password = password ? ChatRoom.hashPassword(password) : null
     this.setState({ isPrivate: password !== null })  // Visible to clients
   }
 
   onJoin(ctx: RoomJoinContext) {
     if (this.meta.password) {
-      if (ctx.payload?.password !== this.meta.password) {
+      if (!ctx.payload?.password || !ChatRoom.verifyPassword(ctx.payload.password, this.meta.password)) {
         return false // Wrong password → rejected
       }
     }
@@ -424,7 +518,7 @@ async joinRoom(payload: { roomId: string; password?: string }) {
   //                        ^^^^^^^^^ passed to onJoin ctx.payload
 
   if ('rejected' in result && result.rejected) {
-    return { success: false, error: 'Senha incorreta' }
+    return { success: false, error: 'Invalid password' }
   }
   return { success: true }
 }
@@ -464,7 +558,7 @@ const handlePasswordSubmit = async () => {
     password: passwordInput
   })
   if (result && !result.success) {
-    showError('Senha incorreta')
+    showError('Invalid password')
   }
 }
 ```
@@ -560,7 +654,7 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
   private roomListeners = new Map<string, (() => void)[]>()
   private directoryUnsubs: (() => void)[] = []
 
-  constructor(initialState: Partial<typeof LiveRoomChat.defaultState>, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+  constructor(initialState: Partial<typeof LiveRoomChat.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
     super(initialState, ws, options)
 
     // Auto-join directory for room discovery
@@ -608,13 +702,13 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
 
   async joinRoom(payload: { roomId: string; roomName?: string; password?: string }) {
     if (this.roomListeners.has(payload.roomId)) {
-      this.state.activeRoom = payload.roomId
+      this.setState({ activeRoom: payload.roomId })
       return { success: true, roomId: payload.roomId }
     }
 
     const room = this.$room(ChatRoom, payload.roomId)
     const result = room.join({ password: payload.password })
-    if ('rejected' in result && result.rejected) return { success: false, error: 'Senha incorreta' }
+    if ('rejected' in result && result.rejected) return { success: false, error: 'Invalid password' }
 
     const unsub = room.on('chat:message', (msg: ChatMessage) => {
       const msgs = this.state.messages[payload.roomId] || []
@@ -644,6 +738,7 @@ export class LiveRoomChat extends LiveComponent<typeof LiveRoomChat.defaultState
     for (const fns of this.roomListeners.values()) fns.forEach(fn => fn())
     this.roomListeners.clear()
     this.directoryUnsubs.forEach(fn => fn())
+    this.directoryUnsubs = []
     super.destroy()
   }
 }
@@ -770,18 +865,20 @@ export function RoomChatDemo() {
 
 ## HTTP API Integration
 
-Send messages from external systems via REST API:
+Send generic room events from external systems via REST API. These endpoints use `liveServer.roomManager.emitToRoom(roomId, event, data)` and therefore target the exact room id you pass.
+
+For typed rooms, use the compound id (`chat:general`, `counter:global-counter`, `ping:global`). Also make sure the emitted event name matches what components are listening for. The demo `LiveRoomChat` listens for `chat:message` through `ChatRoom.addMessage()`; the convenience `POST /api/rooms/:roomId/messages` endpoint emits `message:new`, so it is best treated as a generic/untyped-room example unless you add a bridge listener for that event.
 
 ```bash
-# Send message to room
-curl -X POST http://localhost:3000/api/rooms/geral/messages \
+# Send a generic message event to an untyped room
+curl -X POST http://localhost:3000/api/rooms/notifications/messages \
   -H "Content-Type: application/json" \
   -d '{"user": "Webhook Bot", "text": "New deployment completed!"}'
 
-# Emit custom event
-curl -X POST http://localhost:3000/api/rooms/tech/emit \
+# Emit a custom event to a typed room by compound id
+curl -X POST http://localhost:3000/api/rooms/chat:general/emit \
   -H "Content-Type: application/json" \
-  -d '{"event": "notification", "data": {"type": "alert"}}'
+  -d '{"event": "chat:message", "data": {"id":"api-1","user":"Webhook Bot","text":"Hello","timestamp":1710000000000}}'
 
 # Get room stats
 curl http://localhost:3000/api/rooms/stats
@@ -794,24 +891,26 @@ curl http://localhost:3000/api/rooms/stats
 Direct access for advanced use cases:
 
 ```typescript
-import { liveRoomManager } from '@core/server/live/LiveRoomManager'
+import { liveServer } from '@core/server/live'
+
+const roomManager = liveServer!.roomManager
 
 // Membership
-liveRoomManager.joinRoom(componentId, roomId, ws, initialState, options, joinContext)
-liveRoomManager.leaveRoom(componentId, roomId, leaveReason)
-liveRoomManager.cleanupComponent(componentId)
+roomManager.joinRoom(componentId, roomId, ws, initialState, options, joinContext)
+roomManager.leaveRoom(componentId, roomId, leaveReason)
+roomManager.cleanupComponent(componentId)
 
 // Events & State
-liveRoomManager.emitToRoom(roomId, event, data, excludeComponentId)
-liveRoomManager.setRoomState(roomId, updates, excludeComponentId)
-liveRoomManager.getRoomState(roomId)
+roomManager.emitToRoom(roomId, event, data, excludeComponentId)
+roomManager.setRoomState(roomId, updates, excludeComponentId)
+roomManager.getRoomState(roomId)
 
 // Queries
-liveRoomManager.isInRoom(componentId, roomId)
-liveRoomManager.getComponentRooms(componentId)
-liveRoomManager.getMemberCount(roomId)
-liveRoomManager.getRoomInstance(roomId)  // Get LiveRoom instance (typed rooms only)
-liveRoomManager.getStats()
+roomManager.isInRoom(componentId, roomId)
+roomManager.getComponentRooms(componentId)
+roomManager.getMemberCount(roomId)
+roomManager.getRoomInstance(roomId)  // Get LiveRoom instance (typed rooms only)
+roomManager.getStats()
 ```
 
 ---

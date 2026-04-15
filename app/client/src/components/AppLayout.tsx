@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { FaBook, FaGithub, FaBars, FaTimes } from 'react-icons/fa'
+import { FaBars, FaBook, FaChevronDown, FaExternalLinkAlt, FaGithub, FaTimes } from 'react-icons/fa'
 import FluxStackLogo from '@client/src/assets/fluxstack.svg'
 import faviconSvg from '@client/src/assets/fluxstack-static.svg?raw'
 import { useThemeClock } from '../hooks/useThemeClock'
@@ -10,49 +11,67 @@ import { themeConfig } from '../config/theme.config'
 
 const navItems = [
   { to: '/', label: 'Home' },
+]
+
+const demoItems = [
   { to: '/counter', label: 'Counter' },
   { to: '/form', label: 'Form' },
   { to: '/upload', label: 'Upload' },
-  { to: '/shared-counter', label: 'Shared Counter' },
   { to: '/room-chat', label: 'Room Chat' },
   { to: '/auth', label: 'Auth' },
   { to: '/ping-pong', label: 'Ping Pong' },
-  { to: '/api-test', label: 'API Test' }
 ]
 
-const routeFlameHue: Record<string, string> = {
-  '/': '0deg',              // roxo original
-  '/counter': '180deg',     // ciano
-  '/form': '300deg',        // rosa
-  '/upload': '60deg',       // amarelo
-  '/shared-counter': '120deg', // verde
-  '/room-chat': '240deg',   // azul
-  '/auth': '330deg',        // vermelho
-  '/ping-pong': '200deg',   // ciano-azul
-  '/api-test': '90deg',     // lima
-}
+const allRouteItems = [...navItems, ...demoItems]
 
-// Cache favicon blob URLs by hue to avoid recreating blobs on every navigation.
-// Limited to MAX_FAVICON_CACHE entries; old blob URLs are revoked to prevent leaks.
 const MAX_FAVICON_CACHE = 20
 const faviconUrlCache = new Map<string, string>()
+
+function HeaderLink({
+  href,
+  children,
+  subtle = false,
+}: {
+  href: string
+  children: ReactNode
+  subtle?: boolean
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`hidden h-9 items-center gap-2 rounded-lg border px-3 text-sm transition sm:inline-flex ${
+        subtle
+          ? 'border-white/10 bg-white/[0.025] text-gray-400 hover:border-white/20 hover:bg-white/[0.05] hover:text-white'
+          : 'border-theme-active bg-theme-muted text-theme hover:shadow-theme'
+      }`}
+    >
+      {children}
+    </a>
+  )
+}
 
 export function AppLayout() {
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [demosOpen, setDemosOpen] = useState(false)
   const autoTheme = useThemeClock()
   const [overrideTheme, setOverrideTheme] = useState<ColorPalette | null>(null)
   const theme = overrideTheme || autoTheme
 
   useEffect(() => {
-    const current = navItems.find(item => item.to === location.pathname)
+    setDemosOpen(false)
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    const current = allRouteItems.find(item => item.to === location.pathname)
     document.title = current ? `${current.label} - FluxStack` : 'FluxStack'
 
-    // Dynamic favicon with hue-rotate based on theme clock
     const hue = `${Math.round(theme.baseHue - 270)}deg`
     let url = faviconUrlCache.get(hue)
     if (!url) {
-      // Evict oldest entry if cache is full, revoking blob URL to free memory
       if (faviconUrlCache.size >= MAX_FAVICON_CACHE) {
         const oldestKey = faviconUrlCache.keys().next().value!
         const oldestUrl = faviconUrlCache.get(oldestKey)!
@@ -77,96 +96,122 @@ export function AppLayout() {
     link.href = url
   }, [location.pathname, theme.baseHue])
 
+  const activeDemo = demoItems.some(item => item.to === location.pathname)
+
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{ backgroundColor: `oklch(8% 0.02 ${theme.baseHue})` }}>
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-[#0a0a1a]/80 border-b border-white/[0.06]">
-        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-wide">
-            <img
-              src={FluxStackLogo}
-              alt="FluxStack"
-              className="w-9 h-9 transition-[filter] duration-500"
-              style={{
-                filter: `hue-rotate(${theme.baseHue - 270}deg) drop-shadow(0 0 8px ${theme.primaryGlow})`,
-              }}
-            />
-            <span
-              className="bg-clip-text text-transparent"
-              style={{ backgroundImage: theme.gradientPrimary }}
-            >
+    <div
+      className="min-h-screen text-white"
+      style={{ backgroundColor: `oklch(7% 0.018 ${theme.baseHue})` }}
+    >
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-black/45 backdrop-blur-2xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="group flex min-w-0 items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04]">
+              <img
+                src={FluxStackLogo}
+                alt="FluxStack"
+                className="h-6 w-6 transition-[filter] duration-500"
+                style={{
+                  filter: `hue-rotate(${theme.baseHue - 270}deg) drop-shadow(0 0 8px ${theme.primaryGlow})`,
+                }}
+              />
+            </span>
+            <span className="truncate text-sm font-semibold tracking-tight text-white">
               FluxStack
             </span>
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-2">
-            {navItems.map((item) => {
-              const active = location.pathname === item.to
-              return (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
-                    active
-                      ? 'font-medium'
-                      : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
+          <nav className="hidden min-w-0 flex-1 items-center justify-center md:flex">
+            <div className="relative flex max-w-full items-center gap-1 rounded-lg border border-white/10 bg-white/[0.025] p-1">
+              {navItems.map((item) => {
+                const active = location.pathname === item.to
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition ${
+                      active
+                        ? 'bg-white text-black shadow-sm'
+                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              })}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDemosOpen(open => !open)}
+                  className={`inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition ${
+                    activeDemo
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
                   }`}
-                  style={active ? {
-                    backgroundColor: theme.primaryMuted,
-                    color: theme.textPrimary,
-                  } : undefined}
+                  aria-expanded={demosOpen}
                 >
-                  {item.label}
-                </Link>
-              )
-            })}
+                  Live Demos
+                  <FaChevronDown className={`h-2.5 w-2.5 transition ${demosOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {demosOpen && (
+                  <div className="absolute left-1/2 top-11 z-50 w-72 -translate-x-1/2 rounded-lg border border-white/10 bg-[#07070b]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+                    <div className="px-3 py-2">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live Components</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-400">Demos de estado no servidor, salas, auth e upload.</p>
+                    </div>
+                    <div className="mt-1 grid gap-1">
+                      {demoItems.map((item) => {
+                        const active = location.pathname === item.to
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className={`rounded-md px-3 py-2 text-sm transition ${
+                              active
+                                ? 'bg-white text-black'
+                                : 'text-gray-300 hover:bg-white/[0.06] hover:text-white'
+                            }`}
+                          >
+                            {item.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <a
-              href="https://live-docs.marcosbrendon.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 border border-purple-500/20 text-purple-300 rounded-xl text-sm hover:bg-purple-500/30 transition-all"
-            >
-              <FaBook />
+          <div className="flex shrink-0 items-center gap-2">
+            <HeaderLink href="https://live-docs.marcosbrendon.com/">
+              <FaBook className="h-3.5 w-3.5" />
               Live Docs
-            </a>
-            <a
-              href="/swagger"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
-            >
-              <FaBook />
-              API Docs
-            </a>
-            <a
-              href="https://github.com/MarcosBrendonDePaula/FluxStack"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
-            >
-              <FaGithub />
+              <FaExternalLinkAlt className="h-2.5 w-2.5 opacity-60" />
+            </HeaderLink>
+            <HeaderLink href="/swagger" subtle>
+              <FaBook className="h-3.5 w-3.5" />
+              API
+            </HeaderLink>
+            <HeaderLink href="https://github.com/MarcosBrendonDePaula/FluxStack" subtle>
+              <FaGithub className="h-3.5 w-3.5" />
               GitHub
-            </a>
+            </HeaderLink>
 
-            {/* Mobile menu toggle */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/[0.03] text-gray-300 transition hover:bg-white/[0.06] hover:text-white md:hidden"
               aria-label="Toggle menu"
             >
-              {menuOpen ? <FaTimes size={20} /> : <FaBars size={20} />}
+              {menuOpen ? <FaTimes size={16} /> : <FaBars size={16} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile nav */}
         {menuOpen && (
-          <div className="md:hidden border-t border-white/[0.06] bg-[#0a0a1a]/90 backdrop-blur-xl">
-            <nav className="container mx-auto px-4 py-3 flex gap-4 relative">
-              <div className="flex flex-col gap-1 flex-1">
+          <div className="border-t border-white/10 bg-black/70 backdrop-blur-2xl md:hidden">
+            <nav className="mx-auto grid max-w-7xl gap-1 px-4 py-3 sm:px-6">
               {navItems.map((item) => {
                 const active = location.pathname === item.to
                 return (
@@ -174,74 +219,67 @@ export function AppLayout() {
                     key={item.to}
                     to={item.to}
                     onClick={() => setMenuOpen(false)}
-                    className={`px-3 py-2 rounded-lg text-sm transition-all ${
+                    className={`rounded-lg px-3 py-2 text-sm transition ${
                       active
-                        ? 'font-medium'
-                        : 'text-gray-400 hover:text-white hover:bg-white/[0.05]'
+                        ? 'bg-white text-black'
+                        : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
                     }`}
-                    style={active ? {
-                      backgroundColor: theme.primaryMuted,
-                      color: theme.textPrimary,
-                    } : undefined}
                   >
                     {item.label}
                   </Link>
                 )
               })}
-              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/[0.06]">
-                <a
-                  href="https://live-docs.marcosbrendon.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-purple-500/20 border border-purple-500/20 text-purple-300 rounded-xl text-sm hover:bg-purple-500/30 transition-all"
-                >
-                  <FaBook />
+              <div className="mt-2 border-t border-white/10 pt-3">
+                <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">
+                  Live Demos
+                </p>
+                <div className="grid gap-1">
+                  {demoItems.map((item) => {
+                    const active = location.pathname === item.to
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setMenuOpen(false)}
+                        className={`rounded-lg px-3 py-2 text-sm transition ${
+                          active
+                            ? 'bg-white text-black'
+                            : 'text-gray-400 hover:bg-white/[0.06] hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="mt-2 grid gap-2 border-t border-white/10 pt-3 sm:grid-cols-3">
+                <a href="https://live-docs.marcosbrendon.com/" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-theme-active bg-theme-muted px-3 py-2 text-sm text-theme">
                   Live Docs
                 </a>
-                <a
-                  href="/swagger"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
-                >
-                  <FaBook />
+                <a href="/swagger" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-gray-300">
                   API Docs
                 </a>
-                <a
-                  href="https://github.com/MarcosBrendonDePaula/FluxStack"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/[0.06] text-gray-400 rounded-xl text-sm hover:bg-white/[0.06] hover:text-white transition-all"
-                >
-                  <FaGithub />
+                <a href="https://github.com/MarcosBrendonDePaula/FluxStack" target="_blank" rel="noopener noreferrer" className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-gray-300">
                   GitHub
                 </a>
               </div>
-              </div>
-
-              {/* Logo floating right */}
-              <img
-                src={FluxStackLogo}
-                alt=""
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-40 h-40 opacity-15 pointer-events-none transition-[filter] duration-500"
-                style={{ filter: `hue-rotate(${routeFlameHue[location.pathname] || '0deg'})` }}
-              />
             </nav>
           </div>
         )}
       </header>
 
-      <main className="flex-1">
+      <main className="min-h-[calc(100vh-128px)]">
         <Outlet />
       </main>
 
-      <footer className="border-t border-white/[0.06] py-6 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Built with <span style={{ color: theme.primary }}>FluxStack</span> — Bun + Elysia + React
+      <footer className="border-t border-white/10 bg-black/20 py-5">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 text-center sm:flex-row sm:px-6 lg:px-8">
+          <p className="text-xs text-gray-500">
+            Built with <span style={{ color: theme.primary }}>FluxStack</span> - Bun + Elysia + React
           </p>
-          <p className="text-gray-600 text-xs mt-1">
-            🎨 <span style={{ color: theme.primary }}>{theme.period}</span> palette — colors shift with the time of day
+          <p className="text-xs text-gray-600">
+            <span style={{ color: theme.primary }}>{theme.period}</span> palette
           </p>
         </div>
       </footer>

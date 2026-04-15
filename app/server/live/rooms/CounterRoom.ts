@@ -14,6 +14,7 @@ interface CounterState {
 
 interface CounterEvents {
   'counter:updated': { count: number; updatedBy: string }
+  'presence:changed': { onlineCount: number }
 }
 
 export class CounterRoom extends LiveRoom<CounterState, {}, CounterEvents> {
@@ -22,11 +23,15 @@ export class CounterRoom extends LiveRoom<CounterState, {}, CounterEvents> {
   static defaultMeta = {}
 
   onJoin(_ctx: RoomJoinContext) {
-    this.setState({ onlineCount: this.state.onlineCount + 1 })
+    const onlineCount = this.state.onlineCount + 1
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
   }
 
   onLeave(_ctx: RoomLeaveContext) {
-    this.setState({ onlineCount: Math.max(0, this.state.onlineCount - 1) })
+    const onlineCount = Math.max(0, this.state.onlineCount - 1)
+    this.setState({ onlineCount })
+    this.emit('presence:changed', { onlineCount })
   }
 
   increment(username: string) {

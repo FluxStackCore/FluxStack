@@ -1,8 +1,6 @@
-// LiveCounter - Contador compartilhado usando Room Events
-
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { CounterRoom } from './rooms/CounterRoom'
 
-// Componente Cliente (Ctrl+Click para navegar)
 import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
@@ -11,58 +9,63 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
   static defaultState = {
     count: 0,
     lastUpdatedBy: null as string | null,
-    connectedUsers: 0
+    connectedUsers: 0,
   }
-  protected roomType = 'counter'
 
-  constructor(initialState: Partial<typeof LiveCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+  private roomId: string
+  private unsubscribeCounter: (() => void) | null = null
+  private unsubscribePresence: (() => void) | null = null
+
+  constructor(
+    initialState: Partial<typeof LiveCounter.defaultState> = {},
+    ws: FluxStackWebSocket,
+    options?: { room?: string; userId?: string }
+  ) {
     super(initialState, ws, options)
 
-    this.onRoomEvent<{ count: number; userId: string }>('COUNT_CHANGED', (data) => {
-      this.setState({ count: data.count, lastUpdatedBy: data.userId })
+    this.roomId = options?.room ?? 'default'
+    const room = this.$room(CounterRoom, this.roomId)
+    room.join()
+
+    this.setState({
+      count: room.state.count,
+      lastUpdatedBy: room.state.lastUpdatedBy,
+      connectedUsers: room.state.onlineCount,
     })
 
-    this.onRoomEvent<{ connectedUsers: number }>('USER_COUNT_CHANGED', (data) => {
-      this.setState({ connectedUsers: data.connectedUsers })
+    this.unsubscribeCounter = room.on('counter:updated', (data) => {
+      this.setState({
+        count: data.count,
+        lastUpdatedBy: data.updatedBy,
+      })
     })
 
-    this.notifyUserJoined()
-  }
-
-  private notifyUserJoined() {
-    const newCount = this.state.connectedUsers + 1
-    this.emitRoomEventWithState('USER_COUNT_CHANGED', { connectedUsers: newCount }, { connectedUsers: newCount })
+    this.unsubscribePresence = room.on('presence:changed', (data) => {
+      this.setState({ connectedUsers: data.onlineCount })
+    })
   }
 
   async increment() {
-    const newCount = this.state.count + 1
-    this.emitRoomEventWithState('COUNT_CHANGED', { count: newCount, userId: this.userId || 'anonymous' }, {
-      count: newCount,
-      lastUpdatedBy: this.userId || 'anonymous'
-    })
-    return { success: true, count: newCount }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.increment(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   async decrement() {
-    const newCount = this.state.count - 1
-    this.emitRoomEventWithState('COUNT_CHANGED', { count: newCount, userId: this.userId || 'anonymous' }, {
-      count: newCount,
-      lastUpdatedBy: this.userId || 'anonymous'
-    })
-    return { success: true, count: newCount }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.decrement(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   async reset() {
-    this.emitRoomEventWithState('COUNT_CHANGED', { count: 0, userId: this.userId || 'anonymous' }, {
-      count: 0,
-      lastUpdatedBy: this.userId || 'anonymous'
-    })
-    return { success: true, count: 0 }
+    const room = this.$room(CounterRoom, this.roomId)
+    const count = room.reset(this.userId || 'anonymous')
+    return { success: true, count }
   }
 
   destroy() {
-    const newCount = Math.max(0, this.state.connectedUsers - 1)
-    this.emitRoomEvent('USER_COUNT_CHANGED', { connectedUsers: newCount })
+    this.unsubscribeCounter?.()
+    this.unsubscribePresence?.()
     super.destroy()
   }
 }

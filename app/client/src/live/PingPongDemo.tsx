@@ -1,13 +1,8 @@
-// PingPongDemo - Demo de Binary Codec (msgpack)
-//
-// Mostra latencia round-trip de mensagens binárias.
-// Cada ping viaja como msgpack binário pelo WebSocket.
-// Abra em varias abas para ver o onlineCount e totalPings compartilhados.
-
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { Live } from '@/core/client'
 import { LivePingPong } from '@server/live/LivePingPong'
 import type { PingRoom } from '@server/live/rooms/PingRoom'
+import { FaGaugeHigh, FaPlay, FaSignal, FaStopwatch } from 'react-icons/fa6'
 
 interface PingEntry {
   seq: number
@@ -15,11 +10,20 @@ interface PingEntry {
   rtt: number | null
 }
 
+function StatCard({ label, value, tone = 'white' }: { label: string; value: string; tone?: string }) {
+  return (
+    <div className="rounded-lg border border-white/10 bg-white/[0.025] p-4">
+      <div className={`text-2xl font-semibold tabular-nums ${tone}`}>{value}</div>
+      <div className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-gray-600">{label}</div>
+    </div>
+  )
+}
+
 export function PingPongDemo() {
   const username = useMemo(() => {
-    const adj = ['Swift', 'Rapid', 'Quick', 'Turbo', 'Flash'][Math.floor(Math.random() * 5)]
-    const noun = ['Ping', 'Bolt', 'Wave', 'Pulse', 'Beam'][Math.floor(Math.random() * 5)]
-    return `${adj}${noun}${Math.floor(Math.random() * 100)}`
+    const prefix = ['Edge', 'Core', 'Node', 'Wire', 'Frame'][Math.floor(Math.random() * 5)]
+    const suffix = Math.floor(Math.random() * 100)
+    return `${prefix}-${suffix}`
   }, [])
 
   const live = Live.use(LivePingPong, {
@@ -30,10 +34,11 @@ export function PingPongDemo() {
   const [avgRtt, setAvgRtt] = useState<number | null>(null)
   const [minRtt, setMinRtt] = useState<number | null>(null)
   const [maxRtt, setMaxRtt] = useState<number | null>(null)
+  const [autoPing, setAutoPing] = useState(false)
   const seqRef = useRef(0)
   const pendingRef = useRef<Map<number, number>>(new Map())
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Listen for pong events (binary msgpack from server)
   useEffect(() => {
     const unsub = live.$room<PingRoom>('ping:global').on('pong', (data) => {
       const sentAt = pendingRef.current.get(data.seq)
@@ -41,10 +46,8 @@ export function PingPongDemo() {
       pendingRef.current.delete(data.seq)
 
       const rtt = Date.now() - sentAt
-
       setPings(prev => {
-        const updated = [{ seq: data.seq, sentAt, rtt }, ...prev].slice(0, 20)
-        // Compute stats
+        const updated = [{ seq: data.seq, sentAt, rtt }, ...prev].slice(0, 18)
         const rtts = updated.filter(p => p.rtt != null).map(p => p.rtt!)
         if (rtts.length > 0) {
           setAvgRtt(Math.round(rtts.reduce((a, b) => a + b, 0) / rtts.length))
@@ -55,17 +58,13 @@ export function PingPongDemo() {
       })
     })
     return unsub
-  }, [])
+  }, [live])
 
   const sendPing = useCallback(() => {
     const seq = ++seqRef.current
     pendingRef.current.set(seq, Date.now())
     live.ping({ seq })
   }, [live])
-
-  // Auto-ping mode
-  const [autoPing, setAutoPing] = useState(false)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     if (autoPing && live.$connected) {
@@ -79,124 +78,103 @@ export function PingPongDemo() {
     }
   }, [autoPing, live.$connected, sendPing])
 
-  const onlineCount = live.$state.onlineCount
-  const totalPings = live.$state.totalPings
-  const lastPingBy = live.$state.lastPingBy
-
   const rttColor = (rtt: number) => {
-    if (rtt < 10) return 'text-emerald-400'
-    if (rtt < 50) return 'text-yellow-400'
-    return 'text-red-400'
+    if (rtt < 10) return 'text-emerald-300'
+    if (rtt < 50) return 'text-amber-300'
+    return 'text-red-300'
   }
 
   return (
-    <div className="flex flex-col items-center gap-8 w-full max-w-lg mx-auto">
-      {/* Header */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-white mb-2">Ping Pong Binary</h2>
-        <p className="text-sm text-gray-400">
-          Mensagens binárias via <code className="text-theme-secondary">msgpack</code> — round-trip latency demo
-        </p>
-      </div>
-
-      {/* Status bar */}
-      <div className="flex items-center gap-4 flex-wrap justify-center">
-        <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${live.$connected ? 'bg-emerald-400' : 'bg-red-400'}`} />
-          <span className="text-sm text-gray-400">{live.$connected ? 'Conectado' : 'Desconectado'}</span>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-          <span className="text-sm text-gray-400">{onlineCount} online</span>
-        </div>
-        <div className="px-3 py-1 rounded-full bg-theme-accent border border-theme">
-          <span className="text-xs text-theme">{username}</span>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 w-full">
-        <div className="card-theme p-4 text-center">
-          <div className="text-2xl font-bold text-white tabular-nums">
-            {avgRtt != null ? `${avgRtt}ms` : '--'}
+    <div className="grid w-full max-w-5xl gap-4 lg:grid-cols-[380px_1fr]">
+      <section className="rounded-lg border border-white/10 bg-[#07070b]/85 p-5 shadow-2xl shadow-black/20">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-semibold tracking-tight text-white">Latency probe</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Send binary msgpack events and measure round-trip time through the Live room.
+            </p>
           </div>
-          <div className="text-xs text-gray-500 mt-1">AVG RTT</div>
-        </div>
-        <div className="card-theme p-4 text-center">
-          <div className="text-2xl font-bold text-emerald-400 tabular-nums">
-            {minRtt != null ? `${minRtt}ms` : '--'}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">MIN RTT</div>
-        </div>
-        <div className="card-theme p-4 text-center">
-          <div className="text-2xl font-bold text-red-400 tabular-nums">
-            {maxRtt != null ? `${maxRtt}ms` : '--'}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">MAX RTT</div>
-        </div>
-      </div>
-
-      {/* Controls */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={sendPing}
-          disabled={!live.$connected || live.$loading}
-          className="px-8 h-14 rounded-2xl bg-theme-muted border border-theme-active text-theme text-lg font-bold hover:bg-theme-muted active:scale-95 disabled:opacity-50 transition-all"
-        >
-          Ping!
-        </button>
-        <button
-          onClick={() => setAutoPing(!autoPing)}
-          disabled={!live.$connected}
-          className={`px-6 h-14 rounded-2xl border text-sm font-medium transition-all ${
-            autoPing
-              ? 'bg-yellow-500/20 border-yellow-500/30 text-yellow-300 hover:bg-yellow-500/30'
-              : 'bg-white/10 border-white/20 text-gray-300 hover:bg-white/20'
-          }`}
-        >
-          {autoPing ? 'Auto ON' : 'Auto OFF'}
-        </button>
-      </div>
-
-      {/* Global stats */}
-      <div className="flex items-center gap-6 text-sm text-gray-500">
-        <span>Total pings: <span className="text-white font-mono">{totalPings}</span></span>
-        {lastPingBy && <span>Ultimo: <span className="text-gray-300">{lastPingBy}</span></span>}
-      </div>
-
-      {/* Ping log */}
-      <div className="w-full bg-gray-800/30 border border-white/10 rounded-xl overflow-hidden">
-        <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center justify-between">
-          <span className="text-xs text-gray-400 font-medium">Ping Log</span>
-          <span className="text-xs text-gray-600">
-            wire format: <code className="text-theme-secondary">msgpack</code> (binary)
+          <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs ${
+            live.$connected
+              ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
+              : 'border-red-400/25 bg-red-400/10 text-red-200'
+          }`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${live.$connected ? 'bg-emerald-300' : 'bg-red-300'}`} />
+            {live.$connected ? 'Connected' : 'Offline'}
           </span>
         </div>
-        <div className="max-h-60 overflow-y-auto">
+
+        <div className="grid gap-3">
+          <StatCard label="Average" value={avgRtt != null ? `${avgRtt}ms` : '--'} />
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard label="Min" value={minRtt != null ? `${minRtt}ms` : '--'} tone="text-emerald-300" />
+            <StatCard label="Max" value={maxRtt != null ? `${maxRtt}ms` : '--'} tone="text-red-300" />
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-3">
+          <button
+            onClick={sendPing}
+            disabled={!live.$connected || live.$loading}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-black transition hover:bg-gray-200 disabled:opacity-50"
+          >
+            <FaPlay className="h-3.5 w-3.5" />
+            Ping
+          </button>
+          <button
+            onClick={() => setAutoPing(!autoPing)}
+            disabled={!live.$connected}
+            className={`inline-flex h-12 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition disabled:opacity-50 ${
+              autoPing
+                ? 'border-amber-400/25 bg-amber-400/10 text-amber-200'
+                : 'border-white/10 bg-white/[0.03] text-white hover:bg-white/[0.06]'
+            }`}
+          >
+            <FaStopwatch className="h-3.5 w-3.5" />
+            {autoPing ? 'Auto on' : 'Auto off'}
+          </button>
+        </div>
+
+        <div className="mt-6 rounded-lg border border-white/10 bg-white/[0.025] p-4 text-sm text-gray-400">
+          <div className="mb-2 flex items-center gap-2 text-white">
+            <FaSignal className="text-theme" />
+            Session
+          </div>
+          <div className="grid gap-2 text-xs">
+            <div className="flex justify-between"><span>Client</span><span className="font-mono text-gray-200">{username}</span></div>
+            <div className="flex justify-between"><span>Online</span><span className="font-mono text-gray-200">{live.$state.onlineCount}</span></div>
+            <div className="flex justify-between"><span>Total pings</span><span className="font-mono text-gray-200">{live.$state.totalPings}</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-white/10 bg-black/30">
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+          <div className="inline-flex items-center gap-2 text-sm font-semibold text-white">
+            <FaGaugeHigh className="text-theme" />
+            Event log
+          </div>
+          <span className="text-xs text-gray-500">wire: msgpack binary frames</span>
+        </div>
+
+        <div className="max-h-[560px] overflow-auto">
           {pings.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-600 text-sm">
-              Clique Ping! para enviar uma mensagem binaria
+            <div className="px-4 py-14 text-center text-sm text-gray-600">
+              Send a ping to populate the event log.
             </div>
           ) : (
             pings.map((p) => (
-              <div
-                key={p.seq}
-                className="px-4 py-2 border-b border-white/5 flex items-center justify-between text-sm"
-              >
-                <span className="text-gray-500 font-mono">#{p.seq}</span>
-                <span className={`font-mono font-bold ${p.rtt != null ? rttColor(p.rtt) : 'text-gray-600'}`}>
-                  {p.rtt != null ? `${p.rtt}ms` : 'pending...'}
+              <div key={p.seq} className="grid grid-cols-[90px_1fr_auto] items-center gap-3 border-b border-white/5 px-4 py-3 text-sm">
+                <span className="font-mono text-gray-500">#{p.seq}</span>
+                <span className="text-gray-500">{new Date(p.sentAt).toLocaleTimeString()}</span>
+                <span className={`font-mono font-semibold ${p.rtt != null ? rttColor(p.rtt) : 'text-gray-600'}`}>
+                  {p.rtt != null ? `${p.rtt}ms` : 'pending'}
                 </span>
               </div>
             ))
           )}
         </div>
-      </div>
-
-      {/* Info */}
-      <div className="text-center text-xs text-gray-600 space-y-1">
-        <p>Powered by <code className="text-theme">LiveRoom</code> + <code className="text-theme-secondary">msgpack codec</code></p>
-        <p>Wire format: binary frames <code className="text-theme-secondary">0x02</code> (event) / <code className="text-theme-secondary">0x03</code> (state)</p>
-      </div>
+      </section>
     </div>
   )
 }
