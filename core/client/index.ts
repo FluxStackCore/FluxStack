@@ -30,6 +30,3 @@ export {
   treaty,
   type EdenClientOptions
 } from './api'
-
-// useLiveUpload (FluxStack-specific convenience wrapper)
-export { useLiveUpload } from './hooks/useLiveUpload'
