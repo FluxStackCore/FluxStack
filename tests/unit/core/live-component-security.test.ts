@@ -284,8 +284,9 @@ describe('🔒 Security: Component ID Predictability (CWE-287)', () => {
 
   it('should generate cryptographically secure component IDs', () => {
     const component = new LegacyComponent({}, ws)
-    // Should use UUID format: live-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-    expect(component.id).toMatch(/^live-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    // Compact 8-char IDs using 64-char alphabet (A-Z, a-z, 0-9, -, _)
+    expect(component.id).toMatch(/^[A-Za-z0-9_-]{8}$/)
+    expect(component.id).toHaveLength(8)
   })
 
   it('should generate unique IDs for each component', () => {
@@ -300,8 +301,8 @@ describe('🔒 Security: Component ID Predictability (CWE-287)', () => {
 
   it('should NOT use predictable timestamp-based IDs', () => {
     const component = new LegacyComponent({}, ws)
-    // Old format was: live-<timestamp>-<random9chars>
-    // New format should be: live-<uuid>
+    // Should NOT contain timestamps or sequential patterns
+    expect(component.id).not.toMatch(/^\d+/)
     expect(component.id).not.toMatch(/^live-\d{13}-/)
   })
 })
