@@ -5,7 +5,7 @@ import { FaArrowLeft, FaBolt } from 'react-icons/fa'
 const demoNav = [
   { to: '/counter', label: 'Counter' },
   { to: '/form', label: 'Form' },
-  { to: '/upload', label: 'Upload' },
+
   { to: '/room-chat', label: 'Room Chat' },
   { to: '/auth', label: 'Auth' },
   { to: '/ping-pong', label: 'Ping Pong' },
@@ -21,10 +21,7 @@ const demoMeta: Record<string, { title: string; description: string; note?: Reac
     description: 'Formulario com campos sincronizados pelo servidor, debounce e estado compartilhado pelo proxy Live.',
     note: <>Este formulario usa <code className="text-theme">Live.use()</code> - cada campo sincroniza automaticamente com o servidor.</>,
   },
-  '/upload': {
-    title: 'Live Upload',
-    description: 'Upload conectado ao runtime Live, com progresso, resposta do servidor e preview do arquivo enviado.',
-  },
+
   '/shared-counter': {
     title: 'Shared Counter',
     description: 'Uma sala global sincroniza usuarios, eventos e estado entre abas abertas ao mesmo tempo.',

@@ -16,7 +16,7 @@ const navItems = [
 const demoItems = [
   { to: '/counter', label: 'Counter' },
   { to: '/form', label: 'Form' },
-  { to: '/upload', label: 'Upload' },
+
   { to: '/room-chat', label: 'Room Chat' },
   { to: '/auth', label: 'Auth' },
   { to: '/ping-pong', label: 'Ping Pong' },
@@ -158,7 +158,7 @@ export function AppLayout() {
                   <div className="absolute left-1/2 top-11 z-50 w-72 -translate-x-1/2 rounded-lg border border-white/10 bg-[#07070b]/95 p-2 shadow-2xl shadow-black/40 backdrop-blur-2xl">
                     <div className="px-3 py-2">
                       <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Live Components</p>
-                      <p className="mt-1 text-xs leading-5 text-gray-400">Demos de estado no servidor, salas, auth e upload.</p>
+                      <p className="mt-1 text-xs leading-5 text-gray-400">Demos de estado no servidor, salas e auth.</p>
                     </div>
                     <div className="mt-1 grid gap-1">
                       {demoItems.map((item) => {

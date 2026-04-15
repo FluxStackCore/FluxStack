@@ -5,7 +5,7 @@ import { LiveComponentsProvider, useLiveComponents } from '@/core/client'
 import { executeHook } from './lib/plugin-hooks'
 import { FormDemo } from './live/FormDemo'
 import { CounterDemo } from './live/CounterDemo'
-import { UploadDemo } from './live/UploadDemo'
+
 import { RoomChatDemo } from './live/RoomChatDemo'
 import { SharedCounterDemo } from './live/SharedCounterDemo'
 import { AuthDemo } from './live/AuthDemo'
@@ -145,17 +145,6 @@ function AppContent() {
               description="Compare estado local, estado isolado por sala e estado compartilhado em tempo real."
             >
               <CounterDemo />
-            </DemoPage>
-          }
-        />
-        <Route
-          path="/upload"
-          element={
-            <DemoPage
-              title="Live Upload"
-              description="Upload conectado ao runtime Live, com progresso, resposta do servidor e preview do arquivo enviado."
-            >
-              <UploadDemo />
             </DemoPage>
           }
         />
