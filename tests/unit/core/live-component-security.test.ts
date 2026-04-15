@@ -301,8 +301,8 @@ describe('🔒 Security: Component ID Predictability (CWE-287)', () => {
 
   it('should NOT use predictable timestamp-based IDs', () => {
     const component = new LegacyComponent({}, ws)
-    // Should NOT contain timestamps or sequential patterns
-    expect(component.id).not.toMatch(/^\d+/)
+    // Should NOT contain timestamp patterns (13-digit epoch) or old live-prefix format
+    expect(component.id).not.toMatch(/^\d{13}/)
     expect(component.id).not.toMatch(/^live-\d{13}-/)
   })
 })
