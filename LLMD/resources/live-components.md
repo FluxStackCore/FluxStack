@@ -1,92 +1,86 @@
 # Live Components
 
-**Version:** 1.14.0 | **Updated:** 2025-02-27
+**Version:** @fluxstack/live 0.7.2 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
 - Server-side state management with WebSocket sync
-- **Direct state access** - `this.count++` auto-syncs (v1.13.0)
-- **Lifecycle hooks** - `onMount()` / `onDestroy()` for proper initialization and cleanup (v1.14.0)
-- **HMR persistence** - `static persistent` + `this.$persistent` survives hot reloads (v1.14.0)
-- **Singleton components** - `static singleton = true` for shared server-side instances (v1.14.0)
+- **Direct state access** - `this.count++` auto-syncs via reactive proxy
+- **Lifecycle hooks** - `onMount()`, `onDestroy()`, `onConnect()`, `onDisconnect()`, and more (all optional)
+- **HMR persistence** - `static persistent` + `this.$persistent` survives hot reloads
+- **Singleton components** - `static singleton = true` for shared server-side instances
 - **Mandatory `publicActions`** - Only whitelisted methods are callable from client (secure by default)
-- **Helpful error messages** - Forgotten `publicActions` entries show exactly what to fix (v1.14.0)
+- **Helpful error messages** - Forgotten `publicActions` entries show exactly what to fix
+- **Custom ID generator** - `LiveServerOptions.generateId` replaces default ID generation
 - Automatic state persistence and re-hydration (with anti-replay nonces)
-- Room-based event system for multi-user sync
-- Type-safe client-server communication (FluxStackWebSocket)
+- Room-based event system for multi-user sync (typed `LiveRoom` support)
+- Type-safe client-server communication (`FluxStackWebSocket`)
 - Built-in connection management and recovery
-- **Client component links** - Ctrl+Click navigation
+- **Client component links** - Ctrl+Click navigation via `import type`
 
-## LiveComponent Class Structure (v1.13.0)
+## LiveComponent Class Structure
 
-Server-side component extends `LiveComponent` with **static defaultState**:
+Server-side component extends `LiveComponent` from `@fluxstack/live` with **static defaultState**:
 
 ```typescript
-// app/server/live/LiveCounter.ts
+// app/server/live/LiveLocalCounter.ts
 import { LiveComponent } from '@core/types/types'
 
 // Componente Cliente (Ctrl+Click para navegar)
 import type { CounterDemo as _Client } from '@client/src/live/CounterDemo'
 
-export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
-  static componentName = 'LiveCounter'
-  static publicActions = ['increment', 'decrement', 'reset'] as const  // 🔒 REQUIRED
-  // static logging = ['lifecycle', 'messages'] as const  // Console logging (optional, prefer DEBUG_LIVE)
+export class LiveLocalCounter extends LiveComponent<typeof LiveLocalCounter.defaultState> {
+  static componentName = 'LiveLocalCounter'
+  static publicActions = ['increment', 'decrement', 'reset'] as const  // REQUIRED
   static defaultState = {
-    count: 0
+    count: 0,
+    clicks: 0
   }
 
   // Declarar propriedades do estado (TypeScript)
   declare count: number
+  declare clicks: number
 
-  // ✅ Direct state access - auto-syncs with frontend
+  // Direct state access - auto-syncs with frontend
   async increment() {
     this.count++
+    this.clicks++
     return { success: true, count: this.count }
   }
 
   async decrement() {
     this.count--
+    this.clicks++
     return { success: true, count: this.count }
   }
 
   async reset() {
     this.count = 0
-    return { success: true }
+    this.clicks++
+    return { success: true, count: 0 }
   }
 }
 ```
 
-### Key Changes in v1.14.0
-
-1. **Lifecycle hooks** - `onMount()` (async) and `onDestroy()` (sync) replace constructor/destroy workarounds
-2. **HMR persistence** - `static persistent` + `this.$persistent` for data that survives hot module reloads
-3. **Singleton components** - `static singleton = true` for shared state across all connected clients
-4. **Better publicActions errors** - Clear message when a method exists but is missing from `publicActions`
-
-### Key Changes in v1.13.0
+### Key Patterns
 
 1. **Direct state access** - `this.count++` instead of `this.state.count++`
-2. **declare keyword** - TypeScript hint for dynamic properties
-3. **Cleaner code** - No need to prefix with `this.state.`
-4. **Mandatory `publicActions`** - Components without it deny ALL remote actions (secure by default)
-
-### Key Changes in v1.12.0
-
-1. **Static defaultState inside class** - No external export needed
-2. **Reactive Proxy** - `this.state.count++` triggers sync automatically
-3. **No constructor needed** - Base class handles defaultState merge
-4. **Client link** - `import type { Demo as _Client }` enables Ctrl+Click
-5. **Type-safe WebSocket** - `FluxStackWebSocket` interface
+2. **`declare` keyword** - TypeScript hint for dynamic state properties
+3. **Static `defaultState`** inside the class - no external export needed
+4. **Reactive Proxy** - `this.state.count++` or `this.count++` triggers sync automatically
+5. **No constructor needed** - Base class handles `defaultState` merge (constructor only needed for room event subscriptions)
+6. **Mandatory `publicActions`** - Components without it deny ALL remote actions (secure by default)
+7. **Client link** - `import type { Demo as _Client }` enables Ctrl+Click in IDE
 
 ### With Room Events (Advanced)
 
 ```typescript
+// app/server/live/LiveCounter.ts
 import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
 
 export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> {
   static componentName = 'LiveCounter'
-  static publicActions = ['increment'] as const  // 🔒 REQUIRED
+  static publicActions = ['increment', 'decrement', 'reset'] as const
   static defaultState = {
     count: 0,
     lastUpdatedBy: null as string | null,
@@ -94,37 +88,70 @@ export class LiveCounter extends LiveComponent<typeof LiveCounter.defaultState> 
   }
   protected roomType = 'counter'
 
-  // Constructor only needed for room event subscriptions
+  // Constructor needed for room event subscriptions
   constructor(
-    initialState: Partial<typeof LiveCounter.defaultState>,
+    initialState: Partial<typeof LiveCounter.defaultState> = {},
     ws: FluxStackWebSocket,
     options?: { room?: string; userId?: string }
   ) {
     super(initialState, ws, options)
 
-    this.onRoomEvent<{ count: number }>('COUNT_CHANGED', (data) => {
-      this.setState({ count: data.count })
+    this.onRoomEvent<{ count: number; userId: string }>('COUNT_CHANGED', (data) => {
+      this.setState({ count: data.count, lastUpdatedBy: data.userId })
     })
+
+    this.onRoomEvent<{ connectedUsers: number }>('USER_COUNT_CHANGED', (data) => {
+      this.setState({ connectedUsers: data.connectedUsers })
+    })
+
+    this.notifyUserJoined()
+  }
+
+  private notifyUserJoined() {
+    const newCount = this.state.connectedUsers + 1
+    this.emitRoomEventWithState('USER_COUNT_CHANGED',
+      { connectedUsers: newCount },
+      { connectedUsers: newCount }
+    )
   }
 
   async increment() {
-    this.state.count++
+    const newCount = this.state.count + 1
     this.emitRoomEventWithState('COUNT_CHANGED',
-      { count: this.state.count },
-      { count: this.state.count }
+      { count: newCount, userId: this.userId || 'anonymous' },
+      { count: newCount, lastUpdatedBy: this.userId || 'anonymous' }
     )
-    return { success: true, count: this.state.count }
+    return { success: true, count: newCount }
+  }
+
+  async decrement() {
+    const newCount = this.state.count - 1
+    this.emitRoomEventWithState('COUNT_CHANGED',
+      { count: newCount, userId: this.userId || 'anonymous' },
+      { count: newCount, lastUpdatedBy: this.userId || 'anonymous' }
+    )
+    return { success: true, count: newCount }
+  }
+
+  async reset() {
+    this.emitRoomEventWithState('COUNT_CHANGED',
+      { count: 0, userId: this.userId || 'anonymous' },
+      { count: 0, lastUpdatedBy: this.userId || 'anonymous' }
+    )
+    return { success: true, count: 0 }
   }
 
   destroy() {
+    const newCount = Math.max(0, this.state.connectedUsers - 1)
+    this.emitRoomEvent('USER_COUNT_CHANGED', { connectedUsers: newCount })
     super.destroy()
   }
 }
 ```
 
-## Lifecycle Hooks (v1.14.0)
+## Lifecycle Hooks
 
-Full lifecycle hook system — no more constructor workarounds:
+The `@fluxstack/live` framework provides a full lifecycle hook system. All hooks are **optional** -- override only what you need. The example components in `app/server/live/` do not use all of them, but they are all available in the framework API.
 
 ```typescript
 export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> {
@@ -134,19 +161,16 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 
   private _pollTimer?: NodeJS.Timeout
 
-  // 1️⃣ Called when WebSocket connection is established (before onMount)
+  // 1. Called when WebSocket connection is established (before onMount)
   protected onConnect() {
     console.log('WebSocket connected for this component')
   }
 
-  // 2️⃣ Called AFTER component is fully mounted (rooms, auth, injections ready)
+  // 2. Called AFTER component is fully mounted (rooms, auth, injections ready)
   // Can be async!
   protected async onMount() {
-    this.$room.join()
-    this.$room.on('user:joined', (user) => {
-      this.state.users = [...this.state.users, user]
-    })
-    const data = await fetchInitialData(this.$auth.user?.id)
+    this.$room('main').join()
+    const data = await fetchInitialData(this.$auth.session?.id)
     this.state.ready = true
     this._pollTimer = setInterval(() => this.poll(), 5000)
   }
@@ -175,15 +199,25 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
     if (this.state.currentRoom === roomId) this.state.currentRoom = ''
   }
 
-  // Called before each action — return false to cancel
+  // Called before each action -- return false to cancel
   protected onAction(action: string, payload: any) {
     console.log(`[${this.id}] ${action}`, payload)
-    // return false  // ← would cancel the action
+    // return false  // would cancel the action
+  }
+
+  // Called when a new client joins a singleton component
+  protected onClientJoin(connectionId: string, connectionCount: number) {
+    console.log(`Client ${connectionId} joined, total: ${connectionCount}`)
+  }
+
+  // Called when a client leaves a singleton component
+  protected onClientLeave(connectionId: string, connectionCount: number) {
+    console.log(`Client ${connectionId} left, total: ${connectionCount}`)
   }
 
   // Called when WebSocket drops (NOT on intentional unmount)
   protected onDisconnect() {
-    console.log('Connection lost — saving recovery data')
+    console.log('Connection lost -- saving recovery data')
   }
 
   // Called BEFORE internal cleanup (sync only)
@@ -196,26 +230,30 @@ export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> 
 }
 ```
 
+> **Note:** The example components in `app/server/live/` are intentionally simple and do not use most lifecycle hooks. This does not mean the hooks are unavailable -- they are all part of the `@fluxstack/live` framework API and can be used in any LiveComponent subclass.
+
 ### Lifecycle Order
 
 ```
 WebSocket connects
-  └→ onConnect()
-       └→ onMount()          ← async, rooms/auth ready
-            └→ [component active]
-                 ├→ onAction(action, payload)  ← before each action (return false to cancel)
-                 ├→ onStateChange(changes)     ← after each state mutation
-                 ├→ onRoomJoin(roomId)         ← when joining a room
-                 └→ onRoomLeave(roomId)        ← when leaving a room
+  -> onConnect()
+       -> onMount()          <- async, rooms/auth ready
+            -> [component active]
+                 |-> onAction(action, payload)  <- before each action (return false to cancel)
+                 |-> onStateChange(changes)     <- after each state mutation
+                 |-> onRoomJoin(roomId)         <- when joining a room
+                 |-> onRoomLeave(roomId)        <- when leaving a room
+                 |-> onClientJoin(connId, count) <- singleton: new client joined
+                 -> onClientLeave(connId, count) <- singleton: client left
 
 Connection drops:
-  └→ onDisconnect()          ← only on unexpected disconnect
-       └→ onDestroy()        ← sync, before internal cleanup
+  -> onDisconnect()          <- only on unexpected disconnect
+       -> onDestroy()        <- sync, before internal cleanup
 
 Rehydration (reconnect with saved state):
-  └→ onConnect()
-       └→ onRehydrate(previousState)
-            └→ onMount()
+  -> onConnect()
+       -> onRehydrate(previousState)
+            -> onMount()
 ```
 
 ### Rules
@@ -229,15 +267,33 @@ Rehydration (reconnect with saved state):
 | `onRoomJoin(roomId)` | No | After `$room.join()` |
 | `onRoomLeave(roomId)` | No | After `$room.leave()` |
 | `onAction(action, payload)` | **Yes** | Before action execution (return `false` to cancel) |
+| `onClientJoin(connId, count)` | No | Singleton: new client connected |
+| `onClientLeave(connId, count)` | No | Singleton: client disconnected |
 | `onDisconnect()` | No | Connection lost (NOT intentional unmount) |
 | `onDestroy()` | No | Before internal cleanup |
 
-- All hooks are optional — override only what you need
-- All hook errors are caught and logged — they never break the system
+- All hooks are optional -- override only what you need
+- All hook errors are caught and logged -- they never break the system
 - Constructor is still needed ONLY for `this.onRoomEvent()` subscriptions
-- All hooks are in BLOCKED_ACTIONS — clients cannot call them remotely
+- All hooks are in BLOCKED_ACTIONS -- clients cannot call them remotely
 
-## HMR Persistence (v1.14.0)
+## Custom ID Generator
+
+The `LiveServer` accepts a `generateId` option that replaces the default ID generation for component IDs, connection IDs, and cluster singleton IDs:
+
+```typescript
+import { LiveServer } from '@fluxstack/live'
+import { nanoid } from 'nanoid'
+
+const server = new LiveServer({
+  transport: elysiaAdapter,
+  generateId: () => nanoid(), // Custom ID generator
+})
+```
+
+When provided, the custom generator is used via the `LiveComponentContext` -- every `LiveComponent` instance calls it during construction. If not provided, the framework uses its built-in `generateId()` (crypto-based).
+
+## HMR Persistence
 
 Data in `static persistent` survives Hot Module Replacement reloads via `globalThis`:
 
@@ -275,13 +331,13 @@ export class LiveMigration extends LiveComponent<typeof LiveMigration.defaultSta
 **Key facts:**
 - `this.$persistent` reads from `globalThis.__fluxstack_persistent_{ComponentName}`
 - Each component class has its own namespace
-- Defaults come from `static persistent` — initialized once, then persisted
-- Not sent to client — server-only
+- Defaults come from `static persistent` -- initialized once, then persisted
+- Not sent to client -- server-only
 - `$persistent` is in BLOCKED_ACTIONS (can't be called from client)
 
-## Singleton Components (v1.14.0)
+## Singleton Components
 
-When `static singleton = true`, only ONE server-side instance exists. All clients share the same state:
+When `static singleton = true`, only ONE server-side instance exists. All clients share the same state. This is a real feature of `@fluxstack/live` with cluster support via Redis.
 
 ```typescript
 export class LiveDashboard extends LiveComponent<typeof LiveDashboard.defaultState> {
@@ -297,6 +353,15 @@ export class LiveDashboard extends LiveComponent<typeof LiveDashboard.defaultSta
   protected async onMount() {
     this.state.visitors++
     this.state.lastRefresh = new Date().toISOString()
+  }
+
+  // Singleton-specific hooks (optional)
+  protected onClientJoin(connectionId: string, connectionCount: number) {
+    this.state.visitors = connectionCount
+  }
+
+  protected onClientLeave(connectionId: string, connectionCount: number) {
+    this.state.visitors = connectionCount
   }
 
   async refresh() {
@@ -320,6 +385,7 @@ export class LiveDashboard extends LiveComponent<typeof LiveDashboard.defaultSta
 - When a client disconnects, it's removed from the singleton's connections
 - When the LAST client disconnects, the singleton is destroyed
 - Stats visible at `/api/live/stats` (shows singleton connection counts)
+- Cluster support: coordinated across server instances via `IClusterAdapter` (Redis)
 
 **Use cases:** Shared dashboards, global migration state, admin panels, live counters
 
@@ -329,17 +395,17 @@ export class LiveDashboard extends LiveComponent<typeof LiveDashboard.defaultSta
 
 State mutations auto-sync with the frontend via two layers:
 
-**Layer 1 — Proxy** (`this.state`): A `Proxy` wraps the internal state object. Any `set` on `this.state` compares old vs new value and, if changed, emits `STATE_DELTA` to the client automatically.
+**Layer 1 -- Proxy** (`this.state`): A `Proxy` wraps the internal state object. Any `set` on `this.state` compares old vs new value and, if changed, emits `STATE_DELTA` to the client automatically.
 
-**Layer 2 — Direct Accessors** (`this.count`): On construction, `createDirectStateAccessors()` defines a getter/setter via `Object.defineProperty` for each key in `defaultState`. The setter delegates to the proxy, so it also triggers `STATE_DELTA`.
+**Layer 2 -- Direct Accessors** (`this.count`): On construction, `createDirectStateAccessors()` defines a getter/setter via `Object.defineProperty` for each key in `defaultState`. The setter delegates to the proxy, so it also triggers `STATE_DELTA`.
 
 ```
-this.count++              → accessor setter → proxy set → STATE_DELTA
-this.state.count++        → proxy set → STATE_DELTA
-this.setState({count: 1}) → Object.assign + single STATE_DELTA (batch)
+this.count++              -> accessor setter -> proxy set -> STATE_DELTA
+this.state.count++        -> proxy set -> STATE_DELTA
+this.setState({count: 1}) -> Object.assign + single STATE_DELTA (batch)
 ```
 
-### Direct State Access (v1.13.0) ✨
+### Direct State Access
 
 State properties are accessible directly on `this`:
 
@@ -348,11 +414,11 @@ State properties are accessible directly on `this`:
 declare count: number
 declare message: string
 
-// ✅ Direct access - auto-syncs via proxy!
+// Direct access - auto-syncs via proxy!
 this.count++
 this.message = 'Hello'
 
-// ✅ Also works (v1.12.0 style) - same proxy underneath
+// Also works - same proxy underneath
 this.state.count++
 ```
 
@@ -363,14 +429,14 @@ this.state.count++
 Use `setState` for multiple properties at once (single emit):
 
 ```typescript
-// ✅ Batch update - one STATE_DELTA event
+// Batch update - one STATE_DELTA event
 this.setState({
   count: newCount,
   lastUpdatedBy: userId,
   updatedAt: new Date().toISOString()
 })
 
-// ✅ Function updater (access previous state)
+// Function updater (access previous state)
 this.setState(prev => ({
   count: prev.count + 1,
   lastUpdatedBy: userId
@@ -393,9 +459,9 @@ await component.setValue({ key: 'count', value: 42 })
 
 > **Security note:** `setValue` is powerful - it allows the client to set any state key. Only add it to `publicActions` if you trust the client to modify any state field.
 
-### $private — Server-Only State
+### $private -- Server-Only State
 
-`$private` is a key-value store that lives **exclusively on the server**. It is NEVER synchronized with the client — no `STATE_UPDATE`, no `STATE_DELTA`, not included in `getSerializableState()`.
+`$private` is a key-value store that lives **exclusively on the server**. It is NEVER synchronized with the client -- no `STATE_UPDATE`, no `STATE_DELTA`, not included in `getSerializableState()`.
 
 Use it for sensitive data like tokens, API keys, internal IDs, or any server-side bookkeeping:
 
@@ -406,11 +472,11 @@ export class Chat extends LiveComponent<typeof Chat.defaultState> {
   static defaultState = { messages: [] as string[] }
 
   async connect(payload: { token: string }) {
-    // 🔒 Stays on server — never sent to client
+    // Stays on server -- never sent to client
     this.$private.token = payload.token
     this.$private.apiKey = await getApiKey()
 
-    // ✅ Only UI data goes to state (synced with client)
+    // Only UI data goes to state (synced with client)
     this.state.messages = await fetchMessages(this.$private.token)
     return { success: true }
   }
@@ -441,9 +507,9 @@ export class Chat extends LiveComponent<typeof Chat.defaultState, ChatPrivate> {
   static defaultState = { messages: [] as string[] }
 
   async connect(payload: { token: string }) {
-    this.$private.token = payload.token     // ✅ autocomplete
-    this.$private.retryCount = 0            // ✅ must be number
-    this.$private.tokkken = 'x'             // ❌ TypeScript error (typo)
+    this.$private.token = payload.token     // autocomplete
+    this.$private.retryCount = 0            // must be number
+    // this.$private.tokkken = 'x'          // TypeScript error (typo)
   }
 }
 ```
@@ -451,7 +517,7 @@ export class Chat extends LiveComponent<typeof Chat.defaultState, ChatPrivate> {
 The second generic defaults to `Record<string, any>`, so existing components work without changes.
 
 **Key facts:**
-- Starts as an empty `{}` — no static default needed
+- Starts as an empty `{}` -- no static default needed
 - Mutations do NOT trigger any WebSocket messages
 - Cleared automatically on `destroy()`
 - Lost on rehydration (re-populate in your action handlers)
@@ -512,16 +578,62 @@ this.emitRoomEventWithState('COUNT_CHANGED',
 )
 ```
 
-### Room Subscription
+### Typed Rooms ($room)
 
-Components automatically join rooms specified in options:
+Components can use typed `LiveRoom` classes for structured room interactions:
 
 ```typescript
-// Client-side
-const counter = Live.use(LiveCounter, {
-  room: 'global-counter'  // All instances in this room sync
-})
+import { LiveComponent, type FluxStackWebSocket } from '@core/types/types'
+import { CounterRoom } from './rooms/CounterRoom'
+
+export class LiveSharedCounter extends LiveComponent<typeof LiveSharedCounter.defaultState> {
+  static componentName = 'LiveSharedCounter'
+  static publicActions = ['increment', 'decrement', 'reset'] as const
+  static defaultState = {
+    username: '',
+    count: 0,
+    lastUpdatedBy: null as string | null,
+    onlineCount: 0
+  }
+
+  private counterUnsub: (() => void) | null = null
+
+  constructor(initialState: Partial<typeof LiveSharedCounter.defaultState> = {}, ws: FluxStackWebSocket, options?: { room?: string; userId?: string }) {
+    super(initialState, ws, options)
+
+    const room = this.$room(CounterRoom, 'global')
+    room.join()
+
+    // Load current state from room
+    this.setState({
+      count: room.state.count,
+      lastUpdatedBy: room.state.lastUpdatedBy,
+      onlineCount: room.state.onlineCount
+    })
+
+    // Listen for updates from other users
+    this.counterUnsub = room.on('counter:updated', (data) => {
+      this.setState({ count: data.count, lastUpdatedBy: data.updatedBy })
+    })
+  }
+
+  async increment() {
+    const room = this.$room(CounterRoom, 'global')
+    const count = room.increment(this.state.username || 'Anonymous')
+    return { success: true, count }
+  }
+
+  destroy() {
+    this.counterUnsub?.()
+    super.destroy()
+  }
+}
 ```
+
+**$room API:**
+- `this.$room(RoomClass, instanceId)` -- typed room handle with custom methods
+- `this.$room('roomId')` -- untyped room handle (legacy)
+- `this.$rooms` -- list of room IDs this component participates in
 
 ## Actions
 
@@ -529,32 +641,100 @@ Actions are methods callable from the client. **Only methods listed in `publicAc
 
 ```typescript
 // Server-side
-export class LiveForm extends LiveComponent<FormState> {
-  static publicActions = ['submit', 'validate'] as const  // 🔒 REQUIRED
+export class LiveForm extends LiveComponent<typeof LiveForm.defaultState> {
+  static publicActions = ['submit', 'validate', 'reset', 'setValue'] as const
+
+  static defaultState = {
+    name: '',
+    email: '',
+    message: '',
+    submitted: false,
+    submittedAt: null as string | null
+  }
 
   async submit() {
-    const { name, email } = this.state
+    const { name, email, message } = this.state
     
     if (!name || !email) {
-      throw new Error('Name and email required')
+      throw new Error('Nome e email sao obrigatorios')
     }
     
-    // Process submission
-    this.setState({ submitted: true })
+    this.setState({
+      submitted: true,
+      submittedAt: new Date().toISOString()
+    })
     
-    return { success: true, data: { name, email } }
+    return {
+      success: true,
+      data: { name, email, message },
+      submittedAt: this.state.submittedAt
+    }
   }
 
   async validate() {
     const errors: Record<string, string> = {}
     
-    if (!this.state.name) errors.name = 'Name required'
-    if (!this.state.email) errors.email = 'Email required'
+    if (!this.state.name) errors.name = 'Nome e obrigatorio'
+    if (!this.state.email) errors.email = 'Email e obrigatorio'
+    else if (!this.state.email.includes('@')) errors.email = 'Email invalido'
     
     return { valid: Object.keys(errors).length === 0, errors }
   }
 }
 ```
+
+### Action Security Features (framework)
+
+The `@fluxstack/live` framework provides additional action security features:
+
+- **Zod validation** -- `static actionSchemas` for automatic payload validation before action execution
+- **Rate limiting** -- `static actionRateLimit` to prevent clients from spamming actions
+- **Per-action auth** -- `static actionAuth` with roles/permissions per action
+
+```typescript
+static actionSchemas = {
+  sendMessage: z.object({ text: z.string().max(500) }),
+}
+
+static actionRateLimit = { maxCalls: 10, windowMs: 1000, perAction: true }
+```
+
+## Authentication
+
+Components can require authentication and define per-action permissions:
+
+```typescript
+export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
+  static componentName = 'LiveAdminPanel'
+  static publicActions = ['getAuthInfo', 'init', 'listUsers', 'addUser', 'deleteUser', 'clearAudit'] as const
+
+  // Component-level: requires auth + admin role
+  static auth: LiveComponentAuth = {
+    required: true,
+    roles: ['admin'],
+  }
+
+  // Per-action: granular permissions
+  static actionAuth: LiveActionAuthMap = {
+    deleteUser: { permissions: ['users.delete'] },
+    clearAudit: { roles: ['admin'] },
+  }
+
+  async getAuthInfo() {
+    return {
+      authenticated: this.$auth.authenticated,
+      userId: this.$auth.session?.id,
+      roles: this.$auth.session?.roles || [],
+      isAdmin: this.$auth.hasRole('admin'),
+    }
+  }
+}
+```
+
+**Auth levels:**
+- `this.state` -- client reads AND writes (bidirectional)
+- `this.$private` -- client NEVER sees (server-only)
+- `this.$auth` -- set by framework, immutable (read-only)
 
 ## Client-Side Integration
 
@@ -590,7 +770,7 @@ export function CounterDemo() {
   // Mount component with options
   const counter = Live.use(LiveCounter, {
     room: 'global-counter',
-    initialState: LiveCounter.defaultState  // ✅ Use static defaultState
+    initialState: LiveCounter.defaultState
   })
 
   // Access state
@@ -663,19 +843,21 @@ await form.$sync()
 Components are auto-discovered from `app/server/live/`:
 
 ```typescript
-// app/server/live/register-components.ts
-import { componentRegistry } from '@core/server/live'
+// app/server/live/auto-generated-components.ts (auto-generated by @fluxstack/live)
+import { LiveAdminPanel } from "./LiveAdminPanel"
+import { LiveCounter } from "./LiveCounter"
+import { LiveForm } from "./LiveForm"
+// ... etc
 
-// Auto-discover all components in directory
-await componentRegistry.autoDiscoverComponents('./app/server/live')
-
-// Or manually register
-componentRegistry.registerComponent({
-  name: 'MyComponent',
-  component: MyComponent,
-  initialState: defaultState
-}, '1.0.0')
+export const liveComponentClasses = [
+  LiveAdminPanel,
+  LiveCounter,
+  LiveForm,
+  // ...
+]
 ```
+
+The `LiveServer` auto-discovers components via `componentsPath` option and generates this file. For production builds, pass `components: liveComponentClasses` to avoid dynamic imports.
 
 ## WebSocket Connection Handling
 
@@ -779,20 +961,49 @@ const health = componentRegistry.getComponentHealth(componentId)
 // { status: 'healthy', metrics: {...} }
 ```
 
+## Existing Components
+
+The app includes these live components in `app/server/live/`:
+
+| Component | Description | Features |
+|-----------|-------------|----------|
+| `LiveLocalCounter` | Simple counter, no room events | Direct state access, `declare` |
+| `LiveCounter` | Shared counter with room events | `onRoomEvent`, `emitRoomEventWithState` |
+| `LiveSharedCounter` | Shared counter using typed `CounterRoom` | `$room(CounterRoom, 'global')` |
+| `LiveForm` | Reactive form with server validation | `setValue`, `validate`, `submit` |
+| `LivePingPong` | Binary codec demo (msgpack) | Typed `PingRoom`, round-trip timing |
+| `LiveRoomChat` | Multi-room chat with directory | `ChatRoom`, `DirectoryRoom`, password rooms |
+| `LiveProtectedChat` | Auth-required chat | `static auth`, `static actionAuth`, roles |
+| `LiveAdminPanel` | Admin panel with RBAC | Component + per-action auth, audit trail |
+| `LiveUpload` | Chunked file upload via WebSocket | Filename validation, progress tracking |
+
 ## Component Organization
 
 ```
 app/server/live/
-├── LiveCounter.ts          # Counter component
-├── LiveForm.ts             # Form component
-├── LiveChat.ts             # Chat component
-├── LiveLocalCounter.ts     # Local counter (no room)
-└── register-components.ts  # Registration
+├── LiveCounter.ts              # Shared counter with room events
+├── LiveLocalCounter.ts         # Local counter (no room)
+├── LiveForm.ts                 # Reactive form
+├── LivePingPong.ts             # Binary codec demo
+├── LiveSharedCounter.ts        # Typed room counter
+├── LiveRoomChat.ts             # Multi-room chat
+├── LiveProtectedChat.ts        # Auth-required chat
+├── LiveAdminPanel.ts           # Admin panel with RBAC
+├── LiveUpload.ts               # Chunked file upload
+├── rooms/                      # Typed LiveRoom definitions
+│   ├── ChatRoom.ts
+│   ├── CounterRoom.ts
+│   ├── DirectoryRoom.ts
+│   └── PingRoom.ts
+└── auto-generated-components.ts  # Auto-generated registration
 
 app/client/src/live/
-├── CounterDemo.tsx         # Counter UI
-├── FormDemo.tsx            # Form UI
-├── ChatDemo.tsx            # Chat UI
+├── CounterDemo.tsx
+├── FormDemo.tsx
+├── RoomChatDemo.tsx
+├── SharedCounterDemo.tsx
+├── PingPongDemo.tsx
+├── UploadDemo.tsx
 └── ...
 ```
 
@@ -800,50 +1011,19 @@ Each server file contains:
 - `static componentName` - Component identifier
 - `static publicActions` - **REQUIRED** whitelist of client-callable methods
 - `static defaultState` - Initial state object
-- `static logging` - Per-component console log control (optional, prefer `DEBUG_LIVE=true` for debug panel — see [Live Logging](./live-logging.md))
+- `static logging` - Per-component console log control (optional)
 - Component class extending `LiveComponent`
 - Client link via `import type { Demo as _Client }`
 
-## Testing Components
+## Advanced: Component Options
 
 ```typescript
-// tests/unit/live/LiveCounter.test.ts
-import { describe, it, expect } from 'vitest'
-import { LiveCounter, defaultState } from '@app/server/live/LiveCounter'
-
-describe('LiveCounter', () => {
-  it('should increment count', async () => {
-    const mockWs = { send: vi.fn() }
-    const counter = new LiveCounter(defaultState, mockWs)
-    
-    const result = await counter.increment()
-    
-    expect(result.success).toBe(true)
-    expect(result.count).toBe(1)
-    expect(counter.state.count).toBe(1)
-  })
-})
-```
-
-## Advanced: Dependencies
-
-Register services for dependency injection:
-
-```typescript
-// Register service
-componentRegistry.registerService('database', () => db)
-
-// Register dependencies
-componentRegistry.registerDependencies('MyComponent', [
-  { name: 'database', version: '1.0.0', required: true, factory: () => db }
-])
-
-// Component receives service
-export class MyComponent extends LiveComponent<State> {
-  private database: any
-
-  setDatabase(db: any) {
-    this.database = db
+export class MyComponent extends LiveComponent<typeof MyComponent.defaultState> {
+  static $options = {
+    deepDiff: true,        // Enable deep diff for plain objects (default: true)
+    roomDeepDiff: true,    // Enable deep diff for room state (default: true)
+    deepDiffDepth: 3,      // Max recursion depth (default: 3)
+    serverOnlyRoomState: false,  // When true, client ROOM_STATE_SET is rejected
   }
 }
 ```
@@ -857,7 +1037,7 @@ export class MyComponent extends LiveComponent<State> {
 - Use `typeof ClassName.defaultState` for type parameter
 - Use `declare` for each state property (TypeScript type hint)
 - Use `onMount()` for async initialization (rooms, auth, data fetching)
-- Use `onDestroy()` for cleanup (timers, connections) — sync only
+- Use `onDestroy()` for cleanup (timers, connections) -- sync only
 - Use `emitRoomEventWithState` for state changes in rooms
 - Handle errors in actions (throw Error)
 - Add client link: `import type { Demo as _Client } from '@client/...'`
@@ -869,27 +1049,27 @@ export class MyComponent extends LiveComponent<State> {
 - Export separate `defaultState` constant (use static)
 - Create constructor just to call super() (not needed)
 - Forget `static componentName` (breaks minification)
-- Override `destroy()` directly — use `onDestroy()` instead (v1.14.0)
+- Override `destroy()` directly -- use `onDestroy()` instead (prefer lifecycle hooks)
 - Emit room events without subscribing first
 - Store non-serializable data in state
 - Use reserved names for state properties (id, state, ws, room, userId, $room, $rooms, $private, $persistent, broadcastToRoom, roomType)
 - Include `setValue` in `publicActions` unless you trust clients to modify any state key
-- Store sensitive data (tokens, API keys, secrets) in `state` — use `$private` instead
+- Store sensitive data (tokens, API keys, secrets) in `state` -- use `$private` instead
 
-**STATE UPDATES (v1.13.0) — all auto-sync via Proxy:**
+**STATE UPDATES -- all auto-sync via Proxy:**
 ```typescript
-// ✅ Direct access (1 prop → 1 STATE_DELTA)
+// Direct access (1 prop -> 1 STATE_DELTA)
 declare count: number
 this.count++
 
-// ✅ Also works (same proxy underneath)
+// Also works (same proxy underneath)
 this.state.count++
 
-// ✅ Multiple properties → use setState (1 STATE_DELTA for all)
+// Multiple properties -> use setState (1 STATE_DELTA for all)
 this.setState({ a: 1, b: 2, c: 3 })
 
-// ❌ Don't use setState for single property (unnecessary)
-this.setState({ count: this.count + 1 })
+// Don't use setState for single property (unnecessary)
+// this.setState({ count: this.count + 1 })
 ```
 
 ---
@@ -902,36 +1082,43 @@ tracks progress and assembles the file in `uploads/`.
 
 ### Server: LiveUpload Component
 
-Create server-side upload actions inside a Live Component. This example is the base
-implementation used by the demos:
-
 ```typescript
 // app/server/live/LiveUpload.ts
 import { LiveComponent } from '@core/types/types'
-import { liveUploadDefaultState, type LiveUploadState } from '@app/shared'
 
-export const defaultState: LiveUploadState = liveUploadDefaultState
-
-export class LiveUpload extends LiveComponent<LiveUploadState> {
+export class LiveUpload extends LiveComponent<typeof LiveUpload.defaultState> {
   static componentName = 'LiveUpload'
   static publicActions = ['startUpload', 'updateProgress', 'completeUpload', 'failUpload', 'reset'] as const
-  static defaultState = defaultState
-
-  constructor(initialState: Partial<typeof defaultState>, ws: any, options?: { room?: string; userId?: string }) {
-    super({ ...defaultState, ...initialState }, ws, options)
+  static defaultState = {
+    status: 'idle' as 'idle' | 'uploading' | 'complete' | 'error',
+    progress: 0,
+    fileName: '',
+    fileSize: 0,
+    fileType: '',
+    fileUrl: '',
+    bytesUploaded: 0,
+    totalBytes: 0,
+    error: null as string | null
   }
 
   async startUpload(payload: { fileName: string; fileSize: number; fileType: string }) {
-    // Basic validation (example)
-    const normalized = payload.fileName.toLowerCase()
-    if (normalized.includes('..') || normalized.includes('/') || normalized.includes('\\')) {
-      throw new Error('Invalid file name')
+    const fileName = payload.fileName
+
+    // Validate filename length
+    if (!fileName || fileName.length > 255) {
+      throw new Error('Invalid file name: must be 1-255 characters')
     }
 
-    const ext = normalized.includes('.') ? normalized.split('.').pop() || '' : ''
-    const blocked = ['exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'jar']
-    if (ext && blocked.includes(ext)) {
-      throw new Error(`File extension not allowed: .${ext}`)
+    // Block path traversal, null bytes, and control characters
+    if (/[\x00-\x1f]/.test(fileName) || fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      throw new Error('Invalid file name: contains forbidden characters')
+    }
+
+    // Block Windows reserved names
+    const baseName = fileName.split('.')[0].toUpperCase()
+    const reserved = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'LPT1', 'LPT2', 'LPT3']
+    if (reserved.includes(baseName)) {
+      throw new Error('Invalid file name: reserved name')
     }
 
     this.setState({
@@ -949,47 +1136,11 @@ export class LiveUpload extends LiveComponent<LiveUploadState> {
     return { success: true }
   }
 
-  async updateProgress(payload: { progress: number; bytesUploaded: number; totalBytes: number }) {
-    const progress = Math.max(0, Math.min(100, payload.progress))
-    this.setState({
-      progress,
-      bytesUploaded: payload.bytesUploaded,
-      totalBytes: payload.totalBytes
-    })
-
-    return { success: true, progress }
-  }
-
-  async completeUpload(payload: { fileUrl: string }) {
-    this.setState({
-      status: 'complete',
-      progress: 100,
-      fileUrl: payload.fileUrl,
-      error: null
-    })
-
-    return { success: true }
-  }
-
-  async failUpload(payload: { error: string }) {
-    this.setState({
-      status: 'error',
-      error: payload.error || 'Upload failed'
-    })
-
-    return { success: true }
-  }
-
-  async reset() {
-    this.setState({ ...defaultState })
-    return { success: true }
-  }
+  // ... updateProgress, completeUpload, failUpload, reset
 }
 ```
 
 ### Client: useLiveUpload + Widget
-
-Use the client hook and UI widget to wire the upload to the Live Component:
 
 ```typescript
 // app/client/src/live/UploadDemo.tsx

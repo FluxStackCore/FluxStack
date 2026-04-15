@@ -1,6 +1,8 @@
 # Binary Delta (High-Frequency State Sync)
 
-**Version:** 1.14.0 | **Updated:** 2025-03-09
+**Version:** 1.19.0 | **Updated:** 2026-04-14
+
+> **Nota:** Este recurso (`sendBinaryDelta`) est\u00e1 dispon\u00edvel no `@fluxstack/live` mas n\u00e3o \u00e9 usado nos componentes de exemplo do FluxStack app.
 
 ## Overview
 

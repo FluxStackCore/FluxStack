@@ -1,6 +1,6 @@
 # Live Components Authentication
 
-**Version:** 1.16.0 | **Updated:** 2026-03-25
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
@@ -321,6 +321,73 @@ if (panel.$error?.includes('AUTH_DENIED')) {
 
 ## Auth Providers
 
+### DevAuthProvider (Used in FluxStack App)
+
+The FluxStack app ships with a `DevAuthProvider` for development/testing. It accepts hardcoded tokens and maps them to pre-defined users with roles and permissions. Registered in `app/server/index.ts`.
+
+**File:** `app/server/auth/DevAuthProvider.ts`
+
+```typescript
+import type { LiveAuthProvider, LiveAuthCredentials, LiveAuthContext } from '@fluxstack/live'
+import { AuthenticatedContext } from '@fluxstack/live'
+
+const DEV_USERS: Record<string, DevUser> = {
+  'admin-token': {
+    id: 'admin-1',
+    name: 'Admin User',
+    roles: ['admin', 'user'],
+    permissions: ['users.read', 'users.write', 'users.delete', 'chat.read', 'chat.write', 'chat.admin'],
+  },
+  'user-token': {
+    id: 'user-1',
+    name: 'Regular User',
+    roles: ['user'],
+    permissions: ['chat.read', 'chat.write'],
+  },
+  'mod-token': {
+    id: 'mod-1',
+    name: 'Moderator',
+    roles: ['moderator', 'user'],
+    permissions: ['chat.read', 'chat.write', 'chat.moderate'],
+  },
+}
+
+export class DevAuthProvider implements LiveAuthProvider {
+  readonly name = 'dev'
+
+  async authenticate(credentials: LiveAuthCredentials): Promise<LiveAuthContext | null> {
+    const token = credentials.token as string
+    if (!token) return null
+    const user = DEV_USERS[token]
+    if (!user) return null
+    return new AuthenticatedContext({
+      id: user.id,
+      name: user.name,
+      roles: user.roles,
+      permissions: user.permissions,
+    }, token)
+  }
+}
+```
+
+**Registration** (`app/server/index.ts`):
+
+```typescript
+import { DevAuthProvider } from "./auth/DevAuthProvider"
+registerAuthProvider(new DevAuthProvider())
+```
+
+**Client usage** (authenticate with a dev token):
+
+```tsx
+const { authenticate } = useLiveComponents()
+await authenticate({ token: 'admin-token' })  // admin with all permissions
+await authenticate({ token: 'user-token' })   // regular user
+await authenticate({ token: 'mod-token' })     // moderator
+```
+
+> **WARNING:** DevAuthProvider is for development only. Never use in production.
+
 ### Creating a Custom Provider
 
 ```typescript
@@ -455,6 +522,116 @@ type LiveActionAuthMap = Record<string, LiveActionAuth>
 - Store auth flags in `state` (client can modify via PROPERTY_UPDATE)
 - Trust client-side auth checks alone
 - Expose tokens in error messages
+
+## Real Examples from FluxStack App
+
+The FluxStack app includes two real auth-protected Live Components that demonstrate the patterns described above.
+
+### LiveProtectedChat (`app/server/live/LiveProtectedChat.ts`)
+
+Requires authentication to mount. Uses per-action auth for admin operations.
+
+```typescript
+export class LiveProtectedChat extends LiveComponent<ProtectedChatState> {
+  static componentName = 'LiveProtectedChat'
+  static publicActions = ['join', 'sendMessage', 'deleteMessage', 'clearMessages', 'getAuthInfo'] as const
+
+  // Component-level: requires authentication (any authenticated user)
+  static auth: LiveComponentAuth = {
+    required: true,
+  }
+
+  // Action-level: deleteMessage requires 'chat.admin' permission, clearMessages requires 'admin' role
+  static actionAuth: LiveActionAuthMap = {
+    deleteMessage: { permissions: ['chat.admin'] },
+    clearMessages: { roles: ['admin'] },
+  }
+
+  // Uses $auth in actions to identify user and check roles
+  async join(payload: { room: string }) {
+    this.$room(payload.room).join()
+    const userId = this.$auth.session?.id || this.userId || 'anonymous'
+    const isAdmin = this.$auth.hasRole('admin')
+    this.setState({ currentUser: userId, isAdmin })
+    return { success: true, userId, isAdmin }
+  }
+
+  async sendMessage(payload: { text: string }) {
+    const message = {
+      id: Date.now(),
+      userId: this.$auth.session?.id || this.userId || 'unknown',
+      text: payload.text.trim(),
+      timestamp: Date.now(),
+      isAdmin: this.$auth.hasRole('admin'),
+    }
+    // ...
+  }
+}
+```
+
+### LiveAdminPanel (`app/server/live/LiveAdminPanel.ts`)
+
+Requires authentication AND `admin` role to mount. Uses per-action permissions and audit trail.
+
+```typescript
+export class LiveAdminPanel extends LiveComponent<AdminPanelState> {
+  static componentName = 'LiveAdminPanel'
+  static publicActions = ['getAuthInfo', 'init', 'listUsers', 'addUser', 'deleteUser', 'clearAudit'] as const
+
+  // Component-level: requires auth + admin role
+  static auth: LiveComponentAuth = {
+    required: true,
+    roles: ['admin'],
+  }
+
+  // Action-level: deleteUser requires 'users.delete' permission
+  static actionAuth: LiveActionAuthMap = {
+    deleteUser: { permissions: ['users.delete'] },
+    clearAudit: { roles: ['admin'] },
+  }
+
+  // Populates state with auth info on init
+  async init() {
+    this.setState({
+      currentUser: this.$auth.session?.id || null,
+      currentRoles: this.$auth.session?.roles || [],
+      isAdmin: this.$auth.hasRole('admin'),
+    })
+    this.addAudit('LOGIN', this.$auth.session?.id || 'unknown')
+    return { success: true }
+  }
+
+  // Audit trail using $auth.session
+  async deleteUser(payload: { userId: string }) {
+    const user = this.state.users.find(u => u.id === payload.userId)
+    if (!user) throw new Error('User not found')
+    this.setState({ users: this.state.users.filter(u => u.id !== payload.userId) })
+    this.addAudit('DELETE_USER', this.$auth.session?.id || 'unknown', user.name)
+    return { success: true }
+  }
+}
+```
+
+### Testing Auth with DevAuthProvider
+
+To test these components in the browser:
+
+```tsx
+// 1. Authenticate as admin (has all permissions)
+await authenticate({ token: 'admin-token' })
+// LiveProtectedChat: mount allowed, all actions allowed
+// LiveAdminPanel: mount allowed, all actions allowed
+
+// 2. Authenticate as regular user
+await authenticate({ token: 'user-token' })
+// LiveProtectedChat: mount allowed, but deleteMessage/clearMessages denied
+// LiveAdminPanel: mount DENIED (no 'admin' role)
+
+// 3. Authenticate as moderator
+await authenticate({ token: 'mod-token' })
+// LiveProtectedChat: mount allowed, deleteMessage denied (no 'chat.admin'), clearMessages denied (no 'admin' role)
+// LiveAdminPanel: mount DENIED (no 'admin' role)
+```
 
 ## Related
 

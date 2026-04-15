@@ -1,6 +1,6 @@
 # CLI Commands Reference
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
@@ -227,12 +227,36 @@ bun run flux help generate
 Standard npm scripts in `package.json`:
 
 ```bash
-bun run dev           # flux dev
-bun run build         # flux build
-bun run start         # NODE_ENV=production bun dist/server/index.js
-bun run test          # vitest
-bun run lint          # eslint
-bun run typecheck     # tsc --noEmit
+# Development
+bun run dev              # Full-stack dev (backend + frontend)
+bun run dev:frontend     # Frontend only (Vite, port 5173)
+bun run dev:backend      # Backend only (Elysia)
+
+# Build
+bun run build            # Full production build (frontend + backend)
+bun run build:frontend   # Frontend build only
+bun run build:backend    # Backend build only
+bun run build:exe        # Build + compile to executable
+
+# Production
+bun run start            # NODE_ENV=production bun dist/index.js
+
+# Testing
+bun run test             # vitest (watch mode)
+bun run test:ui          # vitest with browser UI (--ui)
+bun run test:coverage    # vitest run with coverage report
+bun run test:e2e         # Playwright end-to-end tests
+bun run test:e2e:ui      # Playwright with interactive UI
+bun run test:e2e:headed  # Playwright in headed browser mode
+
+# Code Quality
+bun run typecheck:api    # Type-check API routes (tsconfig.api-strict.json)
+
+# Generators & Utilities
+bun run make:component   # Scaffold a new component via CLI
+bun run sync-version     # Sync version across package.json and version.ts
+bun run cli              # Direct access to FluxStack CLI
+bun run create           # Create new FluxStack project
 ```
 
 ## Environment Variables for CLI

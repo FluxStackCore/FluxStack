@@ -1,6 +1,6 @@
 # Migration Guide: ai-context/ → LLMD/
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Overview
 
@@ -144,6 +144,49 @@ These rules remain the same in both documentation systems:
 - **ALWAYS** work in `app/` directory
 - **ALWAYS** use native Eden Treaty: `const { data, error } = await api.users.get()`
 - **ALWAYS** define shared types in `app/shared/`
+
+## Changes v1.12 to v1.19
+
+This section documents the major changes that occurred between v1.12 and v1.19. All LLMD documents have been updated to reflect these changes.
+
+### Plugin-Kit Extraction (v1.19)
+
+- **Auto-discovery removed**: The automatic plugin discovery from `node_modules/` was removed in `@fluxstack/plugin-kit@0.4.0` because it broke silently in production bundles (`dist/node_modules/` does not exist).
+- **Manual registration via `.use()`**: Every plugin the app wants to enable must now be explicitly imported and registered via `.use()` in `app/server/index.ts`.
+- **Project plugins (`plugins/`)**: Also require explicit registration; the `PLUGINS_DISCOVER_PROJECT` env var no longer applies.
+- **Example** (from `app/server/index.ts`):
+  ```typescript
+  import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
+
+  const framework = new FluxStackFramework()
+    .use(swaggerPlugin)
+    .use(liveComponentsPlugin)
+    .use(csrfProtectionPlugin)
+  ```
+
+### @fluxstack/live 0.7.2
+
+- **Custom `generateId`**: LiveServer now accepts a custom ID generator function, allowing UUIDs, nanoid, or any other strategy.
+- **WebSocket optimizations**: Reduced overhead on message encoding/decoding and improved reconnection logic.
+
+### Reactive State Proxy (v1.12)
+
+- State mutations auto-sync with the frontend via Proxy.
+- `this.state.count++` triggers a `STATE_DELTA` automatically.
+- `setState()` remains available for batch updates (multiple properties in a single emit).
+
+### Static defaultState (v1.12)
+
+- `defaultState` is now defined inside the class as a static property.
+- Old pattern (`export const defaultState = {...}` outside the class) is deprecated.
+- Less boilerplate, better encapsulation.
+
+### Theme System (v1.18)
+
+- Built-in theme support for the frontend with light/dark mode.
+- Theme configuration via `config/client.config.ts`.
+
+---
 
 ## Feedback
 

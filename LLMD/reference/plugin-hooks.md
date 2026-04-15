@@ -1,10 +1,12 @@
 # Plugin Hooks Reference
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
-- Hooks are defined in `core/plugins/types.ts`
+- Canonical type definitions live in **`@fluxstack/plugin-kit`** (external package)
+- `core/plugins/types.ts` is a **thin shim** that re-exports from `@fluxstack/plugin-kit` with `FluxStackConfig` specialized into the generics — existing `import ... from '@core/plugins/types'` call sites keep working unchanged
+- Future PRs will migrate individual call sites to import directly from `@fluxstack/plugin-kit`; the shim will eventually be removed
 - Execution order follows plugin priority (highest → lowest)
 - All hooks receive typed contexts
 - Hooks can be async (return Promise)

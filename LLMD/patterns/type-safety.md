@@ -1,6 +1,6 @@
 # Type Safety Patterns
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
@@ -65,18 +65,22 @@ export const usersRoutes = new Elysia({ prefix: '/users' })
 **Step 2: Use Eden Treaty client**
 
 ```typescript
-// app/client/src/lib/api.ts
-import { createEdenClient } from '@core/client/api/eden'
+// app/client/src/lib/eden-api.ts
+import { createEdenClient, getErrorMessage } from '@/core/client/api'
 import type { App } from '@server/app'
 
-export const api = createEdenClient<App>()
+export const api = createEdenClient<App>({
+  // Optional customization: tokenKey, getAuthToken, onUnauthorized, getBaseUrl, enableLogging
+})
+
+export { getErrorMessage }
 ```
 
 **Step 3: Make typed API calls**
 
 ```typescript
 // app/client/src/pages/UsersPage.tsx
-import { api } from '@/lib/api'
+import { api } from '@/lib/eden-api'
 
 async function loadUsers() {
   const { data, error } = await api.users.get()
@@ -214,6 +218,58 @@ const { data } = await api.users.get({
 })
 //    ^? { users: User[], page: number, limit: number, total: number } | undefined
 ```
+
+### Discriminated Union with t.Union
+
+The real codebase uses `t.Union` for routes that return different shapes depending on success/failure. See `app/server/routes/users.routes.ts` for the canonical example:
+
+```typescript
+// Backend — discriminated union response schema
+const CreateUserResponseSchema = t.Union([
+  t.Object({
+    success: t.Literal(true),
+    user: UserSchema,
+    message: t.Optional(t.String())
+  }),
+  t.Object({
+    success: t.Literal(false),
+    error: t.String()
+  })
+], {
+  description: 'Response after attempting to create a user'
+})
+
+// Route with per-status-code responses
+.post('/', async ({ body, set }) => {
+  const result = await UsersController.createUser(body)
+  if (!result.success) {
+    set.status = 409
+    return result
+  }
+  set.status = 201
+  return result
+}, {
+  body: CreateUserRequestSchema,
+  response: {
+    201: CreateUserResponseSchema,
+    400: t.Object({ success: t.Literal(false), error: t.String() }),
+    409: t.Object({ success: t.Literal(false), error: t.String() })
+  }
+})
+
+// Frontend — TypeScript narrows via the discriminant field
+const { data, error } = await api.users.post({
+  name: 'Jane', email: 'jane@example.com'
+})
+
+if (data?.success) {
+  console.log(data.user.name)   // TS knows `user` exists
+} else if (data) {
+  console.error(data.error)     // TS knows `error` exists
+}
+```
+
+**Key takeaway:** Define `t.Union([...])` at the schema level (not just multiple status codes) so Eden Treaty infers a proper discriminated union type on the client. Use `t.Literal(true)` / `t.Literal(false)` on a shared field (like `success`) so TypeScript can narrow the type with a simple `if` check.
 
 ## Shared Types
 

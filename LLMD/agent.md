@@ -1,6 +1,6 @@
 # FluxStack Agent Guide
 
-**Version:** 1.13.0 | **Updated:** 2025-02-14
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 > Guia completo para agentes de IA que auxiliam desenvolvedores a configurar, construir e manter aplicacoes FluxStack.
 
@@ -44,7 +44,7 @@ FluxStack/
 ├── config/         # CONFIGURACOES (declarativas, com validacao)
 │   ├── system/     #   Defaults do framework (base)
 │   └── *.config.ts #   Overrides do usuario
-├── plugins/        # PLUGINS DO PROJETO (auto-discovered, confiaveis)
+├── plugins/        # PLUGINS DO PROJETO (registro manual via .use())
 ├── tests/          # TESTES (Vitest)
 └── LLMD/           # DOCUMENTACAO LLM-optimizada
 ```
@@ -420,7 +420,20 @@ const meuPlugin: FluxStackPlugin = {
 export default meuPlugin
 ```
 
-Plugins em `plugins/` sao auto-discovered e confiaveis. Nao precisam de whitelist.
+**Passo 3 - Registrar o plugin** em `app/server/index.ts`:
+
+Desde v1.19 (plugin-kit 0.4.0), todos os plugins devem ser registrados manualmente via `.use()`.
+Nao existe mais auto-discovery de plugins. Importe e registre explicitamente:
+
+```typescript
+// app/server/index.ts
+import meuPlugin from '../../plugins/meu-plugin'
+
+const framework = new FluxStackFramework()
+  .use(swaggerPlugin)
+  .use(liveComponentsPlugin)
+  .use(meuPlugin)           // <-- registro explicito
+```
 
 ---
 
@@ -718,7 +731,7 @@ bun run flux plugin:remove nome-plugin # Remover plugin
 3. **Omitir response schemas** - Eden Treaty perde a tipagem no frontend
 4. **Usar `process.env` diretamente** - Use o sistema de config declarativo
 5. **Colocar logica de negocio em rotas** - Use controllers/services
-6. **Habilitar NPM discovery sem whitelist** - Risco de supply chain attack
+6. **Usar plugins sem registro explicito via .use()** - Auto-discovery foi removida em v1.19
 7. **Criar tipos manuais para respostas de API** - Eden Treaty infere automaticamente
 8. **Usar imports relativos profundos** - Use path aliases (@server, @client, etc.)
 9. **Armazenar dados nao-serializaveis no state de Live Components**
@@ -765,9 +778,9 @@ Live Component nao sincroniza?
 │       └── SIM → State e serializavel (sem functions, Date, etc.)?
 
 Plugin nao carrega?
-├── E plugin NPM?
-│   ├── SIM → PLUGINS_DISCOVER_NPM=true e PLUGINS_ALLOWED configurado?
-│   └── NAO → Esta em plugins/ com export default?
+├── Foi importado e registrado via .use() em app/server/index.ts?
+│   ├── NAO → Importar e registrar com framework.use(meuPlugin)
+│   └── SIM → Export default esta correto no index.ts do plugin?
 └── Verificar logs de seguranca no console
 
 Config nao carrega?

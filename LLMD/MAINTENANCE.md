@@ -1,6 +1,6 @@
 # Documentation Maintenance Guide
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 

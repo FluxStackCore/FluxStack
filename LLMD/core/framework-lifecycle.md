@@ -1,14 +1,14 @@
 # Framework Lifecycle
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
 - Framework class: `FluxStackFramework` in `core/framework/server.ts`
-- Initialization: Constructor → Plugin Discovery → Setup Hooks → Server Start
+- Initialization: Constructor → Manual Plugin Registration (.use()) → Setup Hooks → Server Start
 - Request flow: 13 hook points from request to response
 - Shutdown: Graceful with reverse-order plugin cleanup
-- Plugin loading: Dependency-based topological sort with priority
+- Plugin loading: Explicit registration via `.use()` with dependency-based topological sort
 
 ## Initialization Sequence
 
@@ -16,27 +16,30 @@
 sequenceDiagram
     participant App as Application
     participant FW as FluxStackFramework
-    participant PM as PluginManager
     participant PR as PluginRegistry
     participant Plugins as Plugins
 
-    App->>FW: new FluxStackFramework(config)
+    App->>FW: new FluxStackFramework()
     FW->>FW: Create Elysia app
     FW->>PR: new PluginRegistry()
-    FW->>PM: new PluginManager()
     FW->>FW: setupCors()
     FW->>FW: setupHeadHandler()
     FW->>FW: setupHooks()
     FW->>FW: setupErrorHandling()
-    FW->>PM: initializeAutomaticPlugins()
-    PM->>PM: discoverPlugins()
-    PM->>PR: register(plugin)
-    PR->>PR: updateLoadOrder()
+
+    App->>FW: .use(swaggerPlugin)
+    App->>FW: .use(liveComponentsPlugin)
+    App->>FW: .use(csrfProtectionPlugin)
+    App->>FW: .use(vitePlugin) (if full-stack mode)
+    loop For each registered plugin
+        FW->>PR: register(plugin)
+        PR->>PR: updateLoadOrder()
+    end
     loop For each plugin
-        PM->>Plugins: onConfigLoad(context)
+        FW->>Plugins: onConfigLoad(context)
     end
     
-    App->>FW: start()
+    App->>FW: listen()
     FW->>PR: validateDependencies()
     loop For each plugin (load order)
         FW->>Plugins: setup(context)
@@ -54,31 +57,49 @@ sequenceDiagram
         FW->>Plugins: onAfterServerStart(context)
     end
     
-    App->>FW: listen(port)
     FW->>FW: Display startup banner
 ```
 
-## Plugin Loading Order
+## Plugin Registration
 
-Plugins are loaded in dependency-aware order:
+All plugins are registered manually via `.use()` in `app/server/index.ts`. Auto-discovery was removed in `@fluxstack/plugin-kit@0.4.0` because it broke silently in production bundles (`dist/node_modules/` does not exist). Every plugin the app wants to enable must be explicitly imported and `.use()`-d.
 
-1. **Discovery Phase** (automatic, during constructor):
-   - Scan `plugins/` directory (project plugins)
-   - Scan `node_modules/` for npm plugins (if enabled)
-   - Whitelist validation for npm plugins
-   - Dependency resolution
+**Current registration in `app/server/index.ts`:**
 
-2. **Registration Phase**:
+```typescript
+import { FluxStackFramework } from "@core/server"
+import { vitePlugin } from "@core/plugins/built-in/vite"
+import { swaggerPlugin } from "@core/plugins/built-in/swagger"
+import { liveComponentsPlugin } from "@core/server/live"
+import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
+
+const framework = new FluxStackFramework()
+  .use(swaggerPlugin)
+  .use(liveComponentsPlugin)
+  .use(csrfProtectionPlugin)
+
+// Vite only in full-stack mode
+if (appConfig.mode !== 'backend-only') {
+  framework.use(vitePlugin)
+}
+
+framework.routes(appInstance)
+await framework.listen()
+```
+
+**Plugin loading phases:**
+
+1. **Registration Phase** (during `.use()` calls):
    - Validate plugin structure
    - Store in registry
    - Build dependency graph
    - Calculate load order (topological sort)
 
-3. **Configuration Phase** (during `initializeAutomaticPlugins()`):
+2. **Configuration Phase** (after registration):
    - Execute `onConfigLoad` hooks in load order
    - Plugins can modify configuration
 
-4. **Setup Phase** (during `start()`):
+3. **Setup Phase** (during `listen()`):
    - Validate all dependencies exist
    - Execute `setup` hooks in load order
    - Execute `onBeforeServerStart` hooks
@@ -217,7 +238,6 @@ Every plugin receives a `PluginContext` object:
 
 ## Performance Considerations
 
-- Plugin discovery is asynchronous (non-blocking)
 - Hooks execute sequentially (predictable order)
 - Request timing tracked with minimal overhead
 - Automatic cleanup of timing data

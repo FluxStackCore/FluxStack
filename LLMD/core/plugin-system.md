@@ -1,20 +1,36 @@
 # Plugin System
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
-- Plugin interface: `FluxStack.Plugin` in `core/plugins/types.ts`
+- Plugin types/runtime: `@fluxstack/plugin-kit` (v0.4.0) — canonical source
+- Local shim: `core/plugins/types.ts` re-exports with `FluxStackConfig` specialization
 - Registry: `PluginRegistry` manages all plugins
 - Manager: `PluginManager` handles lifecycle and execution
-- Discovery: Automatic from `plugins/` and `node_modules/`
-- Security: Whitelist system for npm plugins
+- Registration: **Manual only** via `.use(plugin)` — no auto-discovery
 - Dependencies: Automatic resolution with topological sort
+
+## plugin-kit@0.4.0
+
+All plugin types and runtime classes now live in the `@fluxstack/plugin-kit`
+package (extracted from the old `core/plugins/` monolith). The local file
+`core/plugins/types.ts` is a thin re-export shim that specializes the generic
+`Plugin<TConfig>` against `FluxStackConfig`, so existing imports from
+`@core/plugins/types` keep working.
+
+Key exports from `@fluxstack/plugin-kit`:
+- **Types**: `Plugin`, `PluginContext`, `PluginHook`, `PluginPriority`, etc.
+- **Runtime**: `PluginRegistry`, `PluginManager`, `PluginExecutor`,
+  `PluginModuleResolver`, `PluginDiscovery`
+- **Helpers**: `createPluginUtils`, `createRequestContext`,
+  `createResponseContext`, `createErrorContext`, `createBuildContext`
 
 ## Plugin Interface
 
 ```typescript
-interface FluxStack.Plugin {
+// Canonical source: @fluxstack/plugin-kit
+interface Plugin<TConfig = unknown> {
   // Required
   name: string
   
@@ -65,89 +81,82 @@ interface FluxStack.Plugin {
 }
 ```
 
-## Plugin Discovery
+## Plugin Registration
 
-### Built-in vs External Plugins
+Since `@fluxstack/plugin-kit@0.4.0`, **all plugins are registered manually**
+via `.use()`. Auto-discovery from `plugins/` and `node_modules/` was removed
+because it broke silently in production bundles (`dist/node_modules/` does not
+exist after bundling). Every plugin the app uses must be explicitly imported
+and `.use()`-d in the server entry point.
 
-**Built-in Plugins** (`core/plugins/built-in/`):
-- Part of framework core
-- Manually registered via `.use(plugin)`
-- Examples: vite, swagger, static, live-components
-- No automatic discovery (developer chooses)
+### How It Works
 
-**Project Plugins** (`plugins/`):
-- User-created plugins in project
-- Automatically discovered if `PLUGINS_DISCOVER_PROJECT=true`
-- Always trusted (no whitelist required)
-- Can have local dependencies
+```typescript
+// app/server/index.ts
+import { FluxStackFramework } from "@core/server"
 
-**NPM Plugins** (`node_modules/`):
-- Third-party plugins from npm
-- Automatically discovered if `PLUGINS_DISCOVER_NPM=true`
-- **Requires whitelist** (`PLUGINS_ALLOWED` env var)
-- Naming patterns:
-  - `fluxstack-plugin-*`
-  - `fplugin-*`
-  - `@fluxstack/plugin-*`
-  - `@fplugin/*`
-  - `@org/fluxstack-plugin-*`
-  - `@org/fplugin-*`
+// Built-in plugins (shipped with FluxStack core)
+import { vitePlugin } from "@core/plugins/built-in/vite"
+import { swaggerPlugin } from "@core/plugins/built-in/swagger"
+import { liveComponentsPlugin } from "@core/server/live"
 
-### Discovery Process
+// External / NPM plugins — import + .use() explicitly
+import { csrfProtectionPlugin } from "@fluxstack/plugin-csrf-protection"
+
+const framework = new FluxStackFramework()
+  .use(swaggerPlugin)
+  .use(liveComponentsPlugin)
+  .use(csrfProtectionPlugin)
+
+// Conditional registration
+if (appConfig.mode !== 'backend-only') {
+  framework.use(vitePlugin)
+}
+
+framework.routes(appInstance)
+await framework.listen()
+```
+
+### Registration Flow
 
 ```mermaid
 graph TD
-    A[Plugin Discovery] --> B{PLUGINS_DISCOVER_PROJECT?}
-    B -->|Yes| C[Scan plugins/ directory]
-    B -->|No| D[Skip project plugins]
-    C --> E[Load plugin files]
-    
-    A --> F{PLUGINS_DISCOVER_NPM?}
-    F -->|Yes| G[Scan node_modules/]
-    F -->|No| H[Skip npm plugins]
-    G --> I{In PLUGINS_ALLOWED?}
-    I -->|Yes| J[Load npm plugin]
-    I -->|No| K[Block plugin]
-    
-    E --> L[Register in PluginRegistry]
-    J --> L
-    L --> M[Resolve dependencies]
-    M --> N[Calculate load order]
-    N --> O[Execute onConfigLoad hooks]
+    A[Server Entry Point] --> B[import plugin]
+    B --> C[framework.use plugin]
+    C --> D[PluginRegistry.register]
+    D --> E[Resolve dependencies]
+    E --> F[Calculate load order]
+    F --> G[Execute setup hooks]
 ```
 
-## Plugin Security
+### Plugin Categories
 
-### Whitelist System
+**Built-in Plugins** (`core/plugins/built-in/`):
+- Part of framework core: vite, swagger, static, live-components, monitoring
+- Imported from `@core/plugins/built-in/*`
+- Registered via `.use()`
 
-**Purpose**: Prevent supply chain attacks from malicious npm packages
+**Project Plugins** (`plugins/`):
+- User-created plugins in the project directory
+- Imported with relative paths or path aliases
+- Registered via `.use()`
 
-**Configuration**:
-```bash
-# Enable npm plugin discovery
-PLUGINS_DISCOVER_NPM=true
+**NPM Plugins** (`node_modules/`):
+- Third-party plugins installed via `bun add`
+- Imported by package name (e.g., `@fluxstack/plugin-csrf-protection`)
+- Registered via `.use()`
+- The bundler includes them statically — no runtime filesystem scanning
 
-# Whitelist specific plugins
-PLUGINS_ALLOWED=fluxstack-plugin-auth,@acme/fplugin-payments
-```
+### Why No Auto-Discovery
 
-**Security Model**:
-- Project plugins (`plugins/`) are **always trusted** (developer added them)
-- NPM plugins (`node_modules/`) **require whitelist** (supply chain protection)
-- Empty whitelist = no npm plugins allowed
-- Blocked plugins logged with warning
+Auto-discovery was removed in plugin-kit@0.4.0 for these reasons:
 
-**Example**:
-```typescript
-// ✅ Project plugin - always allowed
-plugins/my-plugin/index.ts
-
-// ❌ NPM plugin without whitelist - blocked
-node_modules/fluxstack-plugin-malicious/
-
-// ✅ NPM plugin in whitelist - allowed
-node_modules/fluxstack-plugin-auth/  // if in PLUGINS_ALLOWED
-```
+1. **Production bundles break**: `dist/node_modules/` does not exist after
+   bundling, so runtime scanning finds nothing in production.
+2. **Implicit behavior**: Plugins activating without explicit code made
+   debugging harder and created security concerns.
+3. **Static analysis**: Explicit imports let bundlers tree-shake unused
+   plugins and let TypeScript verify types at compile time.
 
 ## Dependency Resolution
 
@@ -197,7 +206,6 @@ monitoring (priority: -50, deps: [api])
 - Manage plugin manifests
 - Calculate load order
 - Validate dependencies
-- Discover plugins from filesystem
 
 **Key Methods**:
 ```typescript
@@ -209,8 +217,6 @@ getLoadOrder(): string[]
 getDependencies(pluginName: string): string[]
 getDependents(pluginName: string): string[]
 has(name: string): boolean
-discoverPlugins(options: PluginDiscoveryOptions): Promise<PluginLoadResult[]>
-discoverNpmPlugins(): Promise<PluginLoadResult[]>
 ```
 
 ### Plugin Manifest
@@ -228,7 +234,7 @@ Optional `plugin.json` or `package.json` with `fluxstack` field:
     "jsonwebtoken": "^9.0.0"
   },
   "fluxstack": {
-    "version": "1.11.0",
+    "version": "1.19.0",
     "hooks": ["setup", "onRequest", "onBeforeRoute"],
     "category": "security",
     "tags": ["auth", "jwt"]
@@ -386,23 +392,17 @@ onPluginError: async (context) => {
 
 ## Dependency Management
 
-### Automatic Installation
+Since all plugins are explicitly imported, their npm dependencies must be
+installed in the project's `package.json` like any other dependency:
 
-**Project Plugins**:
-- Dependencies installed in plugin directory
-- Runs `bun install` in plugin folder
-- Isolated from main project dependencies
+```bash
+# Install a plugin and its dependencies
+bun add @fluxstack/plugin-csrf-protection
+```
 
-**NPM Plugins**:
-- Dependencies must be manually reviewed
-- Run `bun run flux plugin:deps install <plugin-name>`
-- Security: prevents automatic malicious package installation
-
-### Missing Dependencies
-
-If plugin declares dependencies not in main `package.json`:
-- Project plugins: Auto-install locally
-- NPM plugins: Show warning with install command
+Plugin *inter-dependencies* (one plugin depending on another plugin) are
+declared via the `dependencies` array in the plugin object and resolved
+automatically by the registry at startup.
 
 ## Plugin Validation
 
@@ -432,16 +432,70 @@ If plugin has `configSchema`, validates config against schema:
 }
 ```
 
+## Creating a Plugin
+
+### Minimal Example
+
+```typescript
+// plugins/my-logger/index.ts
+import type { Plugin } from '@fluxstack/plugin-kit'
+
+export const myLoggerPlugin: Plugin = {
+  name: 'my-logger',
+  version: '1.0.0',
+
+  setup: async (context) => {
+    context.logger.info('My logger plugin initialized')
+  },
+
+  onRequest: async (context) => {
+    console.log(`${context.method} ${context.path}`)
+  },
+
+  onServerStop: async () => {
+    console.log('Flushing logs...')
+  }
+}
+```
+
+### Registering It
+
+```typescript
+// app/server/index.ts
+import { myLoggerPlugin } from '../../plugins/my-logger'
+
+const framework = new FluxStackFramework()
+  .use(myLoggerPlugin)
+  // ... other plugins
+```
+
+### Publishing as NPM Package
+
+1. Create a package that exports a `Plugin` object
+2. Depend on `@fluxstack/plugin-kit` for types
+3. Consumers install the package and `.use()` it explicitly
+
+```bash
+bun add my-fluxstack-plugin
+```
+
+```typescript
+import { myPlugin } from 'my-fluxstack-plugin'
+framework.use(myPlugin)
+```
+
 ## Best Practices
 
-1. **Declare Dependencies**: Always list plugin dependencies
-2. **Use Priority**: Set priority for load order control
-3. **Handle Errors**: Implement error hooks for resilience
-4. **Cleanup Resources**: Use `onServerStop` for cleanup
-5. **Avoid Blocking**: Keep hooks fast, use async for I/O
-6. **Log Appropriately**: Use `context.logger` for plugin logs
-7. **Validate Input**: Check context data before use
-8. **Test Isolation**: Ensure plugin works independently
+1. **Register explicitly**: Always import and `.use()` every plugin
+2. **Declare inter-dependencies**: List plugin dependencies in the `dependencies` array
+3. **Use Priority**: Set priority for load order control
+4. **Handle Errors**: Implement error hooks for resilience
+5. **Cleanup Resources**: Use `onServerStop` for cleanup
+6. **Avoid Blocking**: Keep hooks fast, use async for I/O
+7. **Log Appropriately**: Use `context.logger` for plugin logs
+8. **Validate Input**: Check context data before use
+9. **Test Isolation**: Ensure plugin works independently
+10. **Use `@fluxstack/plugin-kit`**: Import types from the canonical package
 
 ## Related
 

@@ -1,6 +1,6 @@
 # Environment Variables Reference
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
@@ -137,15 +137,12 @@
 
 ## Plugins
 
+> **v1.19.0**: Auto-discovery de plugins foi removida. Plugins agora devem ser registrados explicitamente via `.use()` no bootstrap da aplicação. As variáveis `PLUGINS_AUTO_DISCOVER`, `PLUGINS_DISCOVER_NPM`, `PLUGINS_DISCOVER_PROJECT`, `PLUGINS_ALLOWED` e `FLUXSTACK_PLUGINS_ENABLED` foram removidas.
+
 | Variable | Type | Default | Description | Config File |
 |----------|------|---------|-------------|-------------|
-| `FLUXSTACK_PLUGINS_ENABLED` | array | `['logger', 'swagger', 'vite', 'cors', 'static-files']` | Enabled plugins | plugins.config.ts |
 | `FLUXSTACK_PLUGINS_DISABLED` | array | `[]` | Disabled plugins | plugins.config.ts |
-| `PLUGINS_AUTO_DISCOVER` | boolean | `true` | Auto-discover plugins | plugins.config.ts |
 | `PLUGINS_DIR` | string | `'plugins'` | Plugins directory | plugins.config.ts |
-| `PLUGINS_DISCOVER_NPM` | boolean | `false` | Discover npm plugins | plugins.config.ts |
-| `PLUGINS_DISCOVER_PROJECT` | boolean | `true` | Discover project plugins | plugins.config.ts |
-| `PLUGINS_ALLOWED` | array | `[]` | Whitelist of allowed plugins | plugins.config.ts |
 | `LOGGER_PLUGIN_ENABLED` | boolean | `true` | Enable logger plugin | plugins.config.ts |
 
 ## Swagger

@@ -1,6 +1,6 @@
 # Live Room System
 
-**Version:** 2.0.0 | **Updated:** 2025-03-11
+**Version:** 0.7.2 | **Updated:** 2026-04-14
 
 ## Quick Facts
 

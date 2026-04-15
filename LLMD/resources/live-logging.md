@@ -1,6 +1,8 @@
 # Live Logging
 
-**Version:** 1.12.1 | **Updated:** 2025-02-22
+**Version:** 1.19.0 | **Updated:** 2026-04-14
+
+> **Nota:** O recurso `static logging` \u00e9 uma feature do `@fluxstack/live`, dispon\u00edvel mas n\u00e3o usada nos componentes de exemplo do FluxStack app.
 
 ## Quick Facts
 

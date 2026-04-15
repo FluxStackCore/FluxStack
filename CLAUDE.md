@@ -634,4 +634,4 @@ curl http://localhost:3000/api/health  # ✅ Health check
 
 **🎯 Objetivo**: Capacitar LLMs a trabalhar eficientemente com FluxStack, seguindo padrões estabelecidos e garantindo código de alta qualidade com type safety automática.
 
-**📅 Última atualização**: Fevereiro 2025 - v1.12.0 - Reactive State Proxy, Static defaultState, Client Links.
+**📅 Última atualização**: Abril 2026 - v1.19.0 - Plugin-kit extraction, static registration, @fluxstack/live 0.7.2 with custom ID generator and WebSocket optimizations.

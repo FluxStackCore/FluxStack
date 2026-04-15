@@ -1,6 +1,6 @@
 # External Plugins
 
-**Version:** 1.11.0 | **Updated:** 2025-02-08
+**Version:** 1.19.0 | **Updated:** 2026-04-14
 
 ## Quick Facts
 
@@ -9,7 +9,8 @@
 - Use lifecycle hooks for integration
 - Support declarative configuration system
 - Can add CLI commands, routes, and middleware
-- Auto-discovered and loaded at startup
+- **Registration is via `.use()` (no auto-discovery for built-in plugins)**
+- Plugin types come from **`@fluxstack/plugin-kit` 0.4.0** (external package); `core/plugins/types.ts` re-exports with specialized generics
 
 ## Plugin Structure
 
@@ -584,13 +585,13 @@ export const cryptoAuthPlugin: FluxStack.Plugin = {
 }
 ```
 
-## Plugin Discovery
+## Plugin Registration
 
-Plugins are auto-discovered from:
+As of v1.19.0, **built-in plugins are registered explicitly via `.use()`** — there is no auto-discovery for them. Project and NPM plugins follow a layered model:
 
-1. `plugins/` directory (project plugins)
-2. `node_modules/@fluxstack/*-plugin` (npm plugins)
-3. Whitelisted in `config/system/plugins.config.ts`
+1. **Built-in plugins** (`core/plugins/built-in`) — manual registration via `.use()`
+2. **Project plugins** (`plugins/`) — auto-discovery enabled by default (`PLUGINS_DISCOVER_PROJECT=true`)
+3. **NPM plugins** (`node_modules/`) — auto-discovery disabled by default; requires whitelist in `PLUGINS_ALLOWED`
 
 ## Critical Rules
 

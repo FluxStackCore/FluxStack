@@ -1,6 +1,6 @@
 # REST API Authentication
 
-**Version:** 1.14.0 | **Updated:** 2026-02-14
+**Version:** 1.19.0 | **Updated:** 2026-02-14
 
 ## Quick Facts
 
