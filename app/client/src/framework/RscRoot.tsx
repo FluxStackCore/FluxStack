@@ -31,13 +31,15 @@ export function RscPage({ pathname = '/' }: { pathname?: string }) {
 }
 
 /** Documento completo. Controle client (navegação + keep-alive WS) vive no
- *  entry.browser; o body renderiza o RscPage direto. */
-export function RscDocument({ pathname = '/' }: { pathname?: string }) {
+ *  entry.browser; o body renderiza o RscPage direto.
+ *  csrfToken: injetado pelo server p/ o client não precisar fazer fetch('/api/__csrf'). */
+export function RscDocument({ pathname = '/', csrfToken }: { pathname?: string; csrfToken?: string }) {
   return (
     <html lang="pt-BR">
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        {csrfToken && <meta name="csrf-token" content={csrfToken} />}
         <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <title>FluxStack</title>
       </head>
