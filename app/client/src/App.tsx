@@ -200,16 +200,12 @@ function AppContent() {
 }
 
 function App() {
-  // In dev, connect WebSocket directly to backend (port 3000) to avoid
-  // Vite proxy overhead and HMR WebSocket contention on port 5173.
-  // In production, both are served from the same origin so auto-detect works.
-  const wsUrl = import.meta.env.DEV
-    ? 'ws://localhost:3000/api/live/ws'
-    : undefined
-
+  // Sem `url`: o WebSocket usa auto-detect (mesma origem da página). Acesse o
+  // app pela porta do Elysia (3000) — ele serve frontend (proxy Vite) + API +
+  // WS na mesma origem, então o WS resolve para ws(s)://<host>/api/live/ws.
+  // (Acessar o Vite cru na 5173 não tem WS Live — entre sempre pela 3000.)
   return (
     <LiveComponentsProvider
-      //url={wsUrl}
       autoConnect={true}
       reconnectInterval={1000}
       heartbeatInterval={30000}

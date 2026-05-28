@@ -11,7 +11,10 @@ export default defineConfig({
   timeout: 30_000,
 
   use: {
-    baseURL: 'http://localhost:5173',
+    // Entrar pela 3000 (Elysia) — o app de verdade: API + WebSocket + frontend
+    // (via proxy Vite). A 5173 é o Vite dev cru (sem WebSocket Live), detalhe
+    // interno. Pela 3000 tudo é mesma origem, então o WS conecta sozinho.
+    baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
   },
 
@@ -24,7 +27,8 @@ export default defineConfig({
 
   webServer: {
     command: 'bun run dev',
-    port: 5173,
+    // Espera a 3000 (Elysia) ficar pronta — é por onde os testes entram.
+    port: 3000,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
