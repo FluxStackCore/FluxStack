@@ -8,6 +8,8 @@
 import type { ReactNode } from 'react'
 import { LiveComponentsProvider } from '@/core/client'
 import { ClientOnly } from './ClientOnly'
+import { ParamsProvider } from './params'
+import type { RouteParams } from './routes'
 
 function Loading() {
   return (
@@ -21,10 +23,13 @@ function Loading() {
 export function LivePage({
   title,
   description,
+  params = {},
   children,
 }: {
   title?: string
   description?: string
+  /** params da rota — repasse o `params` que a página recebeu, p/ useParams() funcionar */
+  params?: RouteParams
   children: ReactNode
 }) {
   return (
@@ -38,9 +43,11 @@ export function LivePage({
           </div>
         )}
         <ClientOnly fallback={<Loading />}>
-          <LiveComponentsProvider autoConnect reconnectInterval={1000} maxReconnectAttempts={5} heartbeatInterval={30000}>
-            {children}
-          </LiveComponentsProvider>
+          <ParamsProvider params={params}>
+            <LiveComponentsProvider autoConnect reconnectInterval={1000} maxReconnectAttempts={5} heartbeatInterval={30000}>
+              {children}
+            </LiveComponentsProvider>
+          </ParamsProvider>
         </ClientOnly>
       </div>
     </div>

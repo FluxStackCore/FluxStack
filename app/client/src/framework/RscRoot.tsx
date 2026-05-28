@@ -20,11 +20,12 @@ function NotFound({ pathname }: { pathname: string }) {
 /** Conteúdo da rota (nav + página). É o que as navegações client buscam (.rsc). */
 export function RscPage({ pathname = '/' }: { pathname?: string }) {
   const match = matchRoute(pathname)
-  const Page = match?.Component
   return (
     <>
       <RscNav active={pathname} />
-      {Page ? <Page /> : <NotFound pathname={pathname} />}
+      {match
+        ? <match.route.Component params={match.params} />
+        : <NotFound pathname={pathname} />}
     </>
   )
 }
