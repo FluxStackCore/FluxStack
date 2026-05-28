@@ -1,16 +1,17 @@
 // ENTRY RSC do FluxStack. Default export = handler chamado pelo Elysia.
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc'
-import { RscPage, RscDocument } from './RscRoot'
+import { RscDocument } from './RscRoot'
 
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const isRscNav = url.pathname.endsWith('.rsc')
   const pathname = url.pathname.replace(/\.rsc$/, '') || '/'
 
-  // Navegação client (.rsc): só o CONTEÚDO da rota (shell client persiste).
-  // Primeira carga: documento completo (<html> + RootClient com o Provider).
-  const tree = isRscNav ? <RscPage pathname={pathname} /> : <RscDocument pathname={pathname} />
-  const rscStream = renderToReadableStream(tree)
+  // Sempre renderiza o DOCUMENTO completo (RscDocument) — tanto na primeira
+  // carga (vira HTML via SSR) quanto na navegação (.rsc, re-render do root).
+  // O entry.browser re-renderiza o mesmo React root com este payload, então
+  // a árvore precisa ser coerente (documento inteiro) nas duas situações.
+  const rscStream = renderToReadableStream(<RscDocument pathname={pathname} />)
 
   if (isRscNav) {
     return new Response(rscStream, {

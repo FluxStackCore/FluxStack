@@ -9,7 +9,6 @@
 import '../index.css' // Tailwind + temas
 import { RscHomePage } from './RscHomePage'
 import { RscNav } from './RscNav'
-import { RootClient } from './RootClient'
 import {
   CounterIsland,
   FormIsland,
@@ -78,7 +77,8 @@ export function RscPage({ pathname = '/' }: { pathname?: string }) {
   )
 }
 
-/** Documento completo (primeira carga / SSR): html + shell client persistente. */
+/** Documento completo. O controle client (navegação + keep-alive WS) vive no
+ *  entry.browser, não aqui — então o body renderiza o RscPage direto. */
 export function RscDocument({ pathname = '/' }: { pathname?: string }) {
   return (
     <html lang="pt-BR">
@@ -89,7 +89,7 @@ export function RscDocument({ pathname = '/' }: { pathname?: string }) {
         <title>FluxStack</title>
       </head>
       <body>
-        <RootClient initialContent={<RscPage pathname={pathname} />} />
+        <RscPage pathname={pathname} />
       </body>
     </html>
   )

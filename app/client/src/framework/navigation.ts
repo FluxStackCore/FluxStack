@@ -1,25 +1,29 @@
-// Navegação RSC via singleton de módulo (não via React Context).
+// Navegação RSC via window (global verdadeiro), NÃO via singleton de módulo.
 //
-// Por quê não Context: o React Context client NÃO atravessa a fronteira de
-// serialização RSC. O RscNav/RscLink vêm do payload server, então um
-// NavContext.Provider no shell client não os alcança. Um singleton de módulo
-// (igual o connectionPool faz com a conexão) resolve: o RootClient registra
-// seu navigate aqui, o RscLink chama daqui. Sem fronteira de contexto.
+// Por quê window e não um let de módulo: no RSC, o mesmo módulo pode ser
+// carregado em ambientes/grafos diferentes (o RscLink vem do grafo do payload;
+// o entry.browser é o grafo client). Um `let` de módulo teria instâncias
+// separadas — setNavigate no entry não seria visto pelo RscLink. window é o
+// único estado compartilhado garantido entre eles no browser.
 
 type NavigateFn = (href: string, push?: boolean) => void
 
-let navigateImpl: NavigateFn | null = null
+declare global {
+  interface Window { __rscNavigate?: NavigateFn }
+}
 
-/** O RootClient registra sua função de navegação no mount. */
+/** O entry.browser registra a função de navegação. */
 export function setNavigate(fn: NavigateFn | null) {
-  navigateImpl = fn
+  if (typeof window !== 'undefined') {
+    window.__rscNavigate = fn ?? undefined
+  }
 }
 
 /** O RscLink chama isto no clique. Fallback: navegação nativa (full reload). */
 export function navigate(href: string) {
-  if (navigateImpl) {
-    navigateImpl(href)
+  if (typeof window !== 'undefined' && window.__rscNavigate) {
+    window.__rscNavigate(href)
   } else if (typeof window !== 'undefined') {
-    window.location.href = href // degrada para reload se o shell não registrou
+    window.location.href = href
   }
 }
