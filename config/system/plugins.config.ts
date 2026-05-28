@@ -75,8 +75,20 @@ export const pluginsConfig = defineConfig({
   viteEnabled: config.boolean('VITE_PLUGIN_ENABLED', true),
   viteExcludePaths: config.array('VITE_EXCLUDE_PATHS', [
     '/api',
-    '/swagger'
-  ])
+    '/swagger',
+    '/ssr-demo',
+    '/ssr'
+  ]),
+
+  // SSR (server-side rendering das rotas de página). Off por padrão: ligar
+  // troca o SPA vazio do `/` por HTML pré-renderizado + hydration.
+  ssrEnabled: config.boolean('SSR_ENABLED', false),
+  ssrClientEntry: config.string('SSR_CLIENT_ENTRY', '/src/entry-ssr.tsx'),
+
+  // RSC (React Server Components) — experimental. Server components (0 JS) +
+  // client islands (Live Components) servidos pelo proxy interno. Requer o
+  // rsc() no vite.config (também condicionado a RSC_ENABLED). Ver core/plugins/built-in/rsc.
+  rscEnabled: config.boolean('RSC_ENABLED', false)
 })
 
 export type PluginsConfig = typeof pluginsConfig

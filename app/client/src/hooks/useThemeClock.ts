@@ -44,8 +44,22 @@ function getConfiguredPalette(): ColorPalette {
   return generatePalette()
 }
 
+/**
+ * Paleta inicial DETERMINÍSTICA para o primeiro render (SSR + primeira render
+ * do client). Em modo 'auto', generatePalette() depende de new Date(), o que
+ * difere entre server e client e causa hydration mismatch. Por isso o estado
+ * inicial usa sempre 'midday' (fixo); a paleta real baseada na hora é aplicada
+ * no useEffect, que só roda no client após o mount.
+ */
+function getInitialPalette(): ColorPalette {
+  if (themeConfig.mode === 'auto') {
+    return buildPaletteFromHues(themeConfig.hue ?? 270, 'midday')
+  }
+  return getConfiguredPalette()
+}
+
 export function useThemeClock(): ColorPalette {
-  const [palette, setPalette] = useState<ColorPalette>(getConfiguredPalette)
+  const [palette, setPalette] = useState<ColorPalette>(getInitialPalette)
 
   useEffect(() => {
     const initial = getConfiguredPalette()

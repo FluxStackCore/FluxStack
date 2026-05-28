@@ -9,6 +9,12 @@ import { fluxstackVitePlugins } from './core/build/vite-plugins'
 // Root directory (vite.config.ts is in project root)
 const rootDir = import.meta.dirname
 
+// RSC (React Server Components) — experimental, opt-in via RSC_ENABLED.
+// Quando ligado, adiciona os 3 ambientes (rsc/ssr/client) ao Vite e o Elysia
+// dirige o handler RSC (serverHandler:false = plugin não instala middleware próprio).
+// Paths dos entries relativos ao `root` do Vite (app/client).
+const RSC_ENABLED = process.env.RSC_ENABLED === 'true'
+
 // When using bun-linked @fluxstack/live-* packages locally, point Vite at the
 // TypeScript source instead of pre-built dist. This ensures a single React
 // context (no dual-instance problem) and gives us HMR for the library code.
@@ -29,6 +35,19 @@ export default defineConfig({
   plugins: [
     // FluxStack internal plugins (live-strip, tsconfig-paths, type-checker)
     ...fluxstackVitePlugins(),
+    // RSC plugin ANTES do react() — quando ligado, ele gerencia os ambientes.
+    ...(RSC_ENABLED
+      ? [
+          (await import('@vitejs/plugin-rsc')).default({
+            serverHandler: false,
+            entries: {
+              rsc: './src/framework/entry.rsc.tsx',
+              ssr: './src/framework/entry.ssr.tsx',
+              client: './src/framework/entry.browser.tsx',
+            },
+          }),
+        ]
+      : []),
     react(),
     tailwindcss(),
   ],

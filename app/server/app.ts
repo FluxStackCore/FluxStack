@@ -11,12 +11,14 @@
 
 import { Elysia } from "elysia"
 import { apiRoutes } from "./routes"
+import { ssrRoutes } from "./routes/ssr.routes"
 
 /**
  * Main application instance with all routes registered
  */
 export const appInstance = new Elysia()
   .use(apiRoutes)     // Main application routes
+  .use(ssrRoutes)     // SSR PoC routes (text/html)
 
 // Export the type correctly for Eden Treaty
 export type App = typeof appInstance
