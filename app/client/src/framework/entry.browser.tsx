@@ -37,7 +37,7 @@ async function main() {
   document.body.appendChild(keepAliveEl)
   createRoot(keepAliveEl).render(
     <StrictMode>
-      <LiveComponentsProvider autoConnect reconnectInterval={1000} maxReconnectAttempts={5} heartbeatInterval={30000} />
+      <LiveComponentsProvider autoConnect reconnectInterval={1000} heartbeatInterval={30000} />
     </StrictMode>,
   )
 }

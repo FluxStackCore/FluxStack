@@ -44,7 +44,7 @@ export function LivePage({
         )}
         <ClientOnly fallback={<Loading />}>
           <ParamsProvider params={params}>
-            <LiveComponentsProvider autoConnect reconnectInterval={1000} maxReconnectAttempts={5} heartbeatInterval={30000}>
+            <LiveComponentsProvider autoConnect reconnectInterval={1000} heartbeatInterval={30000}>
               {children}
             </LiveComponentsProvider>
           </ParamsProvider>

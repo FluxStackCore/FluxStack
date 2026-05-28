@@ -212,7 +212,6 @@ function App() {
       //url={wsUrl}
       autoConnect={true}
       reconnectInterval={1000}
-      maxReconnectAttempts={5}
       heartbeatInterval={30000}
       debug={false}
     >
