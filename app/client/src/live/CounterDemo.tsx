@@ -7,18 +7,8 @@ import { FaMinus, FaPlus, FaRotateRight, FaUsers } from 'react-icons/fa6'
 
 type CounterProxy = ReturnType<typeof Live.use>
 
-function ConnectionPill({ connected }: { connected: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs ${
-      connected
-        ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-200'
-        : 'border-red-400/25 bg-red-400/10 text-red-200'
-    }`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${connected ? 'bg-emerald-300' : 'bg-red-300'}`} />
-      {connected ? 'Connected' : 'Offline'}
-    </span>
-  )
-}
+// ConnectionPill agora vem do framework: <Live.Status live={x} />
+// (antes era copiado em cada demo — ver @fluxstack/live-react LiveBoundary)
 
 function CounterCard({
   title,
@@ -47,7 +37,7 @@ function CounterCard({
           <h2 className="mt-4 text-xl font-semibold tracking-tight text-white">{title}</h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">{description}</p>
         </div>
-        {'$connected' in counter && <ConnectionPill connected={counter.$connected} />}
+        {'$connected' in counter && <Live.Status live={counter} />}
       </div>
 
       <div className="flex flex-1 items-center justify-center py-8">
