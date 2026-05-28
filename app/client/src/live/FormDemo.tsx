@@ -1,3 +1,4 @@
+'use client'
 import { Live } from '@/core/client'
 import { LiveForm } from '@server/live/LiveForm'
 import { FaCheck, FaCode, FaEnvelope, FaRegMessage, FaUser } from 'react-icons/fa6'

@@ -123,8 +123,8 @@ export const rscPlugin: Plugin = {
       }
     } catch (err) {
       // Falha no RSC → não trata, deixa o Vite/SPA servir (graceful degradation).
-      const msg = err instanceof Error ? err.stack ?? err.message : String(err)
-      console.error(`[RSC] render failed for ${ctx.path}, falling back to SPA:`, msg)
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error(`[RSC] render failed for ${ctx.path}, falling back to SPA: ${msg}`)
     }
   },
 }

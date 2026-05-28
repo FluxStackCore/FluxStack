@@ -1,3 +1,4 @@
+'use client'
 // SharedCounterDemo - Contador compartilhado entre todas as abas
 //
 // Abra em varias abas - todos veem o mesmo valor!
@@ -26,7 +27,7 @@ export function SharedCounterDemo() {
     initialState: { ...LiveSharedCounter.defaultState, username }
   })
 
-  // Client-side room events — floating animation
+  // Client-side room events â€” floating animation
   const [floats, setFloats] = useState<FloatingEvent[]>([])
   const floatIdRef = useRef(0)
 
