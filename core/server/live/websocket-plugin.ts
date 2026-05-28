@@ -35,7 +35,10 @@ export const liveComponentsPlugin: Plugin = {
     })
     const { liveComponentClasses } = await import('./auto-generated-components')
 
-    const transport = new ElysiaTransport(context.app as import('elysia').Elysia)
+    // dual-Elysia: FluxStack tem elysia@1.4.7, @fluxstack/live-elysia (monorepo
+    // linkado) tem elysia@1.4.28 — tipos de instâncias DIFERENTES, mesma API em
+    // runtime. `as never` neutraliza o mismatch de tipo no argumento.
+    const transport = new ElysiaTransport(context.app as never)
 
     // Auto-discover LiveRoom classes from rooms/ directory
     const roomsPath = path.join(componentsPath, 'rooms')

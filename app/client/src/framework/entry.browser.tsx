@@ -11,19 +11,23 @@
 // entry.browser é client puro e SEMPRE roda — é o lugar certo para o controle.
 import { createFromFetch } from '@vitejs/plugin-rsc/browser'
 import { hydrateRoot, createRoot, type Root } from 'react-dom/client'
-import { StrictMode, startTransition } from 'react'
+import { StrictMode, startTransition, type ReactNode } from 'react'
 import { LiveComponentsProvider } from '@/core/client'
 import { setNavigate } from './navigation'
 
+// createFromFetch retorna o payload RSC desserializado como árvore React,
+// mas tipado como Promise<unknown>. Cast seguro para ReactNode.
+const fetchRsc = (url: string) => createFromFetch(fetch(url)) as Promise<ReactNode>
+
 async function main() {
   // 1. Hidratação inicial do documento.
-  const initial = await createFromFetch(fetch(window.location.href + '.rsc'))
+  const initial = await fetchRsc(window.location.href + '.rsc')
   const documentRoot: Root = hydrateRoot(document, initial)
 
   // 2. Navegação SPA: re-renderiza o documento com o payload da nova rota.
   //    Como é o MESMO root React, o processo client (e o keep-alive) persistem.
   async function navigate(href: string, push = true) {
-    const payload = await createFromFetch(fetch(href + '.rsc'))
+    const payload = await fetchRsc(href + '.rsc')
     startTransition(() => documentRoot.render(payload))
     if (push) window.history.pushState(null, '', href)
   }
@@ -37,7 +41,9 @@ async function main() {
   document.body.appendChild(keepAliveEl)
   createRoot(keepAliveEl).render(
     <StrictMode>
-      <LiveComponentsProvider autoConnect reconnectInterval={1000} heartbeatInterval={30000} />
+      <LiveComponentsProvider autoConnect reconnectInterval={1000} heartbeatInterval={30000}>
+        {null}
+      </LiveComponentsProvider>
     </StrictMode>,
   )
 }
