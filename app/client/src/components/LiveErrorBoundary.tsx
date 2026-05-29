@@ -1,4 +1,5 @@
-﻿import type { ReactNode } from 'react'
+'use client'
+import type { ReactNode } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 
 function LiveErrorFallback({ error, onReset }: { error: Error; onReset: () => void }) {

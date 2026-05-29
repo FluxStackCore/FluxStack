@@ -1,3 +1,4 @@
+'use client'
 /**
  * ThemePicker — floating panel with interactive color wheel
  */

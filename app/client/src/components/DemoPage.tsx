@@ -1,3 +1,4 @@
+'use client'
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router'
 import { FaArrowLeft, FaBolt } from 'react-icons/fa'

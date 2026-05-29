@@ -1,3 +1,4 @@
+'use client'
 /**
  * React hook for the palette system — respects theme.config.ts
  *

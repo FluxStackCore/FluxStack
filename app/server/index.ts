@@ -10,18 +10,12 @@
  * 📖 Docs: ai-context/reference/plugin-security.md
  */
 
-// SSR: registra o loader de asset (alinha .svg etc com as URLs do Vite) ANTES
-// de qualquer import que puxe um asset client. Bun.plugin afeta imports seguintes.
-import "@core/plugins/built-in/ssr/bun-asset-loader"
-
 import { FluxStackFramework } from "@core/server"
 import { vitePlugin } from "@core/plugins/built-in/vite"
-import { ssrPlugin } from "@core/plugins/built-in/ssr"
 import { rscPlugin } from "@core/plugins/built-in/rsc"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
 import { liveComponentsPlugin, registerAuthProvider } from "@core/server/live"
 import { appInstance } from "@server/app"
-import { installAppSsrRenderer } from "@server/ssr/app-renderer"
 import { appConfig } from "@config"
 
 // 🔒 External plugins — registered explicitly via .use() so the bundler
@@ -44,19 +38,16 @@ if (process.env.NODE_ENV !== 'production') console.log('🔓 DevAuthProvider reg
 // Inicializar sistema de autenticação
 initAuth()
 
-// Registrar o renderer SSR do app (AppShell) antes de subir os plugins.
-installAppSsrRenderer()
-
 const framework = new FluxStackFramework()
   .use(swaggerPlugin)
   .use(liveComponentsPlugin)
   .use(csrfProtectionPlugin)
 
-// Vite + SSR/RSC apenas em full-stack. Prioridades: rsc (860) > ssr (850) >
-// vite (800). Cada um só age se sua flag estiver on (RSC_ENABLED / SSR_ENABLED).
+// Vite + RSC apenas em full-stack. O rscPlugin (priority 860) intercepta rotas
+// de página antes do vite (800); só age se RSC_ENABLED=true. RSC é o modo SSR
+// oficial (o "Caminho A"/AppShell foi descontinuado — ver .ai-notes).
 if (appConfig.mode !== 'backend-only') {
   framework.use(rscPlugin)
-  framework.use(ssrPlugin)
   framework.use(vitePlugin)
 }
 
