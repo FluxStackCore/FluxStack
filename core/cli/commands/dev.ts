@@ -70,7 +70,15 @@ export const devCommand: CLICommand = {
 
     buildLogger.info(`⚡ Starting ${mode} development server...`)
 
-    const devProcess = spawn("bun", ["--watch", entryPoint], {
+    // SSR: o loader de asset DEVE ser preloaded (antes do grafo de imports),
+    // senão imports de .svg no AppShell resolvem para caminho de arquivo (Bun)
+    // em vez da URL do Vite — causando hydration mismatch. Só em backend que
+    // serve frontend (não frontend-only) e quando SSR está habilitado.
+    const ssrPreload = !frontendOnly && process.env.SSR_ENABLED === 'true'
+      ? ['--preload', './core/plugins/built-in/ssr/bun-asset-loader.ts']
+      : []
+
+    const devProcess = spawn("bun", ["--watch", ...ssrPreload, entryPoint], {
       stdio: "inherit",
       cwd: process.cwd(),
       env: {

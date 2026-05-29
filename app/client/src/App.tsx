@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Routes, Route } from 'react-router'
+import { Routes, Route, useLocation } from 'react-router'
 import { api } from './lib/eden-api'
 import { LiveComponentsProvider, useLiveComponents } from '@/core/client'
 import { executeHook } from './lib/plugin-hooks'
@@ -16,12 +16,15 @@ import { HomePage } from './pages/HomePage'
 import { ApiTestPage } from './pages/ApiTestPage'
 
 function NotFoundPage() {
+  // SSR-safe: useLocation funciona no server (StaticRouter) e no client,
+  // diferente de window.location que quebra durante renderToString.
+  const { pathname } = useLocation()
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
       <h1 className="text-6xl font-black text-white mb-4">404</h1>
       <p className="text-xl text-gray-400 mb-6">Pagina nao encontrada</p>
       <p className="text-sm text-gray-500 mb-8">
-        O caminho <code className="text-theme">{window.location.pathname}</code> nao existe.
+        O caminho <code className="text-theme">{pathname}</code> nao existe.
       </p>
       <a
         href="/"
@@ -197,19 +200,14 @@ function AppContent() {
 }
 
 function App() {
-  // In dev, connect WebSocket directly to backend (port 3000) to avoid
-  // Vite proxy overhead and HMR WebSocket contention on port 5173.
-  // In production, both are served from the same origin so auto-detect works.
-  const wsUrl = import.meta.env.DEV
-    ? 'ws://localhost:3000/api/live/ws'
-    : undefined
-
+  // Sem `url`: o WebSocket usa auto-detect (mesma origem da página). Acesse o
+  // app pela porta do Elysia (3000) — ele serve frontend (proxy Vite) + API +
+  // WS na mesma origem, então o WS resolve para ws(s)://<host>/api/live/ws.
+  // (Acessar o Vite cru na 5173 não tem WS Live — entre sempre pela 3000.)
   return (
     <LiveComponentsProvider
-      url={wsUrl}
       autoConnect={true}
       reconnectInterval={1000}
-      maxReconnectAttempts={5}
       heartbeatInterval={30000}
       debug={false}
     >

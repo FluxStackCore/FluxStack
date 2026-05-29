@@ -26,24 +26,43 @@ export const liveComponentsPlugin: Plugin = {
   tags: ['websocket', 'real-time', 'live-components'],
 
   setup: async (context: PluginContext) => {
-    // Generate auto-generated-components.ts then import it dynamically
+    const isProd = process.env.NODE_ENV === 'production'
     const componentsPath = path.join(process.cwd(), 'app', 'server', 'live')
-    generateLiveComponentsFile({
-      componentsDir: componentsPath,
-      outFile: path.join(__dirname, 'auto-generated-components.ts'),
-      importPrefix: '@app/server/live',
-    })
+
+    // Em DEV: (re)gera o auto-generated-components.ts varrendo o disco.
+    // Em PROD: o app/server/live não existe no dist — o registro estático já
+    // foi gerado no build e bundlado. Pular a geração (evita erro de FS).
+    if (!isProd) {
+      generateLiveComponentsFile({
+        componentsDir: componentsPath,
+        outFile: path.join(__dirname, 'auto-generated-components.ts'),
+        importPrefix: '@app/server/live',
+      })
+    }
     const { liveComponentClasses } = await import('./auto-generated-components')
 
-    const transport = new ElysiaTransport(context.app as import('elysia').Elysia)
+    // dual-Elysia: FluxStack tem elysia@1.4.7, @fluxstack/live-elysia (monorepo
+    // linkado) tem elysia@1.4.28 — tipos de instâncias DIFERENTES, mesma API em
+    // runtime. `as never` neutraliza o mismatch de tipo no argumento.
+    const transport = new ElysiaTransport(context.app as never)
 
-    // Auto-discover LiveRoom classes from rooms/ directory
+    // Rooms: em DEV, auto-descobre varrendo rooms/ (import do disco). Em PROD,
+    // usa o registro ESTÁTICO (@app/server/live/rooms) — import do disco em prod
+    // carregaria uma instância separada do @fluxstack/live (context null). O
+    // registro estático entra no bundle com o context único do LiveServer.
     const roomsPath = path.join(componentsPath, 'rooms')
-    const discoveredRooms = await discoverRoomClasses(roomsPath)
+    const discoveredRooms = isProd
+      ? (await import('@app/server/live/rooms')).liveRoomClasses as LiveRoomClass[]
+      : await discoverRoomClasses(roomsPath)
 
     liveServer = new LiveServer({
       transport,
-      componentsPath,
+      // SÓ em dev: componentsPath dispara o auto-discover dinâmico (import() do
+      // disco). Em PROD isso carrega os componentes de uma instância SEPARADA do
+      // @fluxstack/live (source linkado), com _ctx null → "LiveServer.start() must
+      // be called". Em prod usamos APENAS o registro estático (components), que
+      // está no mesmo bundle onde start() setou o context.
+      ...(isProd ? {} : { componentsPath }),
       wsPath: '/api/live/ws',
       httpPrefix: '/api/live',
       rooms: [...discoveredRooms, ...pendingRoomClasses],

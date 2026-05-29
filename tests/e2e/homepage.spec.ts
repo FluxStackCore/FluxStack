@@ -4,12 +4,12 @@ test.describe('Homepage', () => {
   test('should render homepage with FluxStack title', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('heading', { name: 'FluxStack' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /FluxStack/ })).toBeVisible()
 
-    // 3 feature cards
-    await expect(page.getByText('Ultra Rápido')).toBeVisible()
-    await expect(page.getByText('Type Safe')).toBeVisible()
-    await expect(page.getByText('Live Components')).toBeVisible()
+    // 3 feature cards (headings, p/ evitar match com o parágrafo descritivo)
+    await expect(page.getByRole('heading', { name: 'Runtime rapido' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Type-safe' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Live Components' })).toBeVisible()
   })
 
   test('should show API status as online', async ({ page }) => {

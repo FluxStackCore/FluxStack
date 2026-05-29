@@ -1,3 +1,4 @@
+'use client'
 import { useEffect, useMemo, useReducer, useRef } from 'react'
 import { Live } from '@/core/client'
 import { LiveRoomChat } from '@server/live/LiveRoomChat'

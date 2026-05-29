@@ -12,6 +12,7 @@
 
 import { FluxStackFramework } from "@core/server"
 import { vitePlugin } from "@core/plugins/built-in/vite"
+import { rscPlugin } from "@core/plugins/built-in/rsc"
 import { swaggerPlugin } from "@core/plugins/built-in/swagger"
 import { liveComponentsPlugin, registerAuthProvider } from "@core/server/live"
 import { appInstance } from "@server/app"
@@ -42,8 +43,11 @@ const framework = new FluxStackFramework()
   .use(liveComponentsPlugin)
   .use(csrfProtectionPlugin)
 
-// Vite apenas em full-stack
+// Vite + RSC apenas em full-stack. O rscPlugin (priority 860) intercepta rotas
+// de página antes do vite (800); só age se RSC_ENABLED=true. RSC é o modo SSR
+// oficial (o "Caminho A"/AppShell foi descontinuado — ver .ai-notes).
 if (appConfig.mode !== 'backend-only') {
+  framework.use(rscPlugin)
   framework.use(vitePlugin)
 }
 

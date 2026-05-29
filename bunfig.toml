@@ -9,7 +9,9 @@ lockfile = true
 
 # Path mapping for runtime execution
 [run]
-preload = []
+# SSR: loader que alinha imports de asset (.svg etc) com as URLs do Vite,
+# evitando hydration mismatch. Inerte se o asset não for importado no server.
+preload = ["./core/plugins/built-in/ssr/bun-asset-loader.ts"]
 
 # Path mapping (alias support) - matches tsconfig.json
 [run.alias]
@@ -21,6 +23,14 @@ preload = []
 "@config/*" = "./config/*"
 "@app/*" = "./app/*"
 "@shared/*" = "./app/shared/*"
+# SSR: force a SINGLE React instance on the backend. Without this, @fluxstack/live-react
+# (resolved from the monorepo's own node_modules) pulls a second copy of React, breaking
+# renderToString with "resolveDispatcher().useRef is null" (dual-React dispatcher mismatch).
+# Equivalent to Vite's `dedupe: ['react','react-dom']` on the server side.
+"react" = "./node_modules/react"
+"react-dom" = "./node_modules/react-dom"
+"react/jsx-runtime" = "./node_modules/react/jsx-runtime"
+"react/jsx-dev-runtime" = "./node_modules/react/jsx-dev-runtime"
 
 [build.alias]
 "@/*" = "./*"

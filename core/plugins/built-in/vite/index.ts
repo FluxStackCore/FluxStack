@@ -226,6 +226,13 @@ export const vitePlugin: Plugin = {
     }
 
     if (!IS_DEV) {
+      // Em prod com RSC, o rscPlugin serve o HTML (handler buildado) e os assets
+      // (app/client/dist/client). O static fallback do vite procuraria dist/client
+      // (que não existe nesse layout) e quebraria — então pulamos.
+      if ((pluginsConfig as Record<string, unknown>).rscEnabled) {
+        context.logger.debug('Production + RSC: static serving handled by rsc plugin')
+        return
+      }
       context.logger.debug("Production mode: static file serving enabled")
       ;(context.app as Record<string, Function>).all('*', createStaticFallback())
       return

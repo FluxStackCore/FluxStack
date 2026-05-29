@@ -1,3 +1,4 @@
+'use client'
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { Live } from '@/core/client'
 import { LivePingPong } from '@server/live/LivePingPong'

@@ -1,3 +1,4 @@
+'use client'
 /**
  * ColorWheel — Interactive color wheel like Adobe Color
  *

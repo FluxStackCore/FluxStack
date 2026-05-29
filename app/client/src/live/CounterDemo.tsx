@@ -1,3 +1,4 @@
+'use client'
 import { useMemo } from 'react'
 import { Live } from '@/core/client'
 import { LiveCounter } from '@server/live/LiveCounter'
