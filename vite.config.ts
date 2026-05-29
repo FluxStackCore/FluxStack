@@ -36,14 +36,16 @@ export default defineConfig({
     // FluxStack internal plugins (live-strip, tsconfig-paths, type-checker)
     ...fluxstackVitePlugins(),
     // RSC plugin ANTES do react() — quando ligado, ele gerencia os ambientes.
+    // Entries com caminho ABSOLUTO: no dev relativo ao root funciona, mas no
+    // `vite build` o rollup resolve relativo ao cwd e não acha — absoluto cobre os dois.
     ...(RSC_ENABLED
       ? [
           (await import('@vitejs/plugin-rsc')).default({
             serverHandler: false,
             entries: {
-              rsc: './src/framework/entry.rsc.tsx',
-              ssr: './src/framework/entry.ssr.tsx',
-              client: './src/framework/entry.browser.tsx',
+              rsc: resolve(rootDir, 'app/client/src/framework/entry.rsc.tsx'),
+              ssr: resolve(rootDir, 'app/client/src/framework/entry.ssr.tsx'),
+              client: resolve(rootDir, 'app/client/src/framework/entry.browser.tsx'),
             },
           }),
         ]
