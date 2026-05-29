@@ -86,10 +86,10 @@ program
             name: 'mode',
             message: 'Modo de renderização:',
             choices: [
-              { title: 'SPA', description: 'Client-side puro (padrão, mais simples)', value: 'spa' },
-              { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live', value: 'ssr' },
+              { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live (padrão)', value: 'ssr' },
+              { title: 'SPA', description: 'Client-side puro (mais simples)', value: 'spa' },
             ],
-            initial: 0,
+            initial: 0, // SSR é o padrão
           },
         ],
         { onCancel: () => { console.log(chalk.gray('\nCancelado.')); process.exit(0) } },
@@ -104,17 +104,18 @@ program
           name: 'mode',
           message: 'Modo de renderização:',
           choices: [
-            { title: 'SPA', description: 'Client-side puro (padrão, mais simples)', value: 'spa' },
-            { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live', value: 'ssr' },
+            { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live (padrão)', value: 'ssr' },
+            { title: 'SPA', description: 'Client-side puro (mais simples)', value: 'spa' },
           ],
-          initial: 0,
+          initial: 0, // SSR é o padrão
         },
         { onCancel: () => { console.log(chalk.gray('\nCancelado.')); process.exit(0) } },
       )
-      renderMode = (mode as RenderMode) ?? 'spa'
+      renderMode = (mode as RenderMode) ?? 'ssr'
     }
 
-    renderMode = renderMode ?? 'spa'
+    // SSR é o padrão do FluxStack; SPA continua disponível via escolha/--mode.
+    renderMode = renderMode ?? 'ssr'
 
     const currentDir = import.meta.dir
 

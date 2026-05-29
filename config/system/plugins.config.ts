@@ -82,13 +82,11 @@ export const pluginsConfig = defineConfig({
 
   // SSR (server-side rendering das rotas de página). Off por padrão: ligar
   // troca o SPA vazio do `/` por HTML pré-renderizado + hydration.
-  ssrEnabled: config.boolean('SSR_ENABLED', false),
-  ssrClientEntry: config.string('SSR_CLIENT_ENTRY', '/src/entry-ssr.tsx'),
-
-  // RSC (React Server Components) — experimental. Server components (0 JS) +
-  // client islands (Live Components) servidos pelo proxy interno. Requer o
-  // rsc() no vite.config (também condicionado a RSC_ENABLED). Ver core/plugins/built-in/rsc.
-  rscEnabled: config.boolean('RSC_ENABLED', false)
+  // RSC (React Server Components) — modo de renderização PADRÃO do FluxStack.
+  // Server components (0 JS) + client islands (Live Components) servidos pelo
+  // proxy interno. Para usar SPA puro, defina RSC_ENABLED=false no .env.
+  // Requer o rsc() no vite.config (também lê RSC_ENABLED). Ver core/plugins/built-in/rsc.
+  rscEnabled: config.boolean('RSC_ENABLED', true)
 })
 
 export type PluginsConfig = typeof pluginsConfig
