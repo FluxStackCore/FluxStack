@@ -35,7 +35,11 @@ import { resolve, join, basename } from 'path'
 import { existsSync, mkdirSync, cpSync, writeFileSync, readFileSync, readdirSync } from 'fs'
 import chalk from 'chalk'
 import ora from 'ora'
+import prompts from 'prompts'
 import { FLUXSTACK_VERSION } from './core/utils/version'
+
+/** Modo de renderização do projeto criado. */
+type RenderMode = 'spa' | 'ssr'
 
 const logo = `
 ⚡ ███████ ██      ██    ██ ██   ██ ███████ ████████  █████   ██████ ██   ██
@@ -52,19 +56,65 @@ program
   .name('create-fluxstack')
   .description('⚡ Create FluxStack apps with zero configuration')
   .version(FLUXSTACK_VERSION)
-  .argument('[project-name]', 'Name of the project to create')
+  .argument('[project-name]', 'Name of the project to create (use "." for current dir; omit for interactive mode)')
   .option('--no-install', 'Skip dependency installation')
   .option('--no-git', 'Skip git initialization')
+  .option('--mode <mode>', 'Render mode: "spa" or "ssr" (skips the prompt)')
   .action(async (projectName, options) => {
     console.clear()
     console.log(chalk.magenta(logo))
 
+    // ── Modo INTERATIVO: sem project-name → pergunta tudo pelo terminal ──
+    // create-fluxstack .        → cria na pasta atual
+    // create-fluxstack my-app   → cria em ./my-app
+    // create-fluxstack          → menu interativo (pergunta nome + modo)
+    let renderMode: RenderMode | undefined =
+      options.mode === 'spa' || options.mode === 'ssr' ? options.mode : undefined
+
     if (!projectName || projectName.trim().length === 0) {
-      console.log(chalk.red('❌ Project name is required'))
-      console.log(chalk.gray('Usage: bunx create-fluxstack@latest my-app'))
-      console.log(chalk.gray('   or: bunx create-fluxstack@latest .'))
-      process.exit(1)
+      const answers = await prompts(
+        [
+          {
+            type: 'text',
+            name: 'projectName',
+            message: 'Nome do projeto (use "." para a pasta atual):',
+            initial: 'my-fluxstack-app',
+            validate: (v: string) => (v && v.trim().length > 0 ? true : 'Informe um nome ou "."'),
+          },
+          {
+            type: renderMode ? null : 'select',
+            name: 'mode',
+            message: 'Modo de renderização:',
+            choices: [
+              { title: 'SPA', description: 'Client-side puro (padrão, mais simples)', value: 'spa' },
+              { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live', value: 'ssr' },
+            ],
+            initial: 0,
+          },
+        ],
+        { onCancel: () => { console.log(chalk.gray('\nCancelado.')); process.exit(0) } },
+      )
+      projectName = answers.projectName
+      renderMode = renderMode ?? (answers.mode as RenderMode)
+    } else if (!renderMode) {
+      // Tem nome mas não passou --mode → pergunta só o modo.
+      const { mode } = await prompts(
+        {
+          type: 'select',
+          name: 'mode',
+          message: 'Modo de renderização:',
+          choices: [
+            { title: 'SPA', description: 'Client-side puro (padrão, mais simples)', value: 'spa' },
+            { title: 'SSR (RSC)', description: 'Server-rendered + React Server Components + ilhas Live', value: 'ssr' },
+          ],
+          initial: 0,
+        },
+        { onCancel: () => { console.log(chalk.gray('\nCancelado.')); process.exit(0) } },
+      )
+      renderMode = (mode as RenderMode) ?? 'spa'
     }
+
+    renderMode = renderMode ?? 'spa'
 
     const currentDir = import.meta.dir
 
@@ -105,6 +155,7 @@ program
 
     console.log(chalk.cyan(`\n🚀 Creating FluxStack project: ${chalk.bold(displayName)}`))
     console.log(chalk.gray(`📁 Location: ${projectPath}`))
+    console.log(chalk.gray(`🎨 Render mode: ${chalk.bold(renderMode === 'ssr' ? 'SSR (RSC)' : 'SPA')}`))
     
     // Create project directory
     const spinner = ora('Creating project structure...').start()
@@ -427,6 +478,13 @@ bun.lockb
         envContent = envContent.replace('NODE_ENV=production', 'NODE_ENV=development')
         // Customize app name to match project name
         envContent = envContent.replace('VITE_APP_NAME=FluxStack', `VITE_APP_NAME=${actualProjectName}`)
+        // Render mode escolhido: liga RSC (SSR) ou mantém SPA.
+        const rscLine = `\n# Render mode (escolhido na criação): RSC/SSR liga server-rendering\nRSC_ENABLED=${renderMode === 'ssr' ? 'true' : 'false'}\n`
+        if (/^RSC_ENABLED=/m.test(envContent)) {
+          envContent = envContent.replace(/^RSC_ENABLED=.*$/m, `RSC_ENABLED=${renderMode === 'ssr' ? 'true' : 'false'}`)
+        } else {
+          envContent += rscLine
+        }
         writeFileSync(envPath, envContent)
       }
 
