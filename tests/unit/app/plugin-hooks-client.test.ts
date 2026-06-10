@@ -3,6 +3,8 @@
  * Tests the executeHook function with new Function() pattern
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { sanitizeHooks, ALLOWED_HOOKS, computeHooksHash } from '@client/src/lib/plugin-hooks'
+import { hashPluginHooks } from '@client/src/framework/pluginHooksHash'
 
 // We can't import the actual module (it uses fetch/browser APIs)
 // so we test the core logic: new Function() execution pattern
@@ -140,5 +142,67 @@ describe('Plugin hooks CSRF-like scenario', () => {
     requestInterceptors[0](fakeRequest)
 
     expect(fakeRequest.headers['X-CSRF-Token']).toBe('csrf-token-from-cookie')
+  })
+})
+
+// Security mitigation for the `new Function()` vector (specs/02-frontend-rsc FP-1):
+// only allowlisted hook names with string-only code entries survive sanitization,
+// so a tampered endpoint response can't smuggle arbitrary hook names / payloads.
+describe('sanitizeHooks — allowlist + type guard', () => {
+  it('keeps allowlisted hooks with string code', () => {
+    const out = sanitizeHooks({ onEdenInit: ['code()'], onLiveConnect: ['x()'] })
+    expect(out).toEqual({ onEdenInit: ['code()'], onLiveConnect: ['x()'] })
+  })
+
+  it('drops unknown hook names (injection attempt)', () => {
+    const out = sanitizeHooks({ onEdenInit: ['ok()'], evilHook: ['steal()'] })
+    expect(out).toEqual({ onEdenInit: ['ok()'] })
+    expect(out.evilHook).toBeUndefined()
+  })
+
+  it('drops non-string code entries', () => {
+    const out = sanitizeHooks({ onEdenInit: ['ok()', 42, { __proto__: null }, null] as any })
+    expect(out.onEdenInit).toEqual(['ok()'])
+  })
+
+  it('drops a hook whose code is not an array', () => {
+    const out = sanitizeHooks({ onEdenInit: 'not-an-array' as any })
+    expect(out.onEdenInit).toBeUndefined()
+  })
+
+  it('returns empty object for non-object / null input', () => {
+    expect(sanitizeHooks(null)).toEqual({})
+    expect(sanitizeHooks('hax')).toEqual({})
+    expect(sanitizeHooks(undefined)).toEqual({})
+  })
+
+  it('ALLOWED_HOOKS contains only the known built-in hook points', () => {
+    expect([...ALLOWED_HOOKS].sort()).toEqual(['onEdenInit', 'onLiveConnect'])
+  })
+})
+
+// SRI-style integrity: the server embeds hash(hooks) in the SSR HTML and the
+// client recomputes it. The two MUST agree byte-for-byte, otherwise legitimate
+// hooks would be rejected. This test pins server (Node crypto) ↔ client
+// (Web Crypto) agreement and verifies tampering changes the hash.
+describe('plugin hooks integrity (server hash ↔ client hash)', () => {
+  it('server hashPluginHooks and client computeHooksHash agree', async () => {
+    const hooks = { onEdenInit: ['a()'], onLiveConnect: ['b()'] }
+    const serverHash = hashPluginHooks(hooks)
+    const clientHash = await computeHooksHash(JSON.stringify(hooks))
+    expect(clientHash).toBe(serverHash)
+    expect(serverHash).toMatch(/^sha256-[0-9a-f]{64}$/)
+  })
+
+  it('a tampered payload produces a different hash (rejection)', async () => {
+    const legit = { onEdenInit: ['safe()'] }
+    const tampered = { onEdenInit: ['steal(); safe()'] }
+    const trusted = hashPluginHooks(legit)
+    const tamperedHash = await computeHooksHash(JSON.stringify(tampered))
+    expect(tamperedHash).not.toBe(trusted)
+  })
+
+  it('empty hooks hash is stable across server and client', async () => {
+    expect(await computeHooksHash(JSON.stringify({}))).toBe(hashPluginHooks({}))
   })
 })

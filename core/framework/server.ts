@@ -90,7 +90,9 @@ export class FluxStackFramework {
     }
 
     this.app = new Elysia()
-    this.pluginRegistry = new PluginRegistry()
+    // Pass the plugins config slice so the registry can enforce the npm plugin
+    // whitelist at registration time (including `.use()`), not just discovery.
+    this.pluginRegistry = new PluginRegistry({ settings: fullConfig.plugins })
 
     // Execute onConfigLoad hooks will be called during plugin initialization
     // We defer this until plugins are loaded in initializeAutomaticPlugins()

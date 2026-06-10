@@ -186,6 +186,31 @@ describe('TokenGuard', () => {
       expect(typeof token).toBe('string')
     })
 
+    // Security: the plain-text token must not linger in the guard instance after
+    // being consumed (specs/01-backend FP-1). getLastGeneratedToken() is one-shot.
+    it('getLastGeneratedToken is one-shot — second read returns null', async () => {
+      await provider.createUser({ name: 'Jane', email: 'jane@test.com', password: 'secret123' })
+      const ctx = createMockRequestContext()
+      guard.setRequest(ctx)
+
+      await guard.attempt({ email: 'jane@test.com', password: 'secret123' })
+
+      const first = guard.getLastGeneratedToken()
+      const second = guard.getLastGeneratedToken()
+      expect(first).not.toBeNull()
+      expect(second).toBeNull() // token was cleared after the first read
+    })
+
+    it('setRequest clears any token from a previous request', async () => {
+      await provider.createUser({ name: 'Jane', email: 'jane@test.com', password: 'secret123' })
+      guard.setRequest(createMockRequestContext())
+      await guard.attempt({ email: 'jane@test.com', password: 'secret123' })
+
+      // A new request arrives before the previous token was read.
+      guard.setRequest(createMockRequestContext())
+      expect(guard.getLastGeneratedToken()).toBeNull()
+    })
+
     it('should return null for invalid credentials', async () => {
       await provider.createUser({ name: 'John', email: 'john@test.com', password: 'secret123' })
       const ctx = createMockRequestContext()

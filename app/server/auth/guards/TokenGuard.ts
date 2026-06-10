@@ -54,6 +54,8 @@ export class TokenGuard implements Guard {
   setRequest(context: RequestContext): void {
     this.request = context
     this.resolvedUser = undefined
+    // Nunca carregar um token plain-text de uma request anterior para a próxima.
+    this._lastGeneratedToken = null
   }
 
   async user(): Promise<Authenticatable | null> {
@@ -172,9 +174,15 @@ export class TokenGuard implements Guard {
     await this.cache.delete(userTokensKey)
   }
 
-  /** Retorna o último token gerado (para a response após login) */
+  /**
+   * Retorna o último token gerado (para a response após login) e o **descarta**
+   * imediatamente da memória da instância (one-shot). Evita que o token plain-text
+   * permaneça acessível (debuggers, logs, memory dumps) após ser consumido.
+   */
   getLastGeneratedToken(): string | null {
-    return this._lastGeneratedToken ?? null
+    const token = this._lastGeneratedToken ?? null
+    this._lastGeneratedToken = null
+    return token
   }
 
   /** Extrai Bearer token do header Authorization */
