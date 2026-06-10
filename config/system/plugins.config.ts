@@ -35,6 +35,11 @@ export const pluginsConfig = defineConfig({
   discoverProjectPlugins: config.boolean('PLUGINS_DISCOVER_PROJECT', true),
 
   allowedPlugins: config.array('PLUGINS_ALLOWED', []),
+
+  // Enforça a whitelist de plugins npm no registro (.use()), não só na descoberta.
+  // Secure-by-default: um plugin npm (escopo @.../ ou fluxstack-plugin-*) precisa
+  // estar em PLUGINS_ALLOWED. false = confia em todo plugin .use()-d (monorepo interno).
+  enforceNpmWhitelist: config.boolean('PLUGINS_ENFORCE_NPM_WHITELIST', true),
   config: {
     type: 'object' as const,
     default: defaultPluginConfigs

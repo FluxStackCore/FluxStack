@@ -1,6 +1,17 @@
 # 🤖 FluxStack - AI Context Documentation
 
-> **IMPORTANTE**: Esta documentação foi **reorganizada e modernizada** para melhor suporte a LLMs.
+> ⚠️ **PARCIALMENTE DESATUALIZADO (2026-06-09).** Este arquivo ainda contém afirmações
+> da v1.19 ("Novembro 2024", `@fluxstack/live 0.7.2`, RSC como experimento,
+> auto-discovery de plugins). O código real é **v1.22.1 / live 0.10.0 / RSC como modo
+> SSR padrão / plugins registrados manualmente via `.use()`**.
+>
+> 👉 **Fonte de verdade atual:** [`specs/`](./specs/README.md) (app) e
+> [`../fluxstack-live/specs/`](../fluxstack-live/specs/README.md) (Live Components).
+> O mapa completo de divergências está em [`specs/04-stale-knowledge.md`](./specs/04-stale-knowledge.md).
+> **Em qualquer conflito, as specs vencem.** As seções abaixo permanecem como
+> referência histórica/parcial.
+
+> **NOTA original**: Esta documentação foi reorganizada para suporte a LLMs (pasta `LLMD/`).
 
 ## 📖 **Nova Documentação AI (LLMD)**
 

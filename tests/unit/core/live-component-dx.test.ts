@@ -1798,7 +1798,7 @@ describe('LiveComponent DX — Extended Coverage', () => {
       expect(msg.type).toBe('STATE_DELTA')
       expect(msg.componentId).toBe(component.id)
       expect(msg.payload.delta).toEqual({ count: 1 })
-      expect(msg.timestamp).toBeDefined()
+      // (timestamp was dropped from the emit message shape in @fluxstack/live 0.10.x)
       expect(msg.userId).toBe('user-123')
       expect(msg.room).toBe('my-room')
     })

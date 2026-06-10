@@ -1,39 +1,41 @@
-# Routing (React Router v7)
+# Routing — file-based (RSC)
 
-FluxStack uses **React Router v7** via the `react-router` package for web routing.
+> ⚠️ **CORRIGIDO em 2026-06-09.** A versão anterior deste arquivo dizia "React Router v7"
+> — isso está **errado** para o FluxStack atual (v1.22.1). O roteamento real é
+> **file-based via RSC**. React Router (`App.tsx`/`main.tsx`) é **legado/dead code**
+> quando RSC está ligado (o padrão). Fonte de verdade:
+> [`../../specs/02-frontend-rsc.md`](../../specs/02-frontend-rsc.md).
 
-## Where It Lives
+## Como funciona (real)
 
-- Router provider: `app/client/src/main.tsx`
-- Routes and pages: `app/client/src/App.tsx`
-- Pages: `app/client/src/pages/*`
-- Shared layout: `app/client/src/components/AppLayout.tsx`
+FluxStack usa **roteamento file-based** dirigido por **React Server Components**
+(`@vitejs/plugin-rsc`). RSC é o modo padrão: `RSC_ENABLED !== 'false'`
+(`vite.config.ts:17`).
 
-## Why `react-router` (not `react-router-dom`)
+- Descoberta: `app/client/src/framework/routes.ts` lê `pages/*.tsx` via `import.meta.glob`.
+- Convenção de nomes:
+  - `index.tsx` → `/`
+  - `about.tsx` → `/about`
+  - `[slug].tsx` → `/:slug`
+  - `[...rest].tsx` → `/*`
+- As rotas viram matchers RegExp com grupos nomeados; o server component recebe `{ params }`.
+- Navbar (`RscNav.tsx`) é gerada automaticamente das rotas descobertas.
+- Navegação SPA sem reload via `RscLink` → `fetch('<href>.rsc')` + `startTransition`.
 
-In v7, the React Router team recommends using the core `react-router` package
-directly for web apps. The `react-router-dom` package remains as a compatibility
-re-export for older apps, but new projects should import from `react-router`.
+## Adicionar uma rota
 
-## Example: Adding a New Route
+1. Crie `app/client/src/pages/minha-pagina.tsx` exportando o componente (server por
+   padrão; adicione `'use client'` só se precisar de interatividade local/Live).
+2. Pronto — a rota `/minha-pagina` é descoberta automaticamente. Não edite `App.tsx`.
 
-1. Create a page in `app/client/src/pages/MyPage.tsx`
-2. Add a route in `app/client/src/App.tsx`:
+## Páginas com Live Components
 
-```tsx
-import { MyPage } from './pages/MyPage'
+Envolva com `LivePage` (faz `ClientOnly` + `ParamsProvider` + `LiveComponentsProvider`):
+Live Components são `'use client'` e **deferidos no SSR** (renderizá-los no server
+quebra hooks — segunda cópia de React). A conexão WebSocket é mantida viva por um
+keep-alive root separado da navegação.
 
-<Route path="/my-page" element={<MyPage />} />
-```
+## Modo SPA (sem RSC)
 
-3. Add a nav link in `app/client/src/components/AppLayout.tsx`
-
-## Current Demo Routes
-
-- `/` Home
-- `/counter` Live Counter
-- `/form` Live Form
-- `/upload` Live Upload
-- `/chat` Live Chat
-- `/api-test` Eden Treaty API Test
-
+`RSC_ENABLED=false` desliga o RSC. Nesse modo o React Router (`App.tsx`) volta a ser
+relevante — mas o caminho suportado/padrão é o RSC file-based acima.

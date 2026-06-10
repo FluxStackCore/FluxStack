@@ -20,6 +20,21 @@ import { clientConfig, pluginsConfig } from '@config'
 import { isRunnableDevEnvironment } from 'vite'
 import { join } from 'path'
 import { existsSync } from 'fs'
+import { createHash } from 'crypto'
+import { pluginClientHooks } from '@core/server/plugin-client-hooks'
+
+/**
+ * Hash of the registered plugin client-hooks, computed HERE in the Elysia
+ * process where the hooks are actually registered. The RSC entry runs in an
+ * isolated Vite environment with a SEPARATE module instance of pluginClientHooks
+ * (empty there), so we pass the trusted hash via a request header instead of
+ * letting the RSC entry read the singleton. Must match the client's
+ * computeHooksHash (sha256 of JSON.stringify(hooks)).
+ */
+function pluginHooksHash(): string {
+  const canonical = JSON.stringify(pluginClientHooks.getHooks())
+  return 'sha256-' + createHash('sha256').update(canonical).digest('hex')
+}
 
 type Plugin = FluxStack.Plugin
 type RscHandler = (request: Request) => Promise<Response>
@@ -135,7 +150,12 @@ export const rscPlugin: Plugin = {
       let response: Response | null = null
       for (let i = 0; i < attempts; i++) {
         try {
-          const request = new Request(absoluteUrl(ctx), { method: ctx.method, headers: ctx.request.headers })
+          // Pass the trusted plugin-hooks hash (computed in THIS process where the
+          // hooks are registered) so the RSC entry can embed it for SRI-style
+          // integrity, despite running in an isolated module environment.
+          const headers = new Headers(ctx.request.headers)
+          headers.set('x-plugin-hooks-hash', pluginHooksHash())
+          const request = new Request(absoluteUrl(ctx), { method: ctx.method, headers })
           response = await handler(request)
           break
         } catch (e) {

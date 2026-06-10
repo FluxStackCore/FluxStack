@@ -227,13 +227,18 @@ describe('LiveComponent Delta State Updates', () => {
       expect(msg.componentId).toBe(component.id)
     })
 
-    it('should include timestamp in delta messages', async () => {
+    // NOTE: as of @fluxstack/live 0.10.x the emit() path no longer stamps a
+    // `timestamp` on delta messages (see ComponentMessaging.emit — message is
+    // { type, componentId, payload, userId, room }). This test was written for
+    // an older API; it now asserts the current message shape instead.
+    it('emits well-formed delta messages (no timestamp in current API)', async () => {
       component.state.count = 1
       await flush()
 
       const msg = getLastSentMessage(ws)
-      expect(msg.timestamp).toBeDefined()
-      expect(typeof msg.timestamp).toBe('number')
+      expect(msg.type).toBe('STATE_DELTA')
+      expect(msg.componentId).toBeDefined()
+      expect(msg.payload.delta).toEqual({ count: 1 })
     })
   })
 })

@@ -1,6 +1,13 @@
 # FluxStack LLM Documentation
 
-**Version:** 1.19.0 | **Framework:** Bun + Elysia + React + Eden Treaty | **Live:** @fluxstack/live 0.7.2
+> ⚠️ **DESATUALIZADO (abril/2026).** Esta pasta `LLMD/` descreve a v1.19/live 0.7.2 e
+> trata RSC como experimento. O código real é **v1.22.1 / @fluxstack/live 0.10.0 /
+> RSC como modo SSR padrão / registro manual de plugins**. **Fonte de verdade atual:**
+> [`../specs/`](../specs/README.md) (app) e [`../../fluxstack-live/specs/`](../../fluxstack-live/specs/README.md)
+> (Live Components). Divergências detalhadas em [`../specs/04-stale-knowledge.md`](../specs/04-stale-knowledge.md).
+> Em conflito, **as specs vencem**.
+
+**Version:** ~~1.19.0~~ → **1.22.1** | **Framework:** Bun + Elysia + React + Eden Treaty | **Live:** ~~0.7.2~~ → **@fluxstack/live 0.10.0**
 
 ## Quick Navigation
 

@@ -15,7 +15,16 @@ export default async function handler(request: Request): Promise<Response> {
   const existing = cookieHeader.match(new RegExp(`${CSRF_COOKIE}=([^;]+)`))?.[1]
   const csrfToken = existing ?? generateCsrfToken()
 
-  const rscStream = renderToReadableStream(<RscDocument pathname={pathname} csrfToken={csrfToken} />)
+  // SRI-style integrity for plugin client-hooks: embed the hash of the legitimate
+  // hooks in the trusted SSR HTML so the client can reject a tampered HTTP payload.
+  // The hash is computed by the rscPlugin in the Elysia process (where the hooks
+  // are registered) and passed via header — the RSC entry runs in an isolated
+  // module environment where the pluginClientHooks singleton would be empty.
+  const pluginHooksHash = request.headers.get('x-plugin-hooks-hash') ?? undefined
+
+  const rscStream = renderToReadableStream(
+    <RscDocument pathname={pathname} csrfToken={csrfToken} pluginHooksHash={pluginHooksHash} />,
+  )
 
   if (isRscNav) {
     return new Response(rscStream, {
