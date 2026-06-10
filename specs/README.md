@@ -41,3 +41,17 @@ Severidades: 🔴 critical · 🟠 high · 🟡 medium · ⚪ low.
   `app/server/index.ts` — **não há auto-discovery** (removido no plugin-kit 0.4.0).
 - 8 Live Components registrados (não 9), 4 typed rooms.
 - Configuração **declarativa** (Laravel-style) em `config/` + `config/system/`.
+
+## ✅ Hardening aplicado (rev. 2026-06-10, com TDD)
+
+| Item | Spec | Status |
+|---|---|---|
+| Plugin client-hooks `new Function` → integridade SRI via SSR | `02` FP-1 | ✅ |
+| Whitelist de plugins NPM enforçada no `.use()` | `03` FP-1 | ✅ |
+| `TokenGuard` token plain-text → one-shot | `01` FP-1 | ✅ |
+| 2 testes obsoletos (timestamp no emit) atualizados | — | ✅ |
+
+**App: 662 testes verdes.** **Ainda abertos** (não-críticos): consolidar roteamento
+(`02` FP-2), CSRF no Eden (`02` FP-3), `sameSite` strict / `x-forwarded-for` /
+cache `maxSize` (`01`), e os ⚪ de documentação. O monorepo Live tem seu próprio
+hardening em `../../fluxstack-live/specs/README.md`.
