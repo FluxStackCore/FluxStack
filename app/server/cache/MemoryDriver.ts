@@ -14,13 +14,24 @@ interface CacheEntry<T = unknown> {
   expiresAt: number | null // null = sem expiração
 }
 
+export interface MemoryCacheOptions {
+  /** Intervalo do GC periódico em ms. Default: 60000. */
+  gcIntervalMs?: number
+  /** Cap de entradas (anti-DoS de memória). 0 = ilimitado. Default: 10000. */
+  maxEntries?: number
+}
+
 export class MemoryCacheDriver implements CacheDriver {
   private store = new Map<string, CacheEntry>()
   private gcInterval: ReturnType<typeof setInterval> | null = null
+  private maxEntries: number
 
-  constructor(gcIntervalMs: number = 60_000) {
+  constructor(opts: MemoryCacheOptions | number = {}) {
+    // Compat: aceita number (gcIntervalMs) ou um objeto de opções.
+    const o = typeof opts === 'number' ? { gcIntervalMs: opts } : opts
+    this.maxEntries = o.maxEntries ?? 10_000
     // GC periódico para limpar entradas expiradas
-    this.gcInterval = setInterval(() => this.gc(), gcIntervalMs)
+    this.gcInterval = setInterval(() => this.gc(), o.gcIntervalMs ?? 60_000)
     if (this.gcInterval.unref) {
       this.gcInterval.unref()
     }
@@ -36,6 +47,9 @@ export class MemoryCacheDriver implements CacheDriver {
       return null
     }
 
+    // LRU: marca como recém-usada (reinsere no fim da ordem de iteração).
+    this.store.delete(key)
+    this.store.set(key, entry)
     return entry.value as T
   }
 
@@ -44,12 +58,30 @@ export class MemoryCacheDriver implements CacheDriver {
       ? Date.now() + (ttlSeconds * 1000)
       : null
 
+    this.store.delete(key) // garante reordenação (chave vira a mais recente)
     this.store.set(key, { value, expiresAt })
+    this.evictIfNeeded()
+  }
+
+  /** Evicta as entradas menos-recentemente-usadas quando passa do cap. */
+  private evictIfNeeded(): void {
+    if (this.maxEntries <= 0 || this.store.size <= this.maxEntries) return
+    while (this.store.size > this.maxEntries) {
+      const oldest = this.store.keys().next().value as string | undefined
+      if (oldest === undefined) break
+      this.store.delete(oldest)
+    }
   }
 
   async has(key: string): Promise<boolean> {
-    const value = await this.get(key)
-    return value !== null
+    // Sem materializar o valor nem reordenar: só checa existência + expiração.
+    const entry = this.store.get(key)
+    if (!entry) return false
+    if (entry.expiresAt !== null && Date.now() > entry.expiresAt) {
+      this.store.delete(key)
+      return false
+    }
+    return true
   }
 
   async delete(key: string): Promise<boolean> {

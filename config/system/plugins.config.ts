@@ -91,7 +91,20 @@ export const pluginsConfig = defineConfig({
   // Server components (0 JS) + client islands (Live Components) servidos pelo
   // proxy interno. Para usar SPA puro, defina RSC_ENABLED=false no .env.
   // Requer o rsc() no vite.config (também lê RSC_ENABLED). Ver core/plugins/built-in/rsc.
-  rscEnabled: config.boolean('RSC_ENABLED', true)
+  rscEnabled: config.boolean('RSC_ENABLED', true),
+
+  // Cache de página do SSR/RSC — evita re-renderizar a mesma rota a cada request.
+  // Model Next: o HTML é user-agnostic (token só no cookie) → cacheável em CDN.
+  // O STORAGE é PROGRAMÁVEL pelo dev: implemente `CacheDriver` (qualquer storage
+  // que quiser) e injete via setRscCacheDriver(new SeuDriver()) antes de .use().
+  // Sem driver programado → usa o de cache padrão do app (memory). O framework
+  // é neutro: não conhece Redis/etc. Bypass: query, sessão autenticada, e DEV.
+  // Ligado por padrão em produção. Ver core/plugins/built-in/rsc + RscPageCache.
+  rscCacheEnabled: config.boolean('RSC_CACHE_ENABLED', true),
+  rscCacheTtl: config.number('RSC_CACHE_TTL', 60),            // segundos (server + s-maxage CDN)
+  rscCacheSwr: config.number('RSC_CACHE_SWR', 60),            // stale-while-revalidate (CDN)
+  rscCacheMaxEntryBytes: config.number('RSC_CACHE_MAX_ENTRY_BYTES', 1000000),
+  rscCacheBrowserMaxAge: config.number('RSC_CACHE_BROWSER_MAX_AGE', 0) // 0 = browser revalida via ETag
 })
 
 export type PluginsConfig = typeof pluginsConfig

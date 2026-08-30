@@ -47,6 +47,14 @@ const framework = new FluxStackFramework()
 // de página antes do vite (800); só age se RSC_ENABLED=true. RSC é o modo SSR
 // oficial (o "Caminho A"/AppShell foi descontinuado — ver .ai-notes).
 if (appConfig.mode !== 'backend-only') {
+  // Storage do cache de página é PROGRAMÁVEL: implemente `CacheDriver` (qualquer
+  // storage) e injete-o aqui. Sem isto, usa o driver de cache padrão (memory).
+  // Exemplos prontos: MemoryCacheDriver, FileCacheDriver, HybridCacheDriver.
+  //
+  //   import { setRscCacheDriver } from '@core/plugins/built-in/rsc'
+  //   import { HybridCacheDriver } from '@server/cache'
+  //   setRscCacheDriver(new HybridCacheDriver({ dir: '.cache/pages' }))
+  //
   framework.use(rscPlugin)
   framework.use(vitePlugin)
 }

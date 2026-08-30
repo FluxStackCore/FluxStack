@@ -17,8 +17,14 @@
  */
 
 export type { CacheDriver } from './contracts'
-export { MemoryCacheDriver } from './MemoryDriver'
 export { CacheManager, cacheManager } from './CacheManager'
+
+// Drivers de EXEMPLO — o dev escolhe (ou implementa o seu via `implements CacheDriver`).
+export { MemoryCacheDriver } from './MemoryDriver'   // RAM (rápido, efêmero)
+export { FileCacheDriver } from './FileDriver'       // disco (persiste)
+export { HybridCacheDriver } from './HybridDriver'   // índice em RAM + conteúdo em disco + janela quente
+export type { FileCacheOptions } from './FileDriver'
+export type { HybridCacheOptions } from './HybridDriver'
 
 /** Atalho: driver de cache padrão (lazy-initialized) */
 import type { CacheDriver as CacheDriverType } from './contracts'

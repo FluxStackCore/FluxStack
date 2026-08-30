@@ -22,6 +22,10 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { createHash } from 'crypto'
 import { pluginClientHooks } from '@core/server/plugin-client-hooks'
+import { normalizeCacheKey, makeCachedPage, parseCacheDirective, type CachedPage } from '@server/cache/RscPageCache'
+import { cacheManager, type CacheDriver } from '@server/cache'
+import { generateCsrfToken, buildCsrfCookie, CSRF_COOKIE } from '@client/src/framework/csrf'
+import { sessionConfig } from '@config'
 
 /**
  * Hash of the registered plugin client-hooks, computed HERE in the Elysia
@@ -38,6 +42,96 @@ function pluginHooksHash(): string {
 
 type Plugin = FluxStack.Plugin
 type RscHandler = (request: Request) => Promise<Response>
+
+// ── Page cache (SSR/RSC) — storage delegated to the pluggable CacheDriver ────
+const pcfg = pluginsConfig as Record<string, unknown>
+const CACHE_ENABLED = (pcfg.rscCacheEnabled ?? true) === true && !isDevelopment() // off in dev (HMR)
+const CACHE_TTL = Number(pcfg.rscCacheTtl ?? 60)             // segundos (server + s-maxage CDN)
+const CDN_MAX_AGE = CACHE_TTL
+const SWR = Number(pcfg.rscCacheSwr ?? CDN_MAX_AGE)          // stale-while-revalidate
+const BROWSER_MAX_AGE = Number(pcfg.rscCacheBrowserMaxAge ?? 0)
+const MAX_ENTRY_BYTES = Number(pcfg.rscCacheMaxEntryBytes ?? 1_000_000)
+
+/**
+ * Driver programado pelo dev. O FluxStack só define o CONTRATO (`CacheDriver`);
+ * o dev implementa o storage que quiser (qualquer um — `class MeuDriver
+ * implements CacheDriver {}`) e o injeta aqui, em código:
+ *
+ *   import { setRscCacheDriver } from '@core/plugins/built-in/rsc'
+ *   setRscCacheDriver(new MeuDriver())   // antes de framework.use(rscPlugin)
+ *
+ * Se não for setado, usa o driver de cache padrão do app (memory). O framework
+ * é neutro: não conhece Redis/Memcached/etc — é escolha de cada dev.
+ */
+let customDriver: CacheDriver | null = null
+
+/** Programa o driver de cache de página. Aceita qualquer `CacheDriver`. */
+export function setRscCacheDriver(driver: CacheDriver | null): void {
+  customDriver = driver
+}
+
+/** Resolve o driver: o programado pelo dev, senão o padrão do app (memory). */
+function pageStore(): CacheDriver {
+  return customDriver ?? cacheManager.driver()
+}
+
+const SESSION_COOKIE = (sessionConfig as { cookieName?: string }).cookieName ?? 'fluxstack_session'
+
+/** A request is cacheable only when public + GET + no query + no auth session. */
+function isCacheable(ctx: RequestContext): boolean {
+  if (!CACHE_ENABLED) return false
+  const url = new URL(absoluteUrl(ctx))
+  if (url.search !== '') return false // query string → dynamic, don't cache
+  const cookie = ctx.request.headers.get('cookie') ?? ''
+  if (cookie.includes(`${SESSION_COOKIE}=`)) return false // authenticated → per-user content
+  const cc = ctx.request.headers.get('cache-control') ?? ''
+  if (cc.includes('no-store')) return false
+  return true
+}
+
+/** Set-Cookie do CSRF token quando o usuário ainda não tem (1ª visita). O token
+ *  vai SÓ no cookie (não no HTML), então o cookie é setado por-request mesmo
+ *  servindo HTML cacheado — é o que mantém o token único por usuário. */
+function csrfSetCookie(ctx: RequestContext): string | null {
+  const cookie = ctx.request.headers.get('cookie') ?? ''
+  if (new RegExp(`${CSRF_COOKIE}=`).test(cookie)) return null // já tem
+  const secure = new URL(absoluteUrl(ctx)).protocol === 'https:'
+  return buildCsrfCookie(generateCsrfToken(), secure)
+}
+
+/** Build a Response from a user-agnostic cached page. Public Cache-Control so a
+ *  CDN can serve it; the per-user CSRF cookie is set separately per-request.
+ *  `ttl` (segundos) controla o s-maxage do CDN (override por página). */
+function serveCached(
+  ctx: RequestContext,
+  entry: { html: string; etag: string; contentType: string },
+  isRscNav: boolean,
+  ttl: number = CDN_MAX_AGE,
+): Response {
+  const headers: Record<string, string> = {
+    'Content-Type': entry.contentType,
+    ETag: entry.etag,
+    // User-agnostic HTML → cacheable by shared caches/CDN. `s-maxage` é o TTL do
+    // CDN; `stale-while-revalidate` serve stale enquanto revalida em background.
+    'Cache-Control': `public, s-maxage=${ttl}, stale-while-revalidate=${SWR}` +
+      (BROWSER_MAX_AGE > 0 ? `, max-age=${BROWSER_MAX_AGE}` : ''),
+  }
+  if (ctx.request.headers.get('if-none-match') === entry.etag) {
+    return new Response(null, { status: 304, headers })
+  }
+  // O cookie do CSRF NÃO faz parte do corpo cacheado — setado por-request aqui.
+  const setCookie = isRscNav ? null : csrfSetCookie(ctx)
+  if (setCookie) headers['Set-Cookie'] = setCookie
+  return new Response(entry.html, { headers })
+}
+
+/** Resposta dinâmica (página optou por 'off'): não cacheável por ninguém. */
+function withNoStore(response: Response): Response {
+  const headers = new Headers(response.headers)
+  headers.delete('x-rsc-cache')
+  headers.set('Cache-Control', 'private, no-store')
+  return new Response(response.body, { status: response.status, headers })
+}
 
 const PLUGIN_PRIORITY = 860 // > ssr (850) > vite (800)
 const IS_DEV = isDevelopment()
@@ -144,6 +238,19 @@ export const rscPlugin: Plugin = {
       const handler = await getHandler()
       if (!handler) return // sem handler → fallback
 
+      const cacheable = isCacheable(ctx)
+      const { key, isRscNav } = normalizeCacheKey(ctx.path)
+
+      // Cache HIT: serve the user-agnostic cached page (CSRF cookie set per-request).
+      if (cacheable) {
+        const hit = await pageStore().get<CachedPage>(key)
+        if (hit) {
+          ctx.handled = true
+          ctx.response = serveCached(ctx, hit, isRscNav)
+          return
+        }
+      }
+
       // Cold-start (dev): a 1ª render pode suspender enquanto o grafo client
       // carrega; um retry cobre. Em prod o handler já está pronto (1 tentativa).
       const attempts = IS_DEV ? 2 : 1
@@ -163,8 +270,30 @@ export const rscPlugin: Plugin = {
         }
       }
       if (response) {
-        ctx.handled = true
-        ctx.response = response
+        // Override por página (estilo Next): a página pode setar 'x-rsc-cache'.
+        //   'off'      → nunca cacheia esta rota (mesmo sendo pública)
+        //   'ttl:<n>'  → cacheia com TTL custom
+        //   ausente    → comportamento padrão (cacheia se `cacheable`, TTL default)
+        const { off: pageOff, ttl: pageTtl } = parseCacheDirective(response.headers.get('x-rsc-cache'))
+
+        if (cacheable && !pageOff) {
+          // MISS: materialize the stream (HTML is user-agnostic — no token in it),
+          // cache it via the pluggable driver, then serve. Skip caching huge renders.
+          const html = await response.text()
+          const contentType = response.headers.get('content-type') || (isRscNav ? 'text/x-component;charset=utf-8' : 'text/html')
+          const entry = makeCachedPage(html, contentType)
+          const ttl = pageTtl && pageTtl > 0 ? pageTtl : CACHE_TTL
+          if (Buffer.byteLength(html, 'utf8') <= MAX_ENTRY_BYTES) {
+            await pageStore().set<CachedPage>(key, entry, ttl)
+          }
+          ctx.handled = true
+          ctx.response = serveCached(ctx, entry, isRscNav, ttl)
+        } else {
+          // Não-cacheável (query/sessão) OU a página optou por 'off' → resposta
+          // dinâmica: dynamic Cache-Control e sem armazenar.
+          ctx.handled = true
+          ctx.response = pageOff ? withNoStore(response) : response
+        }
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)

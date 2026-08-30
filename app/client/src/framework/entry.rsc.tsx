@@ -2,34 +2,43 @@
 import { renderToReadableStream } from '@vitejs/plugin-rsc/rsc'
 import { RscDocument } from './RscRoot'
 import { generateCsrfToken, buildCsrfCookie, CSRF_COOKIE } from './csrf'
+import { matchRoute } from './routes'
+
+/** Diretiva de cache da página → header lido pelo rscPlugin (override estilo Next).
+ *  'off' = não cacheia esta rota; 'ttl:<n>' = cacheia com TTL custom. */
+function cacheDirectiveHeader(pathname: string): string | null {
+  const c = matchRoute(pathname)?.route.cache
+  if (c === false) return 'off'
+  if (c && typeof c === 'object' && typeof c.revalidate === 'number') return `ttl:${c.revalidate}`
+  return null // sem diretiva → comportamento padrão do plugin
+}
 
 export default async function handler(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const isRscNav = url.pathname.endsWith('.rsc')
   const pathname = url.pathname.replace(/\.rsc$/, '') || '/'
 
-  // CSRF via SSR: reusa o token do cookie se já existe; senão gera um novo.
-  // O token vai como <meta name="csrf-token"> no HTML, então o client não
-  // precisa fazer fetch('/api/__csrf') — nasce com o token (zero round-trip).
+  // CSRF via SSR (model Next): o token vai SÓ no cookie XSRF-TOKEN (não no HTML),
+  // então o HTML é user-agnostic e cacheável. O client lê o token do cookie.
+  // Geramos/setamos o cookie quando ainda não existe.
   const cookieHeader = request.headers.get('cookie') ?? ''
   const existing = cookieHeader.match(new RegExp(`${CSRF_COOKIE}=([^;]+)`))?.[1]
-  const csrfToken = existing ?? generateCsrfToken()
 
-  // SRI-style integrity for plugin client-hooks: embed the hash of the legitimate
-  // hooks in the trusted SSR HTML so the client can reject a tampered HTTP payload.
-  // The hash is computed by the rscPlugin in the Elysia process (where the hooks
-  // are registered) and passed via header — the RSC entry runs in an isolated
-  // module environment where the pluginClientHooks singleton would be empty.
+  // O hash dos plugin client-hooks (SRI) é estável e vem via header do rscPlugin
+  // (o entry roda em ambiente isolado onde o singleton de hooks está vazio).
   const pluginHooksHash = request.headers.get('x-plugin-hooks-hash') ?? undefined
 
+  // Diretiva de cache declarada pela página (override) → header pro rscPlugin.
+  const cacheDirective = cacheDirectiveHeader(pathname)
+
   const rscStream = renderToReadableStream(
-    <RscDocument pathname={pathname} csrfToken={csrfToken} pluginHooksHash={pluginHooksHash} />,
+    <RscDocument pathname={pathname} pluginHooksHash={pluginHooksHash} />,
   )
 
   if (isRscNav) {
-    return new Response(rscStream, {
-      headers: { 'Content-type': 'text/x-component;charset=utf-8' },
-    })
+    const headers: Record<string, string> = { 'Content-type': 'text/x-component;charset=utf-8' }
+    if (cacheDirective) headers['x-rsc-cache'] = cacheDirective
+    return new Response(rscStream, { headers })
   }
 
   const ssrEntry = await import.meta.viteRsc.loadModule<
@@ -38,9 +47,10 @@ export default async function handler(request: Request): Promise<Response> {
   const htmlStream = await ssrEntry.handleSsr(rscStream)
 
   const headers: Record<string, string> = { 'Content-type': 'text/html' }
+  if (cacheDirective) headers['x-rsc-cache'] = cacheDirective
   if (!existing) {
-    // Seta o cookie só na primeira vez (secure em https).
-    headers['Set-Cookie'] = buildCsrfCookie(csrfToken, url.protocol === 'https:')
+    // 1ª visita: emite um token novo via Set-Cookie (secure em https).
+    headers['Set-Cookie'] = buildCsrfCookie(generateCsrfToken(), url.protocol === 'https:')
   }
   return new Response(htmlStream, { headers })
 }

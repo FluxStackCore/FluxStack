@@ -24,10 +24,20 @@ export interface PageProps {
   params: RouteParams
 }
 
+/**
+ * Diretiva de cache de página (override estilo Next). Por padrão o FluxStack
+ * cacheia rotas públicas GET; uma página pode ajustar/desligar isso:
+ *   export const cache = false                  // nunca cacheia esta rota
+ *   export const cache = { revalidate: 120 }    // cacheia com TTL custom (s)
+ */
+export type PageCacheDirective = false | { revalidate?: number }
+
 export interface PageModule {
   default: ComponentType<PageProps>
   title?: string
   nav?: boolean | string
+  /** Override de cache por página (ver PageCacheDirective). */
+  cache?: PageCacheDirective
 }
 
 export interface RouteEntry {
@@ -43,6 +53,8 @@ export interface RouteEntry {
   paramNames: { name: string; catchAll: boolean }[]
   /** true se a rota tem segmentos dinâmicos */
   dynamic: boolean
+  /** Override de cache declarado pela página (undefined = comportamento padrão). */
+  cache?: PageCacheDirective
 }
 
 const allModules = import.meta.glob<PageModule>('../pages/**/*.tsx', { eager: true })
@@ -103,7 +115,7 @@ export const routes: RouteEntry[] = Object.entries(modules)
     const title = mod.title ?? deriveTitle(path)
     const inNav = mod.nav !== false && !dynamic // rotas dinâmicas não vão na navbar por padrão
     const navLabel = typeof mod.nav === 'string' ? mod.nav : title
-    return { path, Component: mod.default, title, inNav, navLabel, matcher, paramNames, dynamic }
+    return { path, Component: mod.default, title, inNav, navLabel, matcher, paramNames, dynamic, cache: mod.cache }
   })
   // ESTÁTICAS antes de DINÂMICAS (senão /blog/novo casaria /blog/:slug antes de /blog/novo);
   // entre estáticas, / primeiro depois alfabético.
